@@ -27,7 +27,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.Property(p => p.Cuit).HasMaxLength(20);
             e.Property(p => p.Email).HasMaxLength(200);
             e.Property(p => p.Telefono).HasMaxLength(50);
+            e.Property(p => p.Telefono2).HasMaxLength(50);
             e.Property(p => p.Direccion).HasMaxLength(300);
+            e.Property(p => p.CBU).HasMaxLength(50);
+            e.Property(p => p.Notas).HasMaxLength(1000);
         });
 
         builder.Entity<Inquilino>(e =>
@@ -39,7 +42,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.Property(i => i.Cuit).HasMaxLength(20);
             e.Property(i => i.Email).HasMaxLength(200);
             e.Property(i => i.Telefono).HasMaxLength(50);
+            e.Property(i => i.Telefono2).HasMaxLength(50);
             e.Property(i => i.Direccion).HasMaxLength(300);
+            e.Property(i => i.Ocupacion).HasMaxLength(100);
+            e.Property(i => i.NombreGarante).HasMaxLength(200);
+            e.Property(i => i.TelefonoGarante).HasMaxLength(50);
+            e.Property(i => i.DniGarante).HasMaxLength(20);
+            e.Property(i => i.Notas).HasMaxLength(1000);
         });
 
         builder.Entity<Propiedad>(e =>
@@ -52,9 +61,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.Property(p => p.Piso).HasMaxLength(10);
             e.Property(p => p.NumeroDepartamento).HasMaxLength(20);
             e.Property(p => p.PrecioAlquiler).HasColumnType("decimal(18,2)");
+            e.Property(p => p.Expensas).HasColumnType("decimal(18,2)");
             e.Property(p => p.SuperficieTotal).HasColumnType("decimal(10,2)");
             e.Property(p => p.SuperficieCubierta).HasColumnType("decimal(10,2)");
+            e.Property(p => p.NroCatastro).HasMaxLength(100);
             e.Property(p => p.Descripcion).HasMaxLength(1000);
+            e.Property(p => p.Notas).HasMaxLength(1000);
             e.HasOne(p => p.Propietario)
              .WithMany(o => o.Propiedades)
              .HasForeignKey(p => p.PropietarioId)

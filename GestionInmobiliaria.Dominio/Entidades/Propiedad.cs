@@ -18,6 +18,14 @@ public enum EstadoPropiedad
     NoDisponible = 4
 }
 
+public enum EstadoConservacion
+{
+    Excelente = 1,
+    Bueno = 2,
+    Regular = 3,
+    ARefaccionar = 4
+}
+
 public class Propiedad : IAuditable
 {
     public int Id { get; set; }
@@ -34,8 +42,16 @@ public class Propiedad : IAuditable
     public string? Piso { get; set; }
     public string? NumeroDepartamento { get; set; }
     public decimal PrecioAlquiler { get; set; }
+    public decimal? Expensas { get; set; }
     public EstadoPropiedad Estado { get; set; } = EstadoPropiedad.Disponible;
+    public EstadoConservacion? EstadoConservacion { get; set; }
+    public bool Cochera { get; set; } = false;
+    public int? Antiguedad { get; set; }
+    public bool TieneCalefaccion { get; set; } = false;
+    public bool AceptaMascotas { get; set; } = false;
+    public string? NroCatastro { get; set; }
     public string? Descripcion { get; set; }
+    public string? Notas { get; set; }
     public bool Activo { get; set; } = true;
     public DateTime FechaCreacion { get; set; }
     public DateTime FechaActualizacion { get; set; }
