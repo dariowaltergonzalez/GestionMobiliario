@@ -1,0 +1,77 @@
+### ============================================
+### AUTH - GestionInmobiliaria
+### ============================================
+
+@baseUrl = http://localhost:5000
+@token = TU_TOKEN_AQUI
+
+### 1. Registrar usuario Admin
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "admin@inmobiliaria.com",
+  "password": "Admin123!",
+  "nombre": "Admin",
+  "apellido": "Sistema",
+  "rol": "Admin"
+}
+
+###
+
+### 2. Registrar usuario Operador
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "operador@inmobiliaria.com",
+  "password": "Operador123!",
+  "nombre": "Juan",
+  "apellido": "Pérez",
+  "rol": "Operador"
+}
+
+###
+
+### 3. Login Admin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@inmobiliaria.com",
+  "password": "Admin123!"
+}
+
+###
+
+### 4. Login Operador
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "operador@inmobiliaria.com",
+  "password": "Operador123!"
+}
+
+###
+
+### 5. Refresh token
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "TU_REFRESH_TOKEN_AQUI"
+}
+
+###
+
+### 6. Logout
+POST {{baseUrl}}/api/auth/logout
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "refreshToken": "TU_REFRESH_TOKEN_AQUI"
+}
+
+###

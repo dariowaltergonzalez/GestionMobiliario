@@ -1,0 +1,109 @@
+### ============================================
+### CRUD DE INQUILINOS - GestionInmobiliaria
+### ============================================
+### Obtener token desde Auth.http -> Login
+
+@baseUrl = http://localhost:5000
+@token = TU_TOKEN_AQUI
+
+### ============================================
+### CONSULTAS (READ)
+### ============================================
+
+### 1. Obtener todos los inquilinos
+GET {{baseUrl}}/api/inquilinos
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 2. Filtrar por nombre/apellido
+GET {{baseUrl}}/api/inquilinos?buscar=rodriguez
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 3. Solo activos
+GET {{baseUrl}}/api/inquilinos?activo=true
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 4. Obtener inquilino por ID
+GET {{baseUrl}}/api/inquilinos/1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### ============================================
+### CREAR (POST)
+### ============================================
+
+### 5. Crear inquilino completo
+POST {{baseUrl}}/api/inquilinos
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "nombre": "Lucas",
+  "apellido": "Rodríguez",
+  "dni": "38456789",
+  "cuit": "20-38456789-5",
+  "email": "lucas.rodriguez@gmail.com",
+  "telefono": "11-3456-7890",
+  "telefono2": "11-8765-4321",
+  "direccion": "Calle Falsa 123, Buenos Aires",
+  "ocupacion": "Empleado bancario",
+  "nombreGarante": "Roberto Rodríguez",
+  "telefonoGarante": "11-2233-4455",
+  "dniGarante": "18234567",
+  "notas": "Buen historial crediticio. Garante es su padre."
+}
+
+###
+
+### 6. Crear inquilino mínimo
+POST {{baseUrl}}/api/inquilinos
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "nombre": "Ana",
+  "apellido": "Martínez"
+}
+
+###
+
+### ============================================
+### ACTUALIZAR (PUT)
+### ============================================
+
+### 7. Actualizar inquilino
+PUT {{baseUrl}}/api/inquilinos/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "nombre": "Lucas",
+  "apellido": "Rodríguez",
+  "dni": "38456789",
+  "email": "lucas.nuevo@gmail.com",
+  "telefono": "11-3456-7890",
+  "ocupacion": "Gerente de ventas",
+  "notas": "Actualizado - cambió de trabajo"
+}
+
+###
+
+### ============================================
+### ELIMINAR (DELETE - baja lógica)
+### ============================================
+
+### 8. Dar de baja inquilino
+DELETE {{baseUrl}}/api/inquilinos/1
+Authorization: Bearer {{token}}
+
+###

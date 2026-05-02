@@ -1,0 +1,184 @@
+### ============================================
+### CRUD DE PROPIEDADES - GestionInmobiliaria
+### ============================================
+### Obtener token desde Auth.http -> Login
+### Tipos: 1=Departamento, 2=Casa, 3=Local, 4=Oficina, 5=Terreno, 6=Otro
+### Estados: 1=Disponible, 2=Alquilada, 3=EnMantenimiento, 4=NoDisponible
+### EstadoConservacion: 1=Excelente, 2=Bueno, 3=Regular, 4=ARefaccionar
+
+@baseUrl = http://localhost:5000
+@token = TU_TOKEN_AQUI
+
+### ============================================
+### CONSULTAS (READ)
+### ============================================
+
+### 1. Obtener todas las propiedades
+GET {{baseUrl}}/api/propiedades
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 2. Filtrar por tipo (1=Departamento)
+GET {{baseUrl}}/api/propiedades?tipo=1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 3. Filtrar por estado (1=Disponible)
+GET {{baseUrl}}/api/propiedades?estado=1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 4. Filtrar por propietario
+GET {{baseUrl}}/api/propiedades?propietarioId=1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 5. Buscar por dirección/barrio
+GET {{baseUrl}}/api/propiedades?buscar=palermo
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 6. Obtener propiedad por ID
+GET {{baseUrl}}/api/propiedades/1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### ============================================
+### CREAR (POST)
+### ============================================
+
+### 7. Crear departamento completo
+POST {{baseUrl}}/api/propiedades
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "tipo": 1,
+  "direccion": "Av. Corrientes 2500",
+  "barrio": "Balvanera",
+  "ciudad": "Buenos Aires",
+  "provincia": "Buenos Aires",
+  "piso": "3",
+  "numeroDepartamento": "B",
+  "ambientes": 3,
+  "dormitorios": 2,
+  "banios": 1,
+  "superficieTotal": 65.5,
+  "superficieCubierta": 60.0,
+  "precioAlquiler": 250000,
+  "expensas": 35000,
+  "estado": 1,
+  "estadoConservacion": 2,
+  "cochera": false,
+  "antiguedad": 15,
+  "tieneCalefaccion": true,
+  "aceptaMascotas": false,
+  "nroCatastro": "03-12-045-0123-0001",
+  "descripcion": "Departamento luminoso con balcón. Ideal para pareja o familia pequeña.",
+  "notas": "Ingreso por portería. Horario de visita: lunes a viernes 10-18hs.",
+  "propietarioId": 1
+}
+
+###
+
+### 8. Crear casa completa
+POST {{baseUrl}}/api/propiedades
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "tipo": 2,
+  "direccion": "Calle Los Aromos 456",
+  "barrio": "Palermo",
+  "ciudad": "Buenos Aires",
+  "provincia": "Buenos Aires",
+  "ambientes": 5,
+  "dormitorios": 3,
+  "banios": 2,
+  "superficieTotal": 180.0,
+  "superficieCubierta": 150.0,
+  "precioAlquiler": 500000,
+  "expensas": 0,
+  "estado": 1,
+  "estadoConservacion": 1,
+  "cochera": true,
+  "antiguedad": 8,
+  "tieneCalefaccion": true,
+  "aceptaMascotas": true,
+  "descripcion": "Casa con jardín y cochera doble.",
+  "propietarioId": 1
+}
+
+###
+
+### 9. Crear propiedad mínima
+POST {{baseUrl}}/api/propiedades
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "tipo": 3,
+  "direccion": "Av. Rivadavia 1000",
+  "precioAlquiler": 150000,
+  "propietarioId": 1
+}
+
+###
+
+### ============================================
+### ACTUALIZAR (PUT)
+### ============================================
+
+### 10. Actualizar propiedad
+PUT {{baseUrl}}/api/propiedades/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "tipo": 1,
+  "direccion": "Av. Corrientes 2500",
+  "barrio": "Balvanera",
+  "ciudad": "Buenos Aires",
+  "provincia": "Buenos Aires",
+  "piso": "3",
+  "numeroDepartamento": "B",
+  "ambientes": 3,
+  "dormitorios": 2,
+  "banios": 1,
+  "superficieTotal": 65.5,
+  "superficieCubierta": 60.0,
+  "precioAlquiler": 280000,
+  "expensas": 38000,
+  "estado": 1,
+  "estadoConservacion": 2,
+  "cochera": false,
+  "antiguedad": 15,
+  "tieneCalefaccion": true,
+  "aceptaMascotas": false,
+  "descripcion": "Precio actualizado.",
+  "propietarioId": 1
+}
+
+###
+
+### ============================================
+### ELIMINAR (DELETE - baja lógica)
+### ============================================
+
+### 11. Dar de baja propiedad
+DELETE {{baseUrl}}/api/propiedades/1
+Authorization: Bearer {{token}}
+
+###

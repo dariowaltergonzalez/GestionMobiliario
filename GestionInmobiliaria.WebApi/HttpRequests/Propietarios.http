@@ -1,0 +1,109 @@
+### ============================================
+### CRUD DE PROPIETARIOS - GestionInmobiliaria
+### ============================================
+### Obtener token desde Auth.http -> Login
+
+@baseUrl = http://localhost:5000
+@token = TU_TOKEN_AQUI
+
+### ============================================
+### CONSULTAS (READ)
+### ============================================
+
+### 1. Obtener todos los propietarios
+GET {{baseUrl}}/api/propietarios
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 2. Filtrar por nombre/apellido
+GET {{baseUrl}}/api/propietarios?buscar=garcia
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 3. Solo activos
+GET {{baseUrl}}/api/propietarios?activo=true
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 4. Obtener propietario por ID
+GET {{baseUrl}}/api/propietarios/1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### ============================================
+### CREAR (POST)
+### ============================================
+
+### 5. Crear propietario completo
+POST {{baseUrl}}/api/propietarios
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "nombre": "Carlos",
+  "apellido": "García",
+  "dni": "25123456",
+  "cuit": "20-25123456-3",
+  "email": "carlos.garcia@gmail.com",
+  "telefono": "11-4567-8901",
+  "telefono2": "11-9876-5432",
+  "direccion": "Av. Corrientes 1234, CABA",
+  "cbu": "0000003100012345678901",
+  "notas": "Propietario puntual, prefiere contacto por WhatsApp"
+}
+
+###
+
+### 6. Crear propietario mínimo
+POST {{baseUrl}}/api/propietarios
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "nombre": "María",
+  "apellido": "López"
+}
+
+###
+
+### ============================================
+### ACTUALIZAR (PUT)
+### ============================================
+
+### 7. Actualizar propietario
+PUT {{baseUrl}}/api/propietarios/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "nombre": "Carlos",
+  "apellido": "García",
+  "dni": "25123456",
+  "cuit": "20-25123456-3",
+  "email": "carlos.garcia@hotmail.com",
+  "telefono": "11-4567-8901",
+  "telefono2": "11-1111-2222",
+  "direccion": "Av. Santa Fe 5678, CABA",
+  "cbu": "0000003100012345678901",
+  "notas": "Actualizado"
+}
+
+###
+
+### ============================================
+### ELIMINAR (DELETE - baja lógica)
+### ============================================
+
+### 8. Dar de baja propietario
+DELETE {{baseUrl}}/api/propietarios/1
+Authorization: Bearer {{token}}
+
+###
