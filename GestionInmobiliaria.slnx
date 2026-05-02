@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="GestionInmobiliaria.Aplicacion/GestionInmobiliaria.Aplicacion.csproj" />
+  <Project Path="GestionInmobiliaria.Dominio/GestionInmobiliaria.Dominio.csproj" />
+  <Project Path="GestionInmobiliaria.Infraestructura/GestionInmobiliaria.Infraestructura.csproj" />
+  <Project Path="GestionInmobiliaria.WebApi/GestionInmobiliaria.WebApi.csproj" />
+</Solution>
