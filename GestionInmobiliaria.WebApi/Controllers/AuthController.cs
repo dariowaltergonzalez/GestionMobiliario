@@ -128,6 +128,40 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Sesión cerrada correctamente." });
     }
 
+    [HttpPut("profile")]
+    [Authorize]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var user = await _userManager.FindByIdAsync(userId!);
+        if (user is null)
+            return NotFound(new { message = "Usuario no encontrado." });
+
+        if (string.IsNullOrWhiteSpace(request.Nombre) || string.IsNullOrWhiteSpace(request.Apellido))
+            return BadRequest(new { message = "Nombre y apellido son requeridos." });
+
+        user.Nombre = request.Nombre;
+        user.Apellido = request.Apellido;
+        await _userManager.UpdateAsync(user);
+
+        return Ok(new { message = "Perfil actualizado correctamente." });
+    }
+
+    [HttpPatch("usuarios/{id}/activo")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> CambiarActivo(string id, [FromBody] CambiarActivoRequest request)
+    {
+        var user = await _userManager.FindByIdAsync(id);
+        if (user is null)
+            return NotFound(new { message = "Usuario no encontrado." });
+
+        user.Activo = request.Activo;
+        await _userManager.UpdateAsync(user);
+
+        var estado = request.Activo ? "activado" : "desactivado";
+        return Ok(new { message = $"Usuario {estado} correctamente." });
+    }
+
     private string GenerarAccessToken(ApplicationUser user, IList<string> roles)
     {
         var claims = new List<Claim>
@@ -173,6 +207,8 @@ public class AuthController : ControllerBase
 public record RegisterRequest(string Email, string Password, string Nombre, string Apellido, string? Rol);
 public record LoginRequest(string Email, string Password);
 public record RefreshRequest(string RefreshToken);
+public record UpdateProfileRequest(string Nombre, string Apellido);
+public record CambiarActivoRequest(bool Activo);
 public record TokenResponse
 {
     public string AccessToken { get; init; } = string.Empty;

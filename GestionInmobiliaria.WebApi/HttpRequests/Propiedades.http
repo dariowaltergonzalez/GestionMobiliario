@@ -6,7 +6,7 @@
 ### Estados: 1=Disponible, 2=Alquilada, 3=EnMantenimiento, 4=NoDisponible
 ### EstadoConservacion: 1=Excelente, 2=Bueno, 3=Regular, 4=ARefaccionar
 
-@baseUrl = http://localhost:5000
+@baseUrl = http://localhost:5005
 @token = TU_TOKEN_AQUI
 
 ### ============================================
