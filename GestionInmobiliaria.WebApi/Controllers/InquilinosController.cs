@@ -1,4 +1,5 @@
 using GestionInmobiliaria.Aplicacion.DTOs;
+using GestionInmobiliaria.Dominio.Common;
 using GestionInmobiliaria.Dominio.Entidades;
 using GestionInmobiliaria.Dominio.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -16,29 +17,33 @@ public class InquilinosController : ControllerBase
     public InquilinosController(IInquilinoRepository repo) => _repo = repo;
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] string? buscar, [FromQuery] bool? activo)
+    public async Task<IActionResult> GetAll(
+        [FromQuery] PaginationParams paginacion,
+        [FromQuery] string? buscar,
+        [FromQuery] bool? activo)
     {
-        var lista = await _repo.GetAllAsync(buscar, activo);
-        var dtos = lista.Select(i => new InquilinoDto
+        var resultado = await _repo.GetPagedAsync(paginacion, buscar, activo);
+        var paginado = new PagedResult<InquilinoDto>
+        {
+            Items = resultado.Items.Select(MapToDto).ToList(),
+            Pagina = resultado.Pagina,
+            Tamano = resultado.Tamano,
+            TotalRegistros = resultado.TotalRegistros,
+            TotalPaginas = resultado.TotalPaginas
+        };
+        return Ok(ApiResponse<PagedResult<InquilinoDto>>.Ok(paginado));
+    }
+
+    [HttpGet("activos")]
+    public async Task<IActionResult> GetActivos()
+    {
+        var lista = await _repo.GetActivosAsync();
+        var dtos = lista.Select(i => new InquilinoComboDto
         {
             Id = i.Id,
-            Nombre = i.Nombre,
-            Apellido = i.Apellido,
-            Dni = i.Dni,
-            Cuit = i.Cuit,
-            Email = i.Email,
-            Telefono = i.Telefono,
-            Telefono2 = i.Telefono2,
-            Direccion = i.Direccion,
-            Ocupacion = i.Ocupacion,
-            NombreGarante = i.NombreGarante,
-            TelefonoGarante = i.TelefonoGarante,
-            DniGarante = i.DniGarante,
-            Notas = i.Notas,
-            Activo = i.Activo,
-            FechaCreacion = i.FechaCreacion
+            NombreCompleto = $"{i.Apellido}, {i.Nombre}"
         });
-        return Ok(ApiResponse<IEnumerable<InquilinoDto>>.Ok(dtos));
+        return Ok(ApiResponse<IEnumerable<InquilinoComboDto>>.Ok(dtos));
     }
 
     [HttpGet("{id}")]
@@ -46,27 +51,7 @@ public class InquilinosController : ControllerBase
     {
         var i = await _repo.GetByIdAsync(id);
         if (i is null) return NotFound(ApiResponse<InquilinoDto>.Fail("Inquilino no encontrado."));
-
-        var dto = new InquilinoDto
-        {
-            Id = i.Id,
-            Nombre = i.Nombre,
-            Apellido = i.Apellido,
-            Dni = i.Dni,
-            Cuit = i.Cuit,
-            Email = i.Email,
-            Telefono = i.Telefono,
-            Telefono2 = i.Telefono2,
-            Direccion = i.Direccion,
-            Ocupacion = i.Ocupacion,
-            NombreGarante = i.NombreGarante,
-            TelefonoGarante = i.TelefonoGarante,
-            DniGarante = i.DniGarante,
-            Notas = i.Notas,
-            Activo = i.Activo,
-            FechaCreacion = i.FechaCreacion
-        };
-        return Ok(ApiResponse<InquilinoDto>.Ok(dto));
+        return Ok(ApiResponse<InquilinoDto>.Ok(MapToDto(i)));
     }
 
     [HttpPost]
@@ -132,4 +117,24 @@ public class InquilinosController : ControllerBase
         if (!ok) return NotFound(ApiResponse<object>.Fail("Inquilino no encontrado."));
         return Ok(ApiResponse<object>.Ok(null, "Inquilino dado de baja correctamente."));
     }
+
+    private static InquilinoDto MapToDto(Inquilino i) => new()
+    {
+        Id = i.Id,
+        Nombre = i.Nombre,
+        Apellido = i.Apellido,
+        Dni = i.Dni,
+        Cuit = i.Cuit,
+        Email = i.Email,
+        Telefono = i.Telefono,
+        Telefono2 = i.Telefono2,
+        Direccion = i.Direccion,
+        Ocupacion = i.Ocupacion,
+        NombreGarante = i.NombreGarante,
+        TelefonoGarante = i.TelefonoGarante,
+        DniGarante = i.DniGarante,
+        Notas = i.Notas,
+        Activo = i.Activo,
+        FechaCreacion = i.FechaCreacion
+    };
 }

@@ -1,4 +1,5 @@
 using GestionInmobiliaria.Aplicacion.DTOs;
+using GestionInmobiliaria.Dominio.Common;
 using GestionInmobiliaria.Dominio.Entidades;
 using GestionInmobiliaria.Dominio.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -22,14 +23,37 @@ public class PropiedadesController : ControllerBase
 
     [HttpGet]
     public async Task<IActionResult> GetAll(
+        [FromQuery] PaginationParams paginacion,
         [FromQuery] string? buscar,
         [FromQuery] TipoPropiedad? tipo,
         [FromQuery] EstadoPropiedad? estado,
         [FromQuery] int? propietarioId)
     {
-        var lista = await _repo.GetAllAsync(buscar, tipo, estado, propietarioId);
-        var dtos = lista.Select(MapToDto);
-        return Ok(ApiResponse<IEnumerable<PropiedadDto>>.Ok(dtos));
+        var resultado = await _repo.GetPagedAsync(paginacion, buscar, tipo, estado, propietarioId);
+        var paginado = new PagedResult<PropiedadDto>
+        {
+            Items = resultado.Items.Select(MapToDto).ToList(),
+            Pagina = resultado.Pagina,
+            Tamano = resultado.Tamano,
+            TotalRegistros = resultado.TotalRegistros,
+            TotalPaginas = resultado.TotalPaginas
+        };
+        return Ok(ApiResponse<PagedResult<PropiedadDto>>.Ok(paginado));
+    }
+
+    [HttpGet("disponibles")]
+    public async Task<IActionResult> GetDisponibles()
+    {
+        var lista = await _repo.GetDisponiblesAsync();
+        var dtos = lista.Select(p => new PropiedadComboDto
+        {
+            Id = p.Id,
+            Direccion = p.Direccion,
+            TipoNombre = p.Tipo.ToString(),
+            PrecioAlquiler = p.PrecioAlquiler,
+            PropietarioNombre = $"{p.Propietario.Apellido}, {p.Propietario.Nombre}"
+        });
+        return Ok(ApiResponse<IEnumerable<PropiedadComboDto>>.Ok(dtos));
     }
 
     [HttpGet("{id}")]

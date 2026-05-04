@@ -1,0 +1,42 @@
+### ============================================
+### CONFIGURACION EMPRESA - GestionInmobiliaria
+### ============================================
+### Obtener token desde Auth.http -> Login
+
+@baseUrl = http://localhost:5005
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjI3YzY0ZGU5LTFlNTgtNDE0Yi04Y2ZkLTU2MDlkNTkyZTU2ZiIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL2VtYWlsYWRkcmVzcyI6ImFkbWluQGlubW9iaWxpYXJpYS5jb20iLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiRGFyaW8gR29uemFsZXoiLCJqdGkiOiI1YTQxZmRjOS0xOGRkLTQ2YzItOWUyYy0xYTg0Njk3MmI1YTQiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImV4cCI6MTc3NzkyODU5OSwiaXNzIjoiR2VzdGlvbklubW9iaWxpYXJpYSIsImF1ZCI6Ikdlc3Rpb25Jbm1vYmlsaWFyaWEifQ.esBBJfMnT19RJebNOxP0h86adip0DROyWJRWvp74fXE
+
+### 1. Obtener configuración actual
+GET {{baseUrl}}/api/configuracion
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 2. Guardar / actualizar configuración (solo Admin)
+PUT {{baseUrl}}/api/configuracion
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "nombreComercial": "Inmobiliaria del Sur",
+  "razonSocial": "Inmobiliaria del Sur S.R.L.",
+  "cuit": "30-12345678-9",
+  "condicionFiscal": "Responsable Inscripto",
+  "logoUrl": "https://mi-sitio.com/logo.png",
+  "slogan": "Tu hogar, nuestra prioridad",
+  "telefono": "11-4567-8901",
+  "whatsApp": "1145678901",
+  "email": "contacto@inmobiliariadelsur.com",
+  "sitioWeb": "https://www.inmobiliariadelsur.com",
+  "direccion": "Av. Corrientes 1234, Piso 3",
+  "ciudad": "Buenos Aires",
+  "provincia": "Buenos Aires",
+  "codigoPostal": "1043",
+  "pais": "Argentina",
+  "instagram": "https://instagram.com/inmobiliariadelsur",
+  "facebook": "https://facebook.com/inmobiliariadelsur",
+  "twitter": "https://twitter.com/inmodelsur"
+}
+
+###

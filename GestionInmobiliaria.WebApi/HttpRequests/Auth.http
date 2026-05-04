@@ -82,8 +82,8 @@ Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-  "nombre": "Administrador",
-  "apellido": "Principal"
+  "nombre": "Dario",
+  "apellido": "Gonzalez"
 }
 
 ###

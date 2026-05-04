@@ -56,6 +56,9 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<IPropietarioRepository, PropietarioRepository>();
 builder.Services.AddScoped<IInquilinoRepository, InquilinoRepository>();
 builder.Services.AddScoped<IPropiedadRepository, PropiedadRepository>();
+builder.Services.AddScoped<IAgenteRepository, AgenteRepository>();
+
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddControllers();
 

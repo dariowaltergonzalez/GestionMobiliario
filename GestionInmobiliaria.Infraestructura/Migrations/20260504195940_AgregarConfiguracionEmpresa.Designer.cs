@@ -4,6 +4,7 @@ using GestionInmobiliaria.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GestionInmobiliaria.Infraestructura.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260504195940_AgregarConfiguracionEmpresa")]
+    partial class AgregarConfiguracionEmpresa
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,51 +24,6 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.Agente", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("Activo")
-                        .HasColumnType("bit");
-
-                    b.Property<decimal>("ComisionPorcentaje")
-                        .HasColumnType("decimal(5,2)");
-
-                    b.Property<DateTime>("FechaActualizacion")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("FechaCreacion")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Notas")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("TelefonoInterno")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("Zona")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId")
-                        .IsUnique();
-
-                    b.ToTable("Agentes");
-                });
 
             modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.ApplicationUser", b =>
                 {
@@ -144,54 +102,6 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                     b.ToTable("AspNetUsers", (string)null);
-                });
-
-            modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.AuditLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.Property<string>("ChangedProperties")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("EntityId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("EntityName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("NewValues")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("OldValues")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("Timestamp")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UserId")
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("UserName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("AuditLogs");
                 });
 
             modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.ConfiguracionEmpresa", b =>
@@ -294,9 +204,6 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
 
-                    b.Property<int?>("AgenteId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Apellido")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -359,8 +266,6 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AgenteId");
-
                     b.ToTable("Inquilinos");
                 });
 
@@ -377,9 +282,6 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
 
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
-
-                    b.Property<int?>("AgenteId")
-                        .HasColumnType("int");
 
                     b.Property<int?>("Ambientes")
                         .HasColumnType("int");
@@ -467,8 +369,6 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("AgenteId");
 
                     b.HasIndex("PropietarioId");
 
@@ -704,41 +604,13 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.Agente", b =>
-                {
-                    b.HasOne("GestionInmobiliaria.Dominio.Entidades.ApplicationUser", "User")
-                        .WithOne()
-                        .HasForeignKey("GestionInmobiliaria.Dominio.Entidades.Agente", "UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.Inquilino", b =>
-                {
-                    b.HasOne("GestionInmobiliaria.Dominio.Entidades.Agente", "Agente")
-                        .WithMany("Inquilinos")
-                        .HasForeignKey("AgenteId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Agente");
-                });
-
             modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.Propiedad", b =>
                 {
-                    b.HasOne("GestionInmobiliaria.Dominio.Entidades.Agente", "Agente")
-                        .WithMany("Propiedades")
-                        .HasForeignKey("AgenteId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("GestionInmobiliaria.Dominio.Entidades.Propietario", "Propietario")
                         .WithMany("Propiedades")
                         .HasForeignKey("PropietarioId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("Agente");
 
                     b.Navigation("Propietario");
                 });
@@ -792,13 +664,6 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.Agente", b =>
-                {
-                    b.Navigation("Inquilinos");
-
-                    b.Navigation("Propiedades");
                 });
 
             modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.Propietario", b =>

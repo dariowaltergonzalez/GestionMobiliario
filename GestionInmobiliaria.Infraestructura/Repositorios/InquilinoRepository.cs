@@ -1,5 +1,7 @@
+using GestionInmobiliaria.Dominio.Common;
 using GestionInmobiliaria.Dominio.Entidades;
 using GestionInmobiliaria.Dominio.Interfaces;
+using GestionInmobiliaria.Infraestructura.Extensions;
 using GestionInmobiliaria.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,7 +13,7 @@ public class InquilinoRepository : IInquilinoRepository
 
     public InquilinoRepository(ApplicationDbContext context) => _context = context;
 
-    public async Task<IEnumerable<Inquilino>> GetAllAsync(string? buscar = null, bool? activo = null)
+    public async Task<PagedResult<Inquilino>> GetPagedAsync(PaginationParams paginacion, string? buscar = null, bool? activo = null)
     {
         var query = _context.Inquilinos.AsQueryable();
 
@@ -23,14 +25,24 @@ public class InquilinoRepository : IInquilinoRepository
                                      (i.Dni != null && i.Dni.Contains(buscar)) ||
                                      (i.Email != null && i.Email.Contains(buscar)));
 
-        return await query.OrderBy(i => i.Apellido).ThenBy(i => i.Nombre).ToListAsync();
+        query = query.OrderBy(i => i.Apellido).ThenBy(i => i.Nombre);
+
+        return await query.ToPagedResultAsync(paginacion.Pagina, paginacion.Tamano);
     }
+
+    public async Task<IEnumerable<Inquilino>> GetActivosAsync() =>
+        await _context.Inquilinos
+            .Where(i => i.Activo)
+            .OrderBy(i => i.Apellido).ThenBy(i => i.Nombre)
+            .ToListAsync();
 
     public async Task<Inquilino?> GetByIdAsync(int id) =>
         await _context.Inquilinos.FirstOrDefaultAsync(i => i.Id == id);
 
     public async Task<Inquilino> CreateAsync(Inquilino inquilino)
     {
+        inquilino.FechaCreacion = DateTime.UtcNow;
+        inquilino.FechaActualizacion = DateTime.UtcNow;
         _context.Inquilinos.Add(inquilino);
         await _context.SaveChangesAsync();
         return inquilino;
@@ -38,6 +50,7 @@ public class InquilinoRepository : IInquilinoRepository
 
     public async Task<Inquilino> UpdateAsync(Inquilino inquilino)
     {
+        inquilino.FechaActualizacion = DateTime.UtcNow;
         _context.Inquilinos.Update(inquilino);
         await _context.SaveChangesAsync();
         return inquilino;

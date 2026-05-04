@@ -66,6 +66,15 @@ public class CreatePropiedadRequest
     public int PropietarioId { get; set; }
 }
 
+public class PropiedadComboDto
+{
+    public int Id { get; set; }
+    public string Direccion { get; set; } = string.Empty;
+    public string TipoNombre { get; set; } = string.Empty;
+    public decimal PrecioAlquiler { get; set; }
+    public string PropietarioNombre { get; set; } = string.Empty;
+}
+
 public class UpdatePropiedadRequest
 {
     public TipoPropiedad Tipo { get; set; }

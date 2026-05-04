@@ -4,7 +4,7 @@
 ### Obtener token desde Auth.http -> Login
 
 @baseUrl = http://localhost:5005
-@token = TU_TOKEN_AQUI
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjI3YzY0ZGU5LTFlNTgtNDE0Yi04Y2ZkLTU2MDlkNTkyZTU2ZiIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL2VtYWlsYWRkcmVzcyI6ImFkbWluQGlubW9iaWxpYXJpYS5jb20iLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiRGFyaW8gR29uemFsZXoiLCJqdGkiOiI1ZGQ4OTgzNy03ZmQ4LTQ0Y2QtYTk1ZC1jMzY1ZWMwNGM2ZWIiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbiIsImV4cCI6MTc3NzkyODk0MSwiaXNzIjoiR2VzdGlvbklubW9iaWxpYXJpYSIsImF1ZCI6Ikdlc3Rpb25Jbm1vYmlsaWFyaWEifQ.dgjhBz39OqMKUBUNg3pdExkS1rLZKBJ8CPzsm_VTIkI
 
 ### ============================================
 ### CONSULTAS (READ)

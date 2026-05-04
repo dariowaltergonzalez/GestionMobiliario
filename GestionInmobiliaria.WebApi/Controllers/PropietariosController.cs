@@ -1,4 +1,5 @@
 using GestionInmobiliaria.Aplicacion.DTOs;
+using GestionInmobiliaria.Dominio.Common;
 using GestionInmobiliaria.Dominio.Entidades;
 using GestionInmobiliaria.Dominio.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -16,27 +17,33 @@ public class PropietariosController : ControllerBase
     public PropietariosController(IPropietarioRepository repo) => _repo = repo;
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] string? buscar, [FromQuery] bool? activo)
+    public async Task<IActionResult> GetAll(
+        [FromQuery] PaginationParams paginacion,
+        [FromQuery] string? buscar,
+        [FromQuery] bool? activo)
     {
-        var lista = await _repo.GetAllAsync(buscar, activo);
-        var dtos = lista.Select(p => new PropietarioDto
+        var resultado = await _repo.GetPagedAsync(paginacion, buscar, activo);
+        var paginado = new PagedResult<PropietarioDto>
+        {
+            Items = resultado.Items.Select(MapToDto).ToList(),
+            Pagina = resultado.Pagina,
+            Tamano = resultado.Tamano,
+            TotalRegistros = resultado.TotalRegistros,
+            TotalPaginas = resultado.TotalPaginas
+        };
+        return Ok(ApiResponse<PagedResult<PropietarioDto>>.Ok(paginado));
+    }
+
+    [HttpGet("activos")]
+    public async Task<IActionResult> GetActivos()
+    {
+        var lista = await _repo.GetActivosAsync();
+        var dtos = lista.Select(p => new PropietarioComboDto
         {
             Id = p.Id,
-            Nombre = p.Nombre,
-            Apellido = p.Apellido,
-            Dni = p.Dni,
-            Cuit = p.Cuit,
-            Email = p.Email,
-            Telefono = p.Telefono,
-            Telefono2 = p.Telefono2,
-            Direccion = p.Direccion,
-            CBU = p.CBU,
-            Notas = p.Notas,
-            Activo = p.Activo,
-            FechaCreacion = p.FechaCreacion,
-            CantidadPropiedades = p.Propiedades.Count
+            NombreCompleto = $"{p.Apellido}, {p.Nombre}"
         });
-        return Ok(ApiResponse<IEnumerable<PropietarioDto>>.Ok(dtos));
+        return Ok(ApiResponse<IEnumerable<PropietarioComboDto>>.Ok(dtos));
     }
 
     [HttpGet("{id}")]
@@ -44,25 +51,7 @@ public class PropietariosController : ControllerBase
     {
         var p = await _repo.GetByIdAsync(id);
         if (p is null) return NotFound(ApiResponse<PropietarioDto>.Fail("Propietario no encontrado."));
-
-        var dto = new PropietarioDto
-        {
-            Id = p.Id,
-            Nombre = p.Nombre,
-            Apellido = p.Apellido,
-            Dni = p.Dni,
-            Cuit = p.Cuit,
-            Email = p.Email,
-            Telefono = p.Telefono,
-            Telefono2 = p.Telefono2,
-            Direccion = p.Direccion,
-            CBU = p.CBU,
-            Notas = p.Notas,
-            Activo = p.Activo,
-            FechaCreacion = p.FechaCreacion,
-            CantidadPropiedades = p.Propiedades.Count
-        };
-        return Ok(ApiResponse<PropietarioDto>.Ok(dto));
+        return Ok(ApiResponse<PropietarioDto>.Ok(MapToDto(p)));
     }
 
     [HttpPost]
@@ -122,4 +111,22 @@ public class PropietariosController : ControllerBase
         if (!ok) return NotFound(ApiResponse<object>.Fail("Propietario no encontrado."));
         return Ok(ApiResponse<object>.Ok(null, "Propietario dado de baja correctamente."));
     }
+
+    private static PropietarioDto MapToDto(Propietario p) => new()
+    {
+        Id = p.Id,
+        Nombre = p.Nombre,
+        Apellido = p.Apellido,
+        Dni = p.Dni,
+        Cuit = p.Cuit,
+        Email = p.Email,
+        Telefono = p.Telefono,
+        Telefono2 = p.Telefono2,
+        Direccion = p.Direccion,
+        CBU = p.CBU,
+        Notas = p.Notas,
+        Activo = p.Activo,
+        FechaCreacion = p.FechaCreacion,
+        CantidadPropiedades = p.Propiedades.Count
+    };
 }

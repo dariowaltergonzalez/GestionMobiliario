@@ -1,0 +1,83 @@
+### ============================================
+### AGENTES - GestionInmobiliaria
+### ============================================
+### Solo Admin puede crear, actualizar y dar de baja agentes
+
+@baseUrl = http://localhost:5005
+@token = TU_TOKEN_AQUI
+
+### 1. Obtener todos (paginado)
+GET {{baseUrl}}/api/agentes?pagina=1&tamano=10
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 2. Buscar por nombre/zona
+GET {{baseUrl}}/api/agentes?buscar=dario
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 3. Solo activos
+GET {{baseUrl}}/api/agentes?activo=true
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 4. Lista para combo/dropdown
+GET {{baseUrl}}/api/agentes/activos
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 5. Obtener agente por ID
+GET {{baseUrl}}/api/agentes/1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 6. Crear agente (solo Admin)
+POST {{baseUrl}}/api/agentes
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "email": "agente1@inmobiliaria.com",
+  "password": "Agente123!",
+  "nombre": "Carlos",
+  "apellido": "Méndez",
+  "zona": "Palermo / Belgrano",
+  "telefonoInterno": "int. 101",
+  "comisionPorcentaje": 3.5,
+  "notas": "Especialista en propiedades premium"
+}
+
+###
+
+### 7. Actualizar agente (solo Admin)
+PUT {{baseUrl}}/api/agentes/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "nombre": "Carlos",
+  "apellido": "Méndez",
+  "zona": "Palermo / Recoleta",
+  "telefonoInterno": "int. 101",
+  "comisionPorcentaje": 4.0,
+  "notas": "Actualizado",
+  "activo": true
+}
+
+###
+
+### 8. Dar de baja agente (solo Admin)
+DELETE {{baseUrl}}/api/agentes/1
+Authorization: Bearer {{token}}
+
+###

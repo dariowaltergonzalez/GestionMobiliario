@@ -55,3 +55,9 @@ public class UpdateInquilinoRequest
     public string? Notas { get; set; }
     public bool Activo { get; set; }
 }
+
+public class InquilinoComboDto
+{
+    public int Id { get; set; }
+    public string NombreCompleto { get; set; } = string.Empty;
+}

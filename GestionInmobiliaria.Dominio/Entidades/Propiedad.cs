@@ -58,4 +58,7 @@ public class Propiedad : IAuditable
 
     public int PropietarioId { get; set; }
     public Propietario Propietario { get; set; } = null!;
+
+    public int? AgenteId { get; set; }
+    public Agente? Agente { get; set; }
 }
