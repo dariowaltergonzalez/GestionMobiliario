@@ -57,6 +57,8 @@ builder.Services.AddScoped<IPropietarioRepository, PropietarioRepository>();
 builder.Services.AddScoped<IInquilinoRepository, InquilinoRepository>();
 builder.Services.AddScoped<IPropiedadRepository, PropiedadRepository>();
 builder.Services.AddScoped<IAgenteRepository, AgenteRepository>();
+builder.Services.AddScoped<ILeadRepository, LeadRepository>();
+builder.Services.AddScoped<IEventoAgendaRepository, EventoAgendaRepository>();
 
 builder.Services.AddHttpContextAccessor();
 

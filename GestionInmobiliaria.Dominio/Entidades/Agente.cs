@@ -15,4 +15,6 @@ public class Agente : IAuditable
 
     public ICollection<Propiedad> Propiedades { get; set; } = new List<Propiedad>();
     public ICollection<Inquilino> Inquilinos { get; set; } = new List<Inquilino>();
+    public ICollection<Lead> Leads { get; set; } = new List<Lead>();
+    public ICollection<EventoAgenda> Eventos { get; set; } = new List<EventoAgenda>();
 }

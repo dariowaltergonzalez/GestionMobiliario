@@ -1,0 +1,81 @@
+@baseUrl = https://localhost:5005
+@token = Bearer TU_TOKEN_AQUI
+
+### Listado paginado de leads
+GET {{baseUrl}}/api/leads?pagina=1&tamano=10
+Authorization: {{token}}
+
+### Filtrar por estado
+GET {{baseUrl}}/api/leads?estado=1&pagina=1&tamano=10
+Authorization: {{token}}
+
+### Filtrar por agente
+GET {{baseUrl}}/api/leads?agenteId=1&pagina=1&tamano=10
+Authorization: {{token}}
+
+### Buscar lead
+GET {{baseUrl}}/api/leads?buscar=garcia&pagina=1&tamano=10
+Authorization: {{token}}
+
+### Leads activos (para combos)
+GET {{baseUrl}}/api/leads/activos
+Authorization: {{token}}
+
+### Obtener lead por ID
+GET {{baseUrl}}/api/leads/1
+Authorization: {{token}}
+
+### Crear lead manualmente (desde panel admin)
+POST {{baseUrl}}/api/leads
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "nombre": "Carlos",
+  "apellido": "García",
+  "email": "carlos@email.com",
+  "telefono": "1155667788",
+  "origen": 2,
+  "notas": "Interesado en departamento zona norte",
+  "agenteId": 1,
+  "propiedadId": 1
+}
+
+### Actualizar lead (cambiar estado a Contactado)
+PUT {{baseUrl}}/api/leads/1
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "nombre": "Carlos",
+  "apellido": "García",
+  "email": "carlos@email.com",
+  "telefono": "1155667788",
+  "origen": 2,
+  "estado": 2,
+  "notas": "Llamado el 05/05 - muy interesado",
+  "agenteId": 1,
+  "propiedadId": 1
+}
+
+### Eliminar lead (baja lógica)
+DELETE {{baseUrl}}/api/leads/1
+Authorization: {{token}}
+
+### =============================================
+### ENDPOINT PÚBLICO - Solicitar visita (sin token)
+### =============================================
+
+### Solicitar visita desde el sitio web
+POST {{baseUrl}}/api/leads/solicitar-visita
+Content-Type: application/json
+
+{
+  "nombre": "María",
+  "apellido": "López",
+  "email": "maria@email.com",
+  "telefono": "1144332211",
+  "propiedadId": 1,
+  "fechaHoraPreferida": "2026-05-10T10:00:00",
+  "notas": "Prefiero horario de mañana"
+}

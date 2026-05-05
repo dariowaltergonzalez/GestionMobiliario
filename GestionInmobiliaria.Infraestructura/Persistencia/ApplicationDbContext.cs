@@ -25,6 +25,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<ConfiguracionEmpresa> ConfiguracionEmpresa => Set<ConfiguracionEmpresa>();
     public DbSet<Agente> Agentes => Set<Agente>();
+    public DbSet<Lead> Leads => Set<Lead>();
+    public DbSet<EventoAgenda> EventosAgenda => Set<EventoAgenda>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -139,6 +141,46 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.Property(c => c.Instagram).HasMaxLength(300);
             e.Property(c => c.Facebook).HasMaxLength(300);
             e.Property(c => c.Twitter).HasMaxLength(300);
+        });
+
+        builder.Entity<Lead>(e =>
+        {
+            e.HasKey(l => l.Id);
+            e.Property(l => l.Nombre).IsRequired().HasMaxLength(100);
+            e.Property(l => l.Apellido).IsRequired().HasMaxLength(100);
+            e.Property(l => l.Email).HasMaxLength(200);
+            e.Property(l => l.Telefono).HasMaxLength(50);
+            e.Property(l => l.Notas).HasMaxLength(1000);
+            e.HasOne(l => l.Agente)
+             .WithMany(a => a.Leads)
+             .HasForeignKey(l => l.AgenteId)
+             .OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(l => l.Propiedad)
+             .WithMany()
+             .HasForeignKey(l => l.PropiedadId)
+             .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<EventoAgenda>(e =>
+        {
+            e.HasKey(ev => ev.Id);
+            e.Property(ev => ev.Notas).HasMaxLength(1000);
+            e.HasOne(ev => ev.Agente)
+             .WithMany(a => a.Eventos)
+             .HasForeignKey(ev => ev.AgenteId)
+             .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(ev => ev.Propiedad)
+             .WithMany()
+             .HasForeignKey(ev => ev.PropiedadId)
+             .OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(ev => ev.Lead)
+             .WithMany(l => l.Eventos)
+             .HasForeignKey(ev => ev.LeadId)
+             .OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(ev => ev.Inquilino)
+             .WithMany()
+             .HasForeignKey(ev => ev.InquilinoId)
+             .OnDelete(DeleteBehavior.SetNull);
         });
 
         builder.Entity<AuditLog>(e =>

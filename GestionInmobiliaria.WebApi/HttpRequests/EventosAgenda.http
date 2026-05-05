@@ -1,0 +1,75 @@
+@baseUrl = https://localhost:5005
+@token = Bearer TU_TOKEN_AQUI
+
+### Listado paginado de eventos
+GET {{baseUrl}}/api/eventosagenda?pagina=1&tamano=10
+Authorization: {{token}}
+
+### Filtrar por agente
+GET {{baseUrl}}/api/eventosagenda?agenteId=1&pagina=1&tamano=10
+Authorization: {{token}}
+
+### Filtrar por estado (Pendiente=1, Realizada=2, Cancelada=3)
+GET {{baseUrl}}/api/eventosagenda?estado=1&pagina=1&tamano=10
+Authorization: {{token}}
+
+### Filtrar por tipo (Visita=1, Llamada=2, Reunion=3, Otro=4)
+GET {{baseUrl}}/api/eventosagenda?tipo=1&pagina=1&tamano=10
+Authorization: {{token}}
+
+### Agenda pendiente de un agente (para vista de calendario)
+GET {{baseUrl}}/api/eventosagenda/agente/1
+Authorization: {{token}}
+
+### Obtener evento por ID
+GET {{baseUrl}}/api/eventosagenda/1
+Authorization: {{token}}
+
+### Crear evento manualmente
+POST {{baseUrl}}/api/eventosagenda
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "tipo": 2,
+  "fechaHora": "2026-05-08T15:00:00",
+  "notas": "Llamada de seguimiento",
+  "agenteId": 1,
+  "leadId": 1,
+  "propiedadId": null,
+  "inquilinoId": null
+}
+
+### Actualizar evento (marcar como Realizada)
+PUT {{baseUrl}}/api/eventosagenda/1
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "tipo": 1,
+  "estado": 2,
+  "fechaHora": "2026-05-08T10:00:00",
+  "notas": "Visita realizada. El lead está muy interesado.",
+  "propiedadId": 1,
+  "leadId": 1,
+  "inquilinoId": null
+}
+
+### Cancelar evento
+PUT {{baseUrl}}/api/eventosagenda/1
+Authorization: {{token}}
+Content-Type: application/json
+
+{
+  "tipo": 1,
+  "estado": 3,
+  "fechaHora": "2026-05-08T10:00:00",
+  "notas": "Cancelado por el cliente",
+  "propiedadId": 1,
+  "leadId": 1,
+  "inquilinoId": null
+}
+
+### Eliminar evento (baja lógica)
+DELETE {{baseUrl}}/api/eventosagenda/1
+Authorization: {{token}}
