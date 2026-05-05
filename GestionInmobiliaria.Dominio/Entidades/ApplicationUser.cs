@@ -8,4 +8,5 @@ public class ApplicationUser : IdentityUser
     public string Apellido { get; set; } = string.Empty;
     public bool Activo { get; set; } = true;
     public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
+    public int TenantId { get; set; }
 }

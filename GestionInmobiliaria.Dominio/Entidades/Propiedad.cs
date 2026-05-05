@@ -55,6 +55,7 @@ public class Propiedad : IAuditable
     public bool Activo { get; set; } = true;
     public DateTime FechaCreacion { get; set; }
     public DateTime FechaActualizacion { get; set; }
+    public int TenantId { get; set; }
 
     public int PropietarioId { get; set; }
     public Propietario Propietario { get; set; } = null!;

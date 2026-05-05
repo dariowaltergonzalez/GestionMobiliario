@@ -22,4 +22,5 @@ public class ConfiguracionEmpresa
     public string? Facebook { get; set; }
     public string? Twitter { get; set; }
     public DateTime FechaActualizacion { get; set; }
+    public int TenantId { get; set; }
 }

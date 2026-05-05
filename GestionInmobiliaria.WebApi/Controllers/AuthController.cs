@@ -36,12 +36,18 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
+        // Resolver tenant desde header X-Tenant
+        var tenantId = ObtenerTenantIdDelContexto();
+        if (tenantId == 0)
+            return BadRequest(new { message = "Tenant no identificado. Incluir header X-Tenant." });
+
         var user = new ApplicationUser
         {
             UserName = request.Email,
             Email = request.Email,
             Nombre = request.Nombre,
-            Apellido = request.Apellido
+            Apellido = request.Apellido,
+            TenantId = tenantId
         };
 
         var result = await _userManager.CreateAsync(user, request.Password);
@@ -59,6 +65,8 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
+        // El middleware ya resolvió el tenant desde X-Tenant header
+        // FindByEmailAsync respeta el filtro global de TenantId
         var user = await _userManager.FindByEmailAsync(request.Email);
         if (user is null || !user.Activo)
             return Unauthorized(new { message = "Credenciales inválidas." });
@@ -77,7 +85,8 @@ public class AuthController : ControllerBase
             Email = user.Email!,
             Nombre = user.Nombre,
             Apellido = user.Apellido,
-            Roles = roles.ToList()
+            Roles = roles.ToList(),
+            TenantId = user.TenantId
         });
     }
 
@@ -162,6 +171,12 @@ public class AuthController : ControllerBase
         return Ok(new { message = $"Usuario {estado} correctamente." });
     }
 
+    private int ObtenerTenantIdDelContexto()
+    {
+        if (HttpContext.Items["TenantId"] is int id) return id;
+        return 0;
+    }
+
     private string GenerarAccessToken(ApplicationUser user, IList<string> roles)
     {
         var claims = new List<Claim>
@@ -169,7 +184,8 @@ public class AuthController : ControllerBase
             new(ClaimTypes.NameIdentifier, user.Id),
             new(ClaimTypes.Email, user.Email!),
             new(ClaimTypes.Name, $"{user.Nombre} {user.Apellido}"),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new("tenantId", user.TenantId.ToString())
         };
         claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
 
@@ -217,4 +233,5 @@ public record TokenResponse
     public string Nombre { get; init; } = string.Empty;
     public string Apellido { get; init; } = string.Empty;
     public List<string> Roles { get; init; } = new();
+    public int TenantId { get; init; }
 }

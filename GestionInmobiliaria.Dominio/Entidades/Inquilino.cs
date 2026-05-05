@@ -19,6 +19,7 @@ public class Inquilino : IAuditable
     public bool Activo { get; set; } = true;
     public DateTime FechaCreacion { get; set; }
     public DateTime FechaActualizacion { get; set; }
+    public int TenantId { get; set; }
 
     public int? AgenteId { get; set; }
     public Agente? Agente { get; set; }

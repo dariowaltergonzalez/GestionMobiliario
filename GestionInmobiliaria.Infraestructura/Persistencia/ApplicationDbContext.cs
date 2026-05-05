@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json;
 using GestionInmobiliaria.Dominio.Entidades;
+using GestionInmobiliaria.Dominio.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -11,14 +12,18 @@ namespace GestionInmobiliaria.Infraestructura.Persistencia;
 public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityRole, string>
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ITenantService _tenantService;
 
     public ApplicationDbContext(
         DbContextOptions<ApplicationDbContext> options,
-        IHttpContextAccessor httpContextAccessor) : base(options)
+        IHttpContextAccessor httpContextAccessor,
+        ITenantService tenantService) : base(options)
     {
         _httpContextAccessor = httpContextAccessor;
+        _tenantService = tenantService;
     }
 
+    public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Propietario> Propietarios => Set<Propietario>();
     public DbSet<Inquilino> Inquilinos => Set<Inquilino>();
     public DbSet<Propiedad> Propiedades => Set<Propiedad>();
@@ -32,6 +37,25 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        // Filtros globales por tenant (se aplican automáticamente en cada query)
+        builder.Entity<Propietario>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
+        builder.Entity<Inquilino>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
+        builder.Entity<Propiedad>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
+        builder.Entity<Agente>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
+        builder.Entity<Lead>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
+        builder.Entity<EventoAgenda>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
+        builder.Entity<ConfiguracionEmpresa>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
+        builder.Entity<ApplicationUser>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
+
+        builder.Entity<Tenant>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Property(t => t.Nombre).IsRequired().HasMaxLength(200);
+            e.Property(t => t.Slug).IsRequired().HasMaxLength(100);
+            e.HasIndex(t => t.Slug).IsUnique();
+            e.HasData(new Tenant { Id = 1, Nombre = "Demo", Slug = "demo", Activo = true, FechaCreacion = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) });
+        });
 
         builder.Entity<Propietario>(e =>
         {
