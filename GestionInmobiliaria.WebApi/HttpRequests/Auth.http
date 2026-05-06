@@ -3,7 +3,7 @@
 ### ============================================
 
 @baseUrl = http://localhost:5005
-@tenant = demo
+@tenant = garcia
 @token = TU_TOKEN_AQUI
 
 ### 1. Registrar usuario Admin
@@ -12,10 +12,10 @@ Content-Type: application/json
 X-Tenant: {{tenant}}
 
 {
-  "email": "admin@inmobiliaria.com",
+  "email": "dariogonzalez08@gmail.com",
   "password": "Admin123!",
-  "nombre": "Admin",
-  "apellido": "Sistema",
+  "nombre": "Dario",
+  "apellido": "Gonzalez",
   "rol": "Admin"
 }
 

@@ -220,6 +220,16 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        // Auto-setear TenantId en todas las entidades nuevas
+        var tenantId = _tenantService.TenantId ?? 0;
+        foreach (var entry in ChangeTracker.Entries()
+            .Where(e => e.State == EntityState.Added))
+        {
+            var prop = entry.Properties.FirstOrDefault(p => p.Metadata.Name == "TenantId");
+            if (prop != null && (int)prop.CurrentValue! == 0)
+                prop.CurrentValue = tenantId;
+        }
+
         var userId = _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
         var userName = _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.Name);
 
