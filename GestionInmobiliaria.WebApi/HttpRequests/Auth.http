@@ -42,7 +42,7 @@ Content-Type: application/json
 X-Tenant: {{tenant}}
 
 {
-  "email": "admin@inmobiliaria.com",
+  "email": "dariogonzalez08@gmail.com",
   "password": "Admin123!"
 }
 
