@@ -7,6 +7,7 @@
 ### EstadoConservacion: 1=Excelente, 2=Bueno, 3=Regular, 4=ARefaccionar
 
 @baseUrl = http://localhost:5005
+@tenant = demo
 @token = TU_TOKEN_AQUI
 
 ### ============================================

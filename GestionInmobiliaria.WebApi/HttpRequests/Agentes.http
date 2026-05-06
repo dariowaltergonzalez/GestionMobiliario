@@ -4,6 +4,7 @@
 ### Solo Admin puede crear, actualizar y dar de baja agentes
 
 @baseUrl = http://localhost:5005
+@tenant = demo
 @token = TU_TOKEN_AQUI
 
 ### 1. Obtener todos (paginado)

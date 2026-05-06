@@ -1,33 +1,34 @@
-@baseUrl = https://localhost:5005
-@token = Bearer TU_TOKEN_AQUI
+@baseUrl = http://localhost:5005
+@tenant = demo
+@token = TU_TOKEN_AQUI
 
 ### Listado paginado de leads
 GET {{baseUrl}}/api/leads?pagina=1&tamano=10
-Authorization: {{token}}
+Authorization: Bearer {{token}}
 
 ### Filtrar por estado
 GET {{baseUrl}}/api/leads?estado=1&pagina=1&tamano=10
-Authorization: {{token}}
+Authorization: Bearer {{token}}
 
 ### Filtrar por agente
 GET {{baseUrl}}/api/leads?agenteId=1&pagina=1&tamano=10
-Authorization: {{token}}
+Authorization: Bearer {{token}}
 
 ### Buscar lead
 GET {{baseUrl}}/api/leads?buscar=garcia&pagina=1&tamano=10
-Authorization: {{token}}
+Authorization: Bearer {{token}}
 
 ### Leads activos (para combos)
 GET {{baseUrl}}/api/leads/activos
-Authorization: {{token}}
+Authorization: Bearer {{token}}
 
 ### Obtener lead por ID
 GET {{baseUrl}}/api/leads/1
-Authorization: {{token}}
+Authorization: Bearer {{token}}
 
 ### Crear lead manualmente (desde panel admin)
 POST {{baseUrl}}/api/leads
-Authorization: {{token}}
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -43,7 +44,7 @@ Content-Type: application/json
 
 ### Actualizar lead (cambiar estado a Contactado)
 PUT {{baseUrl}}/api/leads/1
-Authorization: {{token}}
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -60,7 +61,7 @@ Content-Type: application/json
 
 ### Eliminar lead (baja lógica)
 DELETE {{baseUrl}}/api/leads/1
-Authorization: {{token}}
+Authorization: Bearer {{token}}
 
 ### =============================================
 ### ENDPOINT PÚBLICO - Solicitar visita (sin token)
@@ -69,6 +70,7 @@ Authorization: {{token}}
 ### Solicitar visita desde el sitio web
 POST {{baseUrl}}/api/leads/solicitar-visita
 Content-Type: application/json
+X-Tenant: {{tenant}}
 
 {
   "nombre": "María",
