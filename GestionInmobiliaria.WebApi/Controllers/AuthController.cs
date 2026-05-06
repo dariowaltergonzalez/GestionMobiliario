@@ -99,7 +99,9 @@ public class AuthController : ControllerBase
         if (rt is null || !rt.EsValido)
             return Unauthorized(new { message = "Refresh token inválido o expirado." });
 
-        var user = await _userManager.FindByIdAsync(rt.UserId);
+        // IgnoreQueryFilters porque no hay JWT activo en este punto (token expirado)
+        var user = await _context.Users.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Id == rt.UserId);
         if (user is null || !user.Activo)
             return Unauthorized(new { message = "Usuario no encontrado o inactivo." });
 
