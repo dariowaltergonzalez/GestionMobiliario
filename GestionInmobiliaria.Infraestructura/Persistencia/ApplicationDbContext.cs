@@ -32,6 +32,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<Agente> Agentes => Set<Agente>();
     public DbSet<Lead> Leads => Set<Lead>();
     public DbSet<EventoAgenda> EventosAgenda => Set<EventoAgenda>();
+    public DbSet<SolicitudTasacion> SolicitudesTasacion => Set<SolicitudTasacion>();
+    public DbSet<FotoSolicitud> FotosSolicitud => Set<FotoSolicitud>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -47,6 +49,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         builder.Entity<EventoAgenda>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<ConfiguracionEmpresa>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<ApplicationUser>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
+        builder.Entity<SolicitudTasacion>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
+        builder.Entity<FotoSolicitud>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
 
         builder.Entity<Tenant>(e =>
         {
@@ -205,6 +209,38 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
              .WithMany()
              .HasForeignKey(ev => ev.InquilinoId)
              .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<SolicitudTasacion>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Property(s => s.Nombre).IsRequired().HasMaxLength(100);
+            e.Property(s => s.Apellido).IsRequired().HasMaxLength(100);
+            e.Property(s => s.Email).HasMaxLength(200);
+            e.Property(s => s.Telefono).IsRequired().HasMaxLength(50);
+            e.Property(s => s.Direccion).IsRequired().HasMaxLength(300);
+            e.Property(s => s.Barrio).HasMaxLength(100);
+            e.Property(s => s.Ciudad).HasMaxLength(100);
+            e.Property(s => s.SuperficieTotal).HasColumnType("decimal(10,2)");
+            e.Property(s => s.SuperficieCubierta).HasColumnType("decimal(10,2)");
+            e.Property(s => s.Descripcion).HasMaxLength(2000);
+            e.Property(s => s.NotasInternas).HasMaxLength(2000);
+            e.Property(s => s.ValorEstimado).HasColumnType("decimal(18,2)");
+            e.HasOne(s => s.Agente)
+             .WithMany()
+             .HasForeignKey(s => s.AgenteId)
+             .OnDelete(DeleteBehavior.SetNull);
+            e.HasMany(s => s.Fotos)
+             .WithOne(f => f.SolicitudTasacion)
+             .HasForeignKey(f => f.SolicitudTasacionId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<FotoSolicitud>(e =>
+        {
+            e.HasKey(f => f.Id);
+            e.Property(f => f.Url).IsRequired().HasMaxLength(500);
+            e.Property(f => f.NombreArchivo).HasMaxLength(255);
         });
 
         builder.Entity<AuditLog>(e =>

@@ -61,6 +61,8 @@ builder.Services.AddScoped<IPropiedadRepository, PropiedadRepository>();
 builder.Services.AddScoped<IAgenteRepository, AgenteRepository>();
 builder.Services.AddScoped<ILeadRepository, LeadRepository>();
 builder.Services.AddScoped<IEventoAgendaRepository, EventoAgendaRepository>();
+builder.Services.AddScoped<ISolicitudTasacionRepository, SolicitudTasacionRepository>();
+builder.Services.AddScoped<IStorageService, LocalStorageService>();
 builder.Services.AddScoped<ITenantService, TenantService>();
 
 builder.Services.AddHttpContextAccessor();
@@ -97,6 +99,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseMiddleware<TenantMiddleware>();
 app.UseAuthorization();

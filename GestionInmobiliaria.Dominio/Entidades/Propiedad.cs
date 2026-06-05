@@ -7,7 +7,9 @@ public enum TipoPropiedad
     Local = 3,
     Oficina = 4,
     Terreno = 5,
-    Otro = 6
+    Galpon = 6,
+    PH = 7,
+    Otro = 8
 }
 
 public enum EstadoPropiedad

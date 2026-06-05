@@ -1,0 +1,129 @@
+### ============================================
+### SOLICITUDES DE TASACIÓN - GestionInmobiliaria
+### ============================================
+### Endpoints públicos: solicitar + subir fotos (requieren X-Tenant)
+### Endpoints de gestión: requieren Bearer token (Admin u Operador)
+
+@baseUrl = http://localhost:5005
+@tenant = garcia
+@token = TU_TOKEN_AQUI
+
+### 1. Solicitar tasación (público — desde el sitio web)
+POST {{baseUrl}}/api/solicitudes-tasacion/solicitar
+Content-Type: application/json
+X-Tenant: {{tenant}}
+
+{
+  "nombre": "Roberto",
+  "apellido": "Fernández",
+  "email": "roberto@gmail.com",
+  "telefono": "11-5555-7890",
+  "tipoPropiedad": 2,
+  "direccion": "Av. Corrientes 1234, Piso 3, Dpto A",
+  "barrio": "San Nicolás",
+  "ciudad": "Buenos Aires",
+  "superficieTotal": 75.5,
+  "superficieCubierta": 68.0,
+  "ambientes": 3,
+  "banios": 1,
+  "antiguedad": 15,
+  "estadoConservacion": 2,
+  "descripcion": "Departamento con balcón, muy luminoso. Quiero saber cuánto vale para vender.",
+  "tipoContactoPreferido": 3
+}
+
+###
+
+### 2. Subir fotos de la propiedad (público — inmediatamente después de solicitar)
+### Reemplazar {id} con el ID devuelto en el paso anterior
+POST {{baseUrl}}/api/solicitudes-tasacion/1/fotos
+Content-Type: multipart/form-data; boundary=----boundary
+X-Tenant: {{tenant}}
+
+------boundary
+Content-Disposition: form-data; name="fotos"; filename="foto1.jpg"
+Content-Type: image/jpeg
+
+< ./foto1.jpg
+------boundary--
+
+###
+
+### 3. Listar todas (paginado — para agentes/admin)
+GET {{baseUrl}}/api/solicitudes-tasacion?pagina=1&tamano=10
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 4. Filtrar por estado
+GET {{baseUrl}}/api/solicitudes-tasacion?estado=1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+### Estados: 1=Pendiente, 2=Asignada, 3=EnProceso, 4=Completada, 5=Cancelada
+
+### 5. Filtrar por agente
+GET {{baseUrl}}/api/solicitudes-tasacion?agenteId=1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 6. Buscar por nombre / dirección
+GET {{baseUrl}}/api/solicitudes-tasacion?buscar=fernandez
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 7. Obtener detalle por ID
+GET {{baseUrl}}/api/solicitudes-tasacion/1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### 8. Actualizar solicitud — asignar agente y cambiar estado (Admin u Operador)
+PUT {{baseUrl}}/api/solicitudes-tasacion/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "estado": 2,
+  "agenteId": 1,
+  "notasInternas": "Cliente contactado. Se coordina visita para el viernes.",
+  "valorEstimado": null
+}
+
+###
+
+### 9. Completar tasación — registrar valor estimado
+PUT {{baseUrl}}/api/solicitudes-tasacion/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "estado": 4,
+  "agenteId": 1,
+  "notasInternas": "Tasación realizada online. Propiedad en buen estado, precio de mercado acorde.",
+  "valorEstimado": 185000.00
+}
+
+###
+
+### 10. Eliminar foto (Admin u Operador)
+DELETE {{baseUrl}}/api/solicitudes-tasacion/1/fotos/1
+Authorization: Bearer {{token}}
+
+###
+
+### 11. Dar de baja solicitud (solo Admin)
+DELETE {{baseUrl}}/api/solicitudes-tasacion/1
+Authorization: Bearer {{token}}
+
+###
+### Tipos de propiedad: 1=Departamento, 2=Casa, 3=Local, 4=Oficina, 5=Terreno, 6=Galpon, 7=PH, 8=Otro
+### Estado conservación: 1=Excelente, 2=Bueno, 3=Regular, 4=ARefaccionar
+### Tipo contacto preferido: 1=Llamada, 2=Visita, 3=Online
