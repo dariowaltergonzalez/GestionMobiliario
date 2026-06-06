@@ -13,6 +13,18 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// CORS — permite que cualquier frontend local consuma la API durante desarrollo
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendDev", policy =>
+    {
+        policy.SetIsOriginAllowed(origin =>
+                new Uri(origin).Host == "localhost")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 // DbContext
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -99,6 +111,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("FrontendDev");
 app.UseStaticFiles();
 app.UseAuthentication();
 app.UseMiddleware<TenantMiddleware>();
