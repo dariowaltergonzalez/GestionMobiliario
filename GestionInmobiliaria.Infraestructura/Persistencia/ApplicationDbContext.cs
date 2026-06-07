@@ -34,6 +34,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<EventoAgenda> EventosAgenda => Set<EventoAgenda>();
     public DbSet<SolicitudTasacion> SolicitudesTasacion => Set<SolicitudTasacion>();
     public DbSet<FotoSolicitud> FotosSolicitud => Set<FotoSolicitud>();
+    public DbSet<FotoPropiedad> FotosPropiedad => Set<FotoPropiedad>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<AppLog> AppLogs => Set<AppLog>();
 
@@ -54,6 +55,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         builder.Entity<ApplicationUser>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<SolicitudTasacion>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<FotoSolicitud>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
+        builder.Entity<FotoPropiedad>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
 
         builder.Entity<Tenant>(e =>
         {
@@ -245,6 +247,17 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.HasKey(f => f.Id);
             e.Property(f => f.Url).IsRequired().HasMaxLength(500);
             e.Property(f => f.NombreArchivo).HasMaxLength(255);
+        });
+
+        builder.Entity<FotoPropiedad>(e =>
+        {
+            e.HasKey(f => f.Id);
+            e.Property(f => f.Url).IsRequired().HasMaxLength(500);
+            e.Property(f => f.NombreArchivo).HasMaxLength(255);
+            e.HasOne(f => f.Propiedad)
+             .WithMany(p => p.Fotos)
+             .HasForeignKey(f => f.PropiedadId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<AuditLog>(e =>

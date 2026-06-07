@@ -24,6 +24,14 @@ export const ESTADOS_CONSERVACION: Record<EstadoConservacion, string> = {
   1: 'Excelente', 2: 'Bueno', 3: 'Regular', 4: 'A refaccionar',
 }
 
+export interface FotoPropiedadDto {
+  id: number
+  url: string
+  nombreArchivo: string
+  esPrincipal: boolean
+  orden: number
+}
+
 export interface PropiedadDto {
   id: number
   tipo: TipoPropiedad
@@ -60,6 +68,8 @@ export interface PropiedadDto {
   fechaCreacion: string
   propietarioId: number
   propietarioNombre: string
+  fotos: FotoPropiedadDto[]
+  fotoPrincipalUrl: string | null
 }
 
 export interface PropiedadFormData {
@@ -186,5 +196,59 @@ export const updatePropiedad = async (id: number, form: PropiedadFormData) => {
 
 export const deletePropiedad = async (id: number) => {
   const res = await client.delete<ApiResponse<null>>(`/api/propiedades/${id}`)
+  return res.data
+}
+
+export interface PropiedadPublicaDto {
+  id: number
+  tipoNombre: string
+  operacionNombre: string
+  direccion: string
+  barrio: string | null
+  ciudad: string | null
+  provincia: string | null
+  ambientes: number | null
+  dormitorios: number | null
+  banios: number | null
+  superficieTotal: number | null
+  superficieCubierta: number | null
+  precioAlquiler: number | null
+  precioVenta: number | null
+  cochera: boolean
+  aceptaMascotas: boolean
+  descripcion: string | null
+  fotoPrincipalUrl: string | null
+  fotosUrls: string[]
+}
+
+export const getPropiedad = async (id: number) => {
+  const res = await client.get<ApiResponse<PropiedadDto>>(`/api/propiedades/${id}`)
+  return res.data
+}
+
+export const subirFotosPropiedad = async (propiedadId: number, archivos: File[]) => {
+  const form = new FormData()
+  archivos.forEach(f => form.append('fotos', f))
+  const res = await client.post<ApiResponse<FotoPropiedadDto[]>>(
+    `/api/propiedades/${propiedadId}/fotos`, form,
+    { headers: { 'Content-Type': 'multipart/form-data' } }
+  )
+  return res.data
+}
+
+export const setFotoPrincipal = async (propiedadId: number, fotoId: number) => {
+  const res = await client.put<ApiResponse<null>>(`/api/propiedades/${propiedadId}/fotos/${fotoId}/principal`, {})
+  return res.data
+}
+
+export const deleteFotoPropiedad = async (propiedadId: number, fotoId: number) => {
+  const res = await client.delete<ApiResponse<null>>(`/api/propiedades/${propiedadId}/fotos/${fotoId}`)
+  return res.data
+}
+
+export const getPropiedadesPublicas = async (tenantSlug?: string | null) => {
+  const headers: Record<string, string> = {}
+  if (tenantSlug) headers['X-Tenant'] = tenantSlug
+  const res = await client.get<ApiResponse<PropiedadPublicaDto[]>>('/api/propiedades/publicas', { headers })
   return res.data
 }

@@ -16,6 +16,37 @@ public class ConfiguracionEmpresaController : ControllerBase
 
     public ConfiguracionEmpresaController(ApplicationDbContext context) => _context = context;
 
+    [HttpGet("publica")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetPublica()
+    {
+        var config = await _context.ConfiguracionEmpresa
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync();
+
+        var slug = config is not null
+            ? await _context.Tenants
+                .Where(t => t.Id == config.TenantId && t.Activo)
+                .Select(t => t.Slug)
+                .FirstOrDefaultAsync()
+            : null;
+
+        return Ok(ApiResponse<ConfiguracionPublicaDto>.Ok(new ConfiguracionPublicaDto
+        {
+            NombreComercial = config?.NombreComercial ?? "GestionInmobiliaria",
+            Slogan = config?.Slogan,
+            Telefono = config?.Telefono,
+            WhatsApp = config?.WhatsApp,
+            Email = config?.Email,
+            SitioWeb = config?.SitioWeb,
+            LogoUrl = config?.LogoUrl,
+            Instagram = config?.Instagram,
+            Facebook = config?.Facebook,
+            Twitter = config?.Twitter,
+            TenantSlug = slug,
+        }));
+    }
+
     [HttpGet]
     public async Task<IActionResult> Get()
     {

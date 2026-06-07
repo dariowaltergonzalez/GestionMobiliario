@@ -1,28 +1,72 @@
-import { useState } from 'react'
-import type { FormEvent } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Home, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react'
+import { Home, Eye, EyeOff, Loader2, AlertCircle, ArrowLeft } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { login as apiLogin } from '../../api/auth'
+import { login as apiLogin, resolverTenant, type TenantLoginDto } from '../../api/auth'
+import { getConfiguracionPublica } from '../../api/configuracion'
+
+type Paso = 'email' | 'selector' | 'password'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const { login } = useAuth()
 
+  const [paso, setPaso] = useState<Paso>('email')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [tenant, setTenant] = useState('garcia')
+  const [tenants, setTenants] = useState<TenantLoginDto[]>([])
+  const [tenantSeleccionado, setTenantSeleccionado] = useState<TenantLoginDto | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [nombreEmpresa, setNombreEmpresa] = useState('GestionInmobiliaria')
 
-  const handleSubmit = async (e: FormEvent) => {
+  useEffect(() => {
+    getConfiguracionPublica()
+      .then(res => { if (res.success && res.data) setNombreEmpresa(res.data.nombreComercial) })
+      .catch(() => {})
+  }, [])
+
+  const handleEmailSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
 
     try {
-      const data = await apiLogin({ email, password }, tenant)
+      const lista = await resolverTenant(email)
+
+      if (lista.length === 0) {
+        setError('No encontramos una cuenta con ese email.')
+        return
+      }
+
+      if (lista.length === 1) {
+        setTenantSeleccionado(lista[0])
+        setPaso('password')
+      } else {
+        setTenants(lista)
+        setPaso('selector')
+      }
+    } catch {
+      setError('No se pudo conectar con el servidor.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSeleccionarTenant = (t: TenantLoginDto) => {
+    setTenantSeleccionado(t)
+    setPaso('password')
+  }
+
+  const handlePasswordSubmit = async (e: React.SyntheticEvent) => {
+    e.preventDefault()
+    if (!tenantSeleccionado) return
+    setError('')
+    setLoading(true)
+
+    try {
+      const data = await apiLogin({ email, password }, tenantSeleccionado.slug)
       login(
         {
           nombre: data.nombre,
@@ -32,29 +76,33 @@ export default function LoginPage() {
           tenantId: data.tenantId,
         },
         data.accessToken,
-        tenant
+        tenantSeleccionado.slug
       )
       navigate('/dashboard')
     } catch (err: unknown) {
-      const axiosError = err as { response?: { data?: { errors?: string[] }; status?: number } }
+      const axiosError = err as { response?: { status?: number } }
       if (axiosError.response?.status === 401 || axiosError.response?.status === 400) {
-        setError('Email o contraseña incorrectos.')
-      } else if (axiosError.response?.status === 404) {
-        setError('Inmobiliaria no encontrada. Verificá el identificador.')
-      } else if (axiosError.response?.data?.errors?.length) {
-        setError(axiosError.response.data.errors[0])
+        setError('Contraseña incorrecta.')
       } else {
-        setError('No se pudo conectar con el servidor. Verificá que la API esté corriendo.')
+        setError('No se pudo conectar con el servidor.')
       }
     } finally {
       setLoading(false)
     }
   }
 
+  const volverAEmail = () => {
+    setPaso('email')
+    setTenantSeleccionado(null)
+    setTenants([])
+    setError('')
+    setPassword('')
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
 
-      {/* PANEL IZQUIERDO — decorativo */}
+      {/* Panel izquierdo decorativo */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         <img
           src="https://images.unsplash.com/photo-1486325212027-8081e485255e?w=1200&q=90"
@@ -67,31 +115,22 @@ export default function LoginPage() {
             <div className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center">
               <Home className="w-4 h-4 text-blue-900" />
             </div>
-            <span className="text-lg font-bold">García Propiedades</span>
+            <span className="text-lg font-bold">{nombreEmpresa}</span>
           </Link>
           <div>
             <blockquote className="text-2xl font-light leading-relaxed text-blue-100 mb-6">
               "Gestioná tu inmobiliaria de forma <span className="text-yellow-400 font-semibold">simple y profesional</span>."
             </blockquote>
             <div className="flex gap-6 text-sm text-blue-300">
-              <div>
-                <div className="text-2xl font-bold text-white">500+</div>
-                <div>Propiedades activas</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-white">15</div>
-                <div>Agentes registrados</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-white">98%</div>
-                <div>Clientes satisfechos</div>
-              </div>
+              <div><div className="text-2xl font-bold text-white">500+</div><div>Propiedades activas</div></div>
+              <div><div className="text-2xl font-bold text-white">15</div><div>Agentes registrados</div></div>
+              <div><div className="text-2xl font-bold text-white">98%</div><div>Clientes satisfechos</div></div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* PANEL DERECHO — formulario */}
+      {/* Panel derecho — formulario */}
       <div className="flex-1 flex flex-col justify-center items-center p-8">
         <div className="w-full max-w-md">
 
@@ -100,7 +139,7 @@ export default function LoginPage() {
             <div className="w-8 h-8 bg-blue-900 rounded-lg flex items-center justify-center">
               <Home className="w-4 h-4 text-yellow-400" />
             </div>
-            <span className="text-lg font-bold text-blue-900">García Propiedades</span>
+            <span className="text-lg font-bold text-blue-900">{nombreEmpresa}</span>
           </Link>
 
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Bienvenido de vuelta</h1>
@@ -113,71 +152,92 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Inmobiliaria
-              </label>
-              <input
-                type="text"
-                value={tenant}
-                onChange={(e) => setTenant(e.target.value)}
-                placeholder="garcia"
-                required
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-300 outline-none focus:ring-2 focus:ring-blue-900/30 focus:border-blue-900 transition"
-              />
-              <p className="text-xs text-gray-400 mt-1">Identificador de tu inmobiliaria</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="tu@email.com"
-                required
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-300 outline-none focus:ring-2 focus:ring-blue-900/30 focus:border-blue-900 transition"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Contraseña</label>
-              <div className="relative">
+          {/* PASO 1 — Email */}
+          {paso === 'email' && (
+            <form onSubmit={handleEmailSubmit} className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
                 <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="tu@email.com"
                   required
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm text-gray-700 placeholder-gray-300 outline-none focus:ring-2 focus:ring-blue-900/30 focus:border-blue-900 transition"
+                  autoFocus
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-300 outline-none focus:ring-2 focus:ring-blue-900/30 focus:border-blue-900 transition"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
               </div>
-            </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-blue-900 hover:bg-blue-800 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                {loading ? <><Loader2 className="w-4 h-4 animate-spin" />Verificando...</> : 'Siguiente'}
+              </button>
+            </form>
+          )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-900 hover:bg-blue-800 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Ingresando...
-                </>
-              ) : (
-                'Ingresar al sistema'
-              )}
-            </button>
-          </form>
+          {/* PASO 1.5 — Selector de empresa (solo si hay más de una) */}
+          {paso === 'selector' && (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500">Tu email está asociado a más de una empresa. Seleccioná con cuál querés ingresar:</p>
+              <div className="space-y-2">
+                {tenants.map(t => (
+                  <button
+                    key={t.slug}
+                    onClick={() => handleSeleccionarTenant(t)}
+                    className="w-full text-left border border-gray-200 hover:border-blue-900 hover:bg-blue-50 rounded-xl px-4 py-3 text-sm font-medium text-gray-700 transition"
+                  >
+                    {t.nombre}
+                  </button>
+                ))}
+              </div>
+              <button onClick={volverAEmail} className="flex items-center gap-1 text-sm text-gray-400 hover:text-blue-900 transition-colors mt-2">
+                <ArrowLeft className="w-3.5 h-3.5" /> Cambiar email
+              </button>
+            </div>
+          )}
+
+          {/* PASO 2 — Contraseña */}
+          {paso === 'password' && (
+            <form onSubmit={handlePasswordSubmit} className="space-y-5">
+              <div className="bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-500 space-y-0.5">
+                <div className="font-medium text-gray-700">{tenantSeleccionado?.nombre}</div>
+                <div>{email}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Contraseña</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    autoFocus
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm text-gray-700 placeholder-gray-300 outline-none focus:ring-2 focus:ring-blue-900/30 focus:border-blue-900 transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-blue-900 hover:bg-blue-800 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                {loading ? <><Loader2 className="w-4 h-4 animate-spin" />Ingresando...</> : 'Ingresar al sistema'}
+              </button>
+              <button type="button" onClick={volverAEmail} className="flex items-center gap-1 text-sm text-gray-400 hover:text-blue-900 transition-colors">
+                <ArrowLeft className="w-3.5 h-3.5" /> Cambiar email
+              </button>
+            </form>
+          )}
 
           <div className="mt-8 pt-6 border-t border-gray-100 text-center">
             <Link to="/" className="text-sm text-gray-400 hover:text-blue-900 transition-colors">

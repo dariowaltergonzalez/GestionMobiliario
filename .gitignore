@@ -4,3 +4,7 @@ obj/
 .vs/
 appsettings.*.json
 !appsettings.json
+
+# Archivos subidos por usuarios
+GestionInmobiliaria.WebApi/Logos/
+GestionInmobiliaria.WebApi/FotosPropiedad/

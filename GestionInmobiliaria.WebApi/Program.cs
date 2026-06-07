@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.Extensions.FileProviders;
 using GestionInmobiliaria.Dominio.Entidades;
 using GestionInmobiliaria.Dominio.Interfaces;
 using GestionInmobiliaria.Infraestructura.Persistencia;
@@ -118,6 +119,22 @@ app.UseMiddleware<ExceptionLoggingMiddleware>();
 app.UseHttpsRedirection();
 app.UseCors("FrontendDev");
 app.UseStaticFiles();
+
+var logosPath = Path.Combine(builder.Environment.ContentRootPath, "Logos");
+if (!Directory.Exists(logosPath)) Directory.CreateDirectory(logosPath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(logosPath),
+    RequestPath = "/logos"
+});
+
+var fotosPath = Path.Combine(builder.Environment.ContentRootPath, "FotosPropiedad");
+if (!Directory.Exists(fotosPath)) Directory.CreateDirectory(fotosPath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(fotosPath),
+    RequestPath = "/fotos-propiedad"
+});
 app.UseAuthentication();
 app.UseMiddleware<TenantMiddleware>();
 app.UseAuthorization();

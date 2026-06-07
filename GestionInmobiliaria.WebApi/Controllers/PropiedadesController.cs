@@ -14,11 +14,22 @@ public class PropiedadesController : ControllerBase
 {
     private readonly IPropiedadRepository _repo;
     private readonly IPropietarioRepository _propietarioRepo;
+    private readonly IWebHostEnvironment _env;
+    private readonly ITenantService _tenantService;
 
-    public PropiedadesController(IPropiedadRepository repo, IPropietarioRepository propietarioRepo)
+    private static readonly string[] ExtensionesPermitidas = [".jpg", ".jpeg", ".png", ".webp"];
+    private const long TamanoMaximoBytes = 10 * 1024 * 1024;
+
+    public PropiedadesController(
+        IPropiedadRepository repo,
+        IPropietarioRepository propietarioRepo,
+        IWebHostEnvironment env,
+        ITenantService tenantService)
     {
         _repo = repo;
         _propietarioRepo = propietarioRepo;
+        _env = env;
+        _tenantService = tenantService;
     }
 
     [HttpGet]
@@ -56,6 +67,36 @@ public class PropiedadesController : ControllerBase
             PropietarioNombre = $"{p.Propietario.Apellido}, {p.Propietario.Nombre}"
         });
         return Ok(ApiResponse<IEnumerable<PropiedadComboDto>>.Ok(dtos));
+    }
+
+    [HttpGet("publicas")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetPublicas()
+    {
+        var lista = await _repo.GetPublicasAsync();
+        var dtos = lista.Select(p => new PropiedadPublicaDto
+        {
+            Id = p.Id,
+            TipoNombre = p.Tipo.ToString(),
+            OperacionNombre = p.Operacion.ToString(),
+            Direccion = p.Direccion,
+            Barrio = p.Barrio,
+            Ciudad = p.Ciudad,
+            Provincia = p.Provincia,
+            Ambientes = p.Ambientes,
+            Dormitorios = p.Dormitorios,
+            Banios = p.Banios,
+            SuperficieTotal = p.SuperficieTotal,
+            SuperficieCubierta = p.SuperficieCubierta,
+            PrecioAlquiler = p.PrecioAlquiler,
+            PrecioVenta = p.PrecioVenta,
+            Cochera = p.Cochera,
+            AceptaMascotas = p.AceptaMascotas,
+            Descripcion = p.Descripcion,
+            FotoPrincipalUrl = p.Fotos.FirstOrDefault(f => f.EsPrincipal)?.Url ?? p.Fotos.OrderBy(f => f.Orden).FirstOrDefault()?.Url,
+            FotosUrls = p.Fotos.OrderBy(f => f.Orden).Select(f => f.Url).ToList()
+        });
+        return Ok(ApiResponse<IEnumerable<PropiedadPublicaDto>>.Ok(dtos));
     }
 
     [HttpGet("{id}")]
@@ -216,6 +257,99 @@ public class PropiedadesController : ControllerBase
         Activo = p.Activo,
         FechaCreacion = p.FechaCreacion,
         PropietarioId = p.PropietarioId,
-        PropietarioNombre = $"{p.Propietario.Nombre} {p.Propietario.Apellido}"
+        PropietarioNombre = $"{p.Propietario.Nombre} {p.Propietario.Apellido}",
+        Fotos = p.Fotos.OrderBy(f => f.Orden).Select(f => new FotoPropiedadDto
+        {
+            Id = f.Id,
+            Url = f.Url,
+            NombreArchivo = f.NombreArchivo,
+            EsPrincipal = f.EsPrincipal,
+            Orden = f.Orden
+        }).ToList()
     };
+
+    // ---------- Fotos ----------
+
+    [HttpPost("{id}/fotos")]
+    public async Task<IActionResult> SubirFotos(int id, [FromForm] List<IFormFile> fotos)
+    {
+        var propiedad = await _repo.GetByIdAsync(id);
+        if (propiedad is null)
+            return NotFound(ApiResponse<object>.Fail("Propiedad no encontrada."));
+
+        if (fotos is null || fotos.Count == 0)
+            return BadRequest(ApiResponse<object>.Fail("Debe enviar al menos una foto."));
+
+        if (fotos.Count > 20)
+            return BadRequest(ApiResponse<object>.Fail("Máximo 20 fotos por propiedad."));
+
+        var tenantId = _tenantService.TenantId ?? 0;
+        var carpeta = Path.Combine(_env.ContentRootPath, "FotosPropiedad", tenantId.ToString(), id.ToString());
+        Directory.CreateDirectory(carpeta);
+
+        var esPrimeraFoto = !propiedad.Fotos.Any();
+        var ordenBase = propiedad.Fotos.Any() ? propiedad.Fotos.Max(f => f.Orden) + 1 : 1;
+        var resultado = new List<FotoPropiedadDto>();
+
+        for (var i = 0; i < fotos.Count; i++)
+        {
+            var archivo = fotos[i];
+            var extension = Path.GetExtension(archivo.FileName).ToLowerInvariant();
+            if (!ExtensionesPermitidas.Contains(extension))
+                return BadRequest(ApiResponse<object>.Fail($"Formato no permitido: {extension}. Use JPG, PNG o WebP."));
+            if (archivo.Length > TamanoMaximoBytes)
+                return BadRequest(ApiResponse<object>.Fail($"El archivo {archivo.FileName} supera el límite de 10 MB."));
+
+            var nuevoNombre = $"{Guid.NewGuid()}{extension}";
+            var rutaFisica = Path.Combine(carpeta, nuevoNombre);
+            using (var stream = new FileStream(rutaFisica, FileMode.Create))
+                await archivo.CopyToAsync(stream);
+
+            var url = $"/fotos-propiedad/{tenantId}/{id}/{nuevoNombre}";
+            var foto = await _repo.AddFotoAsync(new FotoPropiedad
+            {
+                PropiedadId = id,
+                Url = url,
+                NombreArchivo = archivo.FileName,
+                EsPrincipal = esPrimeraFoto && i == 0,
+                Orden = ordenBase + i,
+                TenantId = tenantId
+            });
+
+            resultado.Add(new FotoPropiedadDto
+            {
+                Id = foto.Id,
+                Url = foto.Url,
+                NombreArchivo = foto.NombreArchivo,
+                EsPrincipal = foto.EsPrincipal,
+                Orden = foto.Orden
+            });
+        }
+
+        return Ok(ApiResponse<List<FotoPropiedadDto>>.Ok(resultado, $"{resultado.Count} foto(s) subida(s) correctamente."));
+    }
+
+    [HttpPut("{id}/fotos/{fotoId}/principal")]
+    public async Task<IActionResult> SetFotoPrincipal(int id, int fotoId)
+    {
+        var foto = await _repo.GetFotoAsync(id, fotoId);
+        if (foto is null) return NotFound(ApiResponse<object>.Fail("Foto no encontrada."));
+        await _repo.SetFotoPrincipalAsync(id, fotoId);
+        return Ok(ApiResponse<object>.Ok(null, "Foto principal actualizada."));
+    }
+
+    [HttpDelete("{id}/fotos/{fotoId}")]
+    public async Task<IActionResult> DeleteFoto(int id, int fotoId)
+    {
+        var foto = await _repo.GetFotoAsync(id, fotoId);
+        if (foto is null) return NotFound(ApiResponse<object>.Fail("Foto no encontrada."));
+
+        var tenantId = _tenantService.TenantId ?? 0;
+        var rutaFisica = Path.Combine(_env.ContentRootPath, "FotosPropiedad",
+            tenantId.ToString(), id.ToString(), Path.GetFileName(foto.Url));
+        if (System.IO.File.Exists(rutaFisica)) System.IO.File.Delete(rutaFisica);
+
+        await _repo.DeleteFotoAsync(id, fotoId);
+        return Ok(ApiResponse<object>.Ok(null, "Foto eliminada correctamente."));
+    }
 }

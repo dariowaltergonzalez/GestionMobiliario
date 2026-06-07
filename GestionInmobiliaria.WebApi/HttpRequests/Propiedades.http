@@ -183,3 +183,46 @@ DELETE {{baseUrl}}/api/propiedades/1
 Authorization: Bearer {{token}}
 
 ###
+
+### ============================================
+### FOTOS DE PROPIEDAD
+### ============================================
+
+### 12. Subir fotos a propiedad (multipart/form-data)
+POST {{baseUrl}}/api/propiedades/1/fotos
+Authorization: Bearer {{token}}
+X-Tenant: {{tenant}}
+Content-Type: multipart/form-data; boundary=----FormBoundary
+
+------FormBoundary
+Content-Disposition: form-data; name="fotos"; filename="foto1.jpg"
+Content-Type: image/jpeg
+
+< ./foto1.jpg
+------FormBoundary--
+
+###
+
+### 13. Marcar foto como principal
+PUT {{baseUrl}}/api/propiedades/1/fotos/1/principal
+Authorization: Bearer {{token}}
+X-Tenant: {{tenant}}
+
+###
+
+### 14. Eliminar foto
+DELETE {{baseUrl}}/api/propiedades/1/fotos/1
+Authorization: Bearer {{token}}
+X-Tenant: {{tenant}}
+
+###
+
+### ============================================
+### ENDPOINT PÚBLICO (sin auth)
+### ============================================
+
+### 15. Propiedades disponibles para la landing page
+GET {{baseUrl}}/api/propiedades/publicas
+X-Tenant: {{tenant}}
+
+###

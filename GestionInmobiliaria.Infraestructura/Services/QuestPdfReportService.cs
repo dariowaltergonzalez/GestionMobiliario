@@ -1,9 +1,12 @@
 using GestionInmobiliaria.Aplicacion.DTOs;
 using GestionInmobiliaria.Aplicacion.Services;
 using GestionInmobiliaria.Dominio.Common;
+using Microsoft.Extensions.Logging;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using SkiaSharp;
+using Svg.Skia;
 
 namespace GestionInmobiliaria.Infraestructura.Services;
 
@@ -12,9 +15,16 @@ public class QuestPdfReportService : IPdfReportService
     private static readonly string AzulOscuro = "#1e3a5f";
     private static readonly string GrisClaro = "#f8f9fa";
 
+    private readonly ILogger<QuestPdfReportService> _logger;
+
     static QuestPdfReportService()
     {
         QuestPDF.Settings.License = LicenseType.Community;
+    }
+
+    public QuestPdfReportService(ILogger<QuestPdfReportService> logger)
+    {
+        _logger = logger;
     }
 
     public byte[] GenerarPropietarios(IEnumerable<PropietarioDto> datos, PdfReportConfig config)
@@ -26,11 +36,13 @@ public class QuestPdfReportService : IPdfReportService
             container.Page(page =>
             {
                 page.Size(PageSizes.A4.Landscape());
-                page.Margin(1.5f, Unit.Centimetre);
+                page.MarginTop(0.6f, Unit.Centimetre);
+                page.MarginBottom(1f, Unit.Centimetre);
+                page.MarginHorizontal(1.5f, Unit.Centimetre);
                 page.DefaultTextStyle(x => x.FontSize(8));
 
                 page.Header().Element(h => ComposeHeader(h, config, lista.Count));
-                page.Content().PaddingTop(10).Element(c => ComposePropietariosTable(c, lista));
+                page.Content().Element(c => ComposePropietariosTable(c, lista));
                 page.Footer().Element(ComposeFooter);
             });
         }).GeneratePdf();
@@ -45,29 +57,47 @@ public class QuestPdfReportService : IPdfReportService
             container.Page(page =>
             {
                 page.Size(PageSizes.A4.Landscape());
-                page.Margin(1.5f, Unit.Centimetre);
+                page.MarginTop(0.6f, Unit.Centimetre);
+                page.MarginBottom(1f, Unit.Centimetre);
+                page.MarginHorizontal(1.5f, Unit.Centimetre);
                 page.DefaultTextStyle(x => x.FontSize(8));
 
                 page.Header().Element(h => ComposeHeader(h, config, lista.Count));
-                page.Content().PaddingTop(10).Element(c => ComposePropiedadesTable(c, lista));
+                page.Content().Element(c => ComposePropiedadesTable(c, lista));
                 page.Footer().Element(ComposeFooter);
             });
         }).GeneratePdf();
     }
 
-    private static void ComposeHeader(IContainer container, PdfReportConfig config, int totalRegistros)
+    private void ComposeHeader(IContainer container, PdfReportConfig config, int totalRegistros)
     {
         container.Column(col =>
         {
             col.Item().Row(row =>
             {
+                var logoBytes = NormalizarImagen(config.LogoBytes);
+                if (logoBytes is { Length: > 0 })
+                {
+                    _logger.LogInformation("PDF: renderizando logo ({Bytes} bytes)", logoBytes.Length);
+                    row.ConstantItem(75).AlignMiddle().PaddingRight(12)
+                        .MaxHeight(55).Image(logoBytes).FitArea();
+                }
+                else
+                {
+                    _logger.LogWarning("PDF: logo omitido (logoBytes={LogoBytesNull})", logoBytes == null ? "null" : "0 bytes");
+                }
+
                 row.RelativeItem().Column(c =>
                 {
                     c.Item().Text(config.NombreEmpresa)
                         .FontSize(14).Bold().FontColor(AzulOscuro);
 
+                    if (!string.IsNullOrWhiteSpace(config.Slogan))
+                        c.Item().Text(config.Slogan)
+                            .FontSize(8).Italic().FontColor(Colors.Grey.Medium);
+
                     if (!string.IsNullOrWhiteSpace(config.InfoEmpresa))
-                        c.Item().Text(config.InfoEmpresa)
+                        c.Item().PaddingTop(2).Text(config.InfoEmpresa)
                             .FontSize(7).FontColor(Colors.Grey.Darken2);
                 });
 
@@ -88,7 +118,7 @@ public class QuestPdfReportService : IPdfReportService
                     .FontSize(7).Italic().FontColor(Colors.Grey.Darken1);
             }
 
-            col.Item().PaddingTop(6).LineHorizontal(1.5f).LineColor(AzulOscuro);
+            col.Item().PaddingTop(2).LineHorizontal(1.5f).LineColor(AzulOscuro);
         });
     }
 
@@ -114,17 +144,16 @@ public class QuestPdfReportService : IPdfReportService
         {
             table.ColumnsDefinition(cols =>
             {
-                cols.RelativeColumn(3);  // Apellido y nombre
-                cols.RelativeColumn(2);  // DNI
-                cols.RelativeColumn(2.5f); // CUIT
-                cols.RelativeColumn(3);  // Email
-                cols.RelativeColumn(2);  // Teléfono
-                cols.RelativeColumn(2);  // Dirección
-                cols.ConstantColumn(40); // Propiedades
-                cols.ConstantColumn(55); // Alta
+                cols.RelativeColumn(3);
+                cols.RelativeColumn(2);
+                cols.RelativeColumn(2.5f);
+                cols.RelativeColumn(3);
+                cols.RelativeColumn(2);
+                cols.RelativeColumn(2);
+                cols.ConstantColumn(40);
+                cols.ConstantColumn(55);
             });
 
-            // Encabezado
             table.Header(header =>
             {
                 string[] cols = ["Apellido y Nombre", "DNI", "CUIT", "Email", "Teléfono", "Dirección", "Props.", "Alta"];
@@ -133,7 +162,6 @@ public class QuestPdfReportService : IPdfReportService
                         .Text(col).FontColor("#FFFFFF").Bold().FontSize(7.5f);
             });
 
-            // Filas
             for (int i = 0; i < lista.Count; i++)
             {
                 var p = lista[i];
@@ -158,16 +186,15 @@ public class QuestPdfReportService : IPdfReportService
         {
             table.ColumnsDefinition(cols =>
             {
-                cols.RelativeColumn(4);  // Dirección
-                cols.RelativeColumn(2);  // Tipo
-                cols.RelativeColumn(2);  // Operación
-                cols.RelativeColumn(2);  // Estado
-                cols.RelativeColumn(2);  // Precio Alquiler
-                cols.RelativeColumn(2);  // Precio Venta
-                cols.RelativeColumn(3);  // Propietario
+                cols.RelativeColumn(4);
+                cols.RelativeColumn(2);
+                cols.RelativeColumn(2);
+                cols.RelativeColumn(2);
+                cols.RelativeColumn(2);
+                cols.RelativeColumn(2);
+                cols.RelativeColumn(3);
             });
 
-            // Encabezado
             table.Header(header =>
             {
                 string[] cols = ["Dirección", "Tipo", "Operación", "Estado", "Alquiler (ARS)", "Venta (USD)", "Propietario"];
@@ -176,7 +203,6 @@ public class QuestPdfReportService : IPdfReportService
                         .Text(col).FontColor("#FFFFFF").Bold().FontSize(7.5f);
             });
 
-            // Filas
             for (int i = 0; i < lista.Count; i++)
             {
                 var p = lista[i];
@@ -232,4 +258,68 @@ public class QuestPdfReportService : IPdfReportService
         "Reservada" => "Reservada",
         _ => estado
     };
+
+    // Convierte cualquier formato de imagen (PNG, JPEG, BMP, GIF, SVG) a JPEG para QuestPDF
+    private byte[]? NormalizarImagen(byte[]? bytes)
+    {
+        if (bytes is null or { Length: 0 }) return null;
+
+        // Detectar SVG por su cabecera de texto
+        if (EsSvg(bytes))
+            return ConvertirSvgAJpeg(bytes);
+
+        // Raster (PNG, JPEG, BMP, GIF, etc.) → JPEG via System.Drawing
+        try
+        {
+            using var ms = new MemoryStream(bytes);
+            using var bmp = new System.Drawing.Bitmap(ms);
+            using var outMs = new MemoryStream();
+            bmp.Save(outMs, System.Drawing.Imaging.ImageFormat.Jpeg);
+            var result = outMs.ToArray();
+            return result.Length > 0 ? result : null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PDF-Logo: no se pudo convertir la imagen raster");
+            return null;
+        }
+    }
+
+    private static bool EsSvg(byte[] bytes)
+    {
+        // SVG empieza con '<svg' o '<?xml'
+        var inicio = System.Text.Encoding.UTF8.GetString(bytes[..Math.Min(20, bytes.Length)]).TrimStart();
+        return inicio.StartsWith("<svg", StringComparison.OrdinalIgnoreCase)
+            || inicio.StartsWith("<?xml", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private byte[]? ConvertirSvgAJpeg(byte[] bytes)
+    {
+        try
+        {
+            using var svg = new SKSvg();
+            using var ms = new MemoryStream(bytes);
+            var picture = svg.Load(ms);
+            if (picture is null) return null;
+
+            var bounds = picture.CullRect;
+            int w = Math.Max((int)bounds.Width, 1);
+            int h = Math.Max((int)bounds.Height, 1);
+
+            using var bitmap = new SKBitmap(w, h);
+            using var canvas = new SKCanvas(bitmap);
+            canvas.Clear(SKColors.White);
+            canvas.DrawPicture(picture);
+            canvas.Flush();
+
+            using var image = SKImage.FromBitmap(bitmap);
+            using var data = image.Encode(SKEncodedImageFormat.Jpeg, 90);
+            return data?.ToArray();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PDF-Logo: no se pudo convertir el SVG");
+            return null;
+        }
+    }
 }

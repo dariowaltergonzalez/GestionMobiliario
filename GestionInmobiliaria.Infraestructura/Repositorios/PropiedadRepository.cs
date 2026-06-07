@@ -16,7 +16,10 @@ public class PropiedadRepository : IPropiedadRepository
 
     public async Task<PagedResult<Propiedad>> GetPagedAsync(PaginationParams paginacion, string? buscar = null, TipoPropiedad? tipo = null, EstadoPropiedad? estado = null, int? propietarioId = null)
     {
-        var query = _context.Propiedades.Include(p => p.Propietario).Where(p => p.Activo).AsQueryable();
+        var query = _context.Propiedades
+            .Include(p => p.Propietario)
+            .Include(p => p.Fotos)
+            .Where(p => p.Activo).AsQueryable();
 
         if (tipo.HasValue)
             query = query.Where(p => p.Tipo == tipo.Value);
@@ -44,8 +47,18 @@ public class PropiedadRepository : IPropiedadRepository
             .OrderBy(p => p.Direccion)
             .ToListAsync();
 
+    public async Task<IEnumerable<Propiedad>> GetPublicasAsync() =>
+        await _context.Propiedades
+            .Include(p => p.Fotos)
+            .Where(p => p.Activo && p.Estado == EstadoPropiedad.Disponible)
+            .OrderBy(p => p.Direccion)
+            .ToListAsync();
+
     public async Task<Propiedad?> GetByIdAsync(int id) =>
-        await _context.Propiedades.Include(p => p.Propietario).FirstOrDefaultAsync(p => p.Id == id && p.Activo);
+        await _context.Propiedades
+            .Include(p => p.Propietario)
+            .Include(p => p.Fotos.OrderBy(f => f.Orden))
+            .FirstOrDefaultAsync(p => p.Id == id && p.Activo);
 
     public async Task<Propiedad> CreateAsync(Propiedad propiedad)
     {
@@ -111,6 +124,38 @@ public class PropiedadRepository : IPropiedadRepository
         if (propiedad is null) return false;
         propiedad.Activo = false;
         propiedad.FechaActualizacion = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<FotoPropiedad> AddFotoAsync(FotoPropiedad foto)
+    {
+        foto.FechaCreacion = DateTime.UtcNow;
+        _context.FotosPropiedad.Add(foto);
+        await _context.SaveChangesAsync();
+        return foto;
+    }
+
+    public async Task<FotoPropiedad?> GetFotoAsync(int propiedadId, int fotoId) =>
+        await _context.FotosPropiedad
+            .FirstOrDefaultAsync(f => f.Id == fotoId && f.PropiedadId == propiedadId);
+
+    public async Task SetFotoPrincipalAsync(int propiedadId, int fotoId)
+    {
+        var fotos = await _context.FotosPropiedad
+            .Where(f => f.PropiedadId == propiedadId)
+            .ToListAsync();
+        foreach (var f in fotos)
+            f.EsPrincipal = f.Id == fotoId;
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<bool> DeleteFotoAsync(int propiedadId, int fotoId)
+    {
+        var foto = await _context.FotosPropiedad
+            .FirstOrDefaultAsync(f => f.Id == fotoId && f.PropiedadId == propiedadId);
+        if (foto is null) return false;
+        _context.FotosPropiedad.Remove(foto);
         await _context.SaveChangesAsync();
         return true;
     }

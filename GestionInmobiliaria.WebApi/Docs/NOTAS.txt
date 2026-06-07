@@ -1,2 +1,9 @@
 para ejecutar la api...
 dotnet run --project GestionInmobiliaria.WebApi
+
+
+para ejecutar el front...
+cd GestionInmobiliaria.Web
+npm run dev
+
+

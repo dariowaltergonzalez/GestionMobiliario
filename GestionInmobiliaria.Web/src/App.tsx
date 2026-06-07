@@ -7,6 +7,7 @@ import PropiedadesPage from './pages/dashboard/propiedades/PropiedadesPage'
 import LogsPage from './pages/dashboard/logs/LogsPage'
 import AuditoriaPage from './pages/dashboard/auditoria/AuditoriaPage'
 import PropietariosPage from './pages/dashboard/propietarios/PropietariosPage'
+import ConfiguracionPage from './pages/dashboard/configuracion/ConfiguracionPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth()
@@ -23,6 +24,7 @@ function AppRoutes() {
       <Route path="/dashboard/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
       <Route path="/dashboard/auditoria" element={<ProtectedRoute><AuditoriaPage /></ProtectedRoute>} />
       <Route path="/dashboard/propietarios" element={<ProtectedRoute><PropietariosPage /></ProtectedRoute>} />
+      <Route path="/dashboard/configuracion" element={<ProtectedRoute><ConfiguracionPage /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

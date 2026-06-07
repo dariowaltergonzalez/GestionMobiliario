@@ -24,6 +24,21 @@ public class ConfiguracionEmpresaDto
     public DateTime FechaActualizacion { get; set; }
 }
 
+public class ConfiguracionPublicaDto
+{
+    public string NombreComercial { get; set; } = string.Empty;
+    public string? Slogan { get; set; }
+    public string? Telefono { get; set; }
+    public string? WhatsApp { get; set; }
+    public string? Email { get; set; }
+    public string? SitioWeb { get; set; }
+    public string? LogoUrl { get; set; }
+    public string? Instagram { get; set; }
+    public string? Facebook { get; set; }
+    public string? Twitter { get; set; }
+    public string? TenantSlug { get; set; }
+}
+
 public class UpdateConfiguracionEmpresaRequest
 {
     public string NombreComercial { get; set; } = string.Empty;

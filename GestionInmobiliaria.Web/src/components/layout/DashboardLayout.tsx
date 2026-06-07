@@ -1,7 +1,8 @@
-import { type ReactNode } from 'react'
+import { type ReactNode, useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Home, Users, FileText, Calendar, LogOut, Building2, ClipboardList, Bell, ScrollText, ShieldCheck } from 'lucide-react'
+import { Home, Users, FileText, Calendar, LogOut, Building2, ClipboardList, Bell, ScrollText, ShieldCheck, Settings } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { getConfiguracionPublica } from '../../api/configuracion'
 
 const navItems = [
   { icono: Home, label: 'Dashboard', href: '/dashboard' },
@@ -12,6 +13,7 @@ const navItems = [
   { icono: FileText, label: 'Propietarios', href: '/dashboard/propietarios' },
   { icono: ScrollText, label: 'Logs', href: '/dashboard/logs' },
   { icono: ShieldCheck, label: 'Auditoría', href: '/dashboard/auditoria' },
+  { icono: Settings, label: 'Configuración', href: '/dashboard/configuracion' },
 ]
 
 interface Props {
@@ -23,6 +25,13 @@ export default function DashboardLayout({ children, titulo }: Props) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const [nombreEmpresa, setNombreEmpresa] = useState('')
+
+  useEffect(() => {
+    getConfiguracionPublica()
+      .then(res => { if (res.success && res.data) setNombreEmpresa(res.data.nombreComercial) })
+      .catch(() => {})
+  }, [])
 
   const handleLogout = () => {
     logout()
@@ -45,7 +54,7 @@ export default function DashboardLayout({ children, titulo }: Props) {
               <Home className="w-4 h-4 text-blue-900" />
             </div>
             <div>
-              <div className="text-white font-bold text-sm">García Propiedades</div>
+              <div className="text-white font-bold text-sm">{nombreEmpresa}</div>
               <div className="text-blue-400 text-xs">Panel de gestión</div>
             </div>
           </Link>

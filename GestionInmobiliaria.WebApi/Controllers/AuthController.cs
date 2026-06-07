@@ -90,6 +90,43 @@ public class AuthController : ControllerBase
         });
     }
 
+    [HttpPost("resolver-tenant")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResolverTenant([FromBody] ResolverTenantRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email))
+            return BadRequest(new { errors = new[] { "Email requerido." } });
+
+        var emailNormalizado = request.Email.Trim().ToUpperInvariant();
+
+        var tenantIds = await _context.Set<ApplicationUser>()
+            .IgnoreQueryFilters()
+            .Where(u => u.NormalizedEmail == emailNormalizado && u.Activo)
+            .Select(u => u.TenantId)
+            .Distinct()
+            .ToListAsync();
+
+        if (!tenantIds.Any())
+            return Ok(new { success = true, data = Array.Empty<TenantLoginDto>() });
+
+        var tenantsDb = await _context.Tenants
+            .Where(t => tenantIds.Contains(t.Id) && t.Activo)
+            .ToListAsync();
+
+        var configs = await _context.ConfiguracionEmpresa
+            .IgnoreQueryFilters()
+            .Where(c => tenantIds.Contains(c.TenantId))
+            .Select(c => new { c.TenantId, c.NombreComercial })
+            .ToListAsync();
+
+        var tenants = tenantsDb.Select(t => new TenantLoginDto(
+            configs.FirstOrDefault(c => c.TenantId == t.Id)?.NombreComercial ?? t.Nombre,
+            t.Slug
+        )).ToList();
+
+        return Ok(new { success = true, data = tenants });
+    }
+
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh([FromBody] RefreshRequest request)
     {
@@ -227,6 +264,8 @@ public record LoginRequest(string Email, string Password);
 public record RefreshRequest(string RefreshToken);
 public record UpdateProfileRequest(string Nombre, string Apellido);
 public record CambiarActivoRequest(bool Activo);
+public record ResolverTenantRequest(string Email);
+public record TenantLoginDto(string Nombre, string Slug);
 public record TokenResponse
 {
     public string AccessToken { get; init; } = string.Empty;

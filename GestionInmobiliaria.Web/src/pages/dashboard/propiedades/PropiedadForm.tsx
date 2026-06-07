@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react'
-import { X, Loader2 } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { X, Loader2, ImagePlus, Star, Trash2, Upload } from 'lucide-react'
 import {
-  createPropiedad, updatePropiedad,
+  createPropiedad, updatePropiedad, subirFotosPropiedad, setFotoPrincipal, deleteFotoPropiedad,
   propiedadFormVacio, TIPOS_PROPIEDAD, TIPOS_OPERACION, ESTADOS_PROPIEDAD, ESTADOS_CONSERVACION,
-  type PropiedadDto, type PropiedadFormData,
+  type PropiedadDto, type PropiedadFormData, type FotoPropiedadDto,
 } from '../../../api/propiedades'
 import { getPropietariosActivos, type PropietarioComboDto } from '../../../api/propietarios'
+
+const API_URL = 'http://localhost:5005'
 
 interface Props {
   propiedad: PropiedadDto | null
@@ -42,18 +44,6 @@ const Checkbox = ({ label, ...props }: { label: string } & React.InputHTMLAttrib
   </label>
 )
 
-function formatARS(value: string) {
-  const num = Number(value.replace(/\D/g, ''))
-  if (isNaN(num) || value === '') return ''
-  return num.toLocaleString('es-AR')
-}
-
-function formatUSD(value: string) {
-  const num = Number(value.replace(/\D/g, ''))
-  if (isNaN(num) || value === '') return ''
-  return num.toLocaleString('es-AR')
-}
-
 const CurrencyInput = ({ label, value, onChange, required, placeholder, prefix = '$' }: {
   label: string
   value: string
@@ -63,26 +53,19 @@ const CurrencyInput = ({ label, value, onChange, required, placeholder, prefix =
   prefix?: string
 }) => {
   const [focused, setFocused] = useState(false)
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, '')
-    onChange(raw)
+    onChange(e.target.value.replace(/\D/g, ''))
   }
-
+  const display = focused ? value : (value ? Number(value).toLocaleString('es-AR') : '')
   return (
     <div>
       <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
       <div className="flex items-center border border-gray-200 rounded-lg focus-within:ring-2 focus-within:ring-blue-900/20 focus-within:border-blue-900 transition bg-white overflow-hidden">
         <span className="pl-3 pr-1 text-sm text-gray-400 select-none">{prefix}</span>
         <input
-          type="text"
-          inputMode="numeric"
-          required={required}
-          placeholder={placeholder}
-          value={focused ? value : formatARS(value)}
-          onChange={handleChange}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          type="text" inputMode="numeric" required={required} placeholder={placeholder}
+          value={display} onChange={handleChange}
+          onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
           className="flex-1 pr-3 py-2 text-sm text-gray-700 outline-none"
         />
       </div>
@@ -90,11 +73,174 @@ const CurrencyInput = ({ label, value, onChange, required, placeholder, prefix =
   )
 }
 
+// ---------- Sección de fotos ----------
+
+function FotosSection({ propiedadId, fotosIniciales, fotasPendientes, onFotosPendientesChange }: {
+  propiedadId: number | null
+  fotosIniciales: FotoPropiedadDto[]
+  fotasPendientes: File[]
+  onFotosPendientesChange: (files: File[]) => void
+}) {
+  const [fotos, setFotos] = useState<FotoPropiedadDto[]>(fotosIniciales)
+  const [accion, setAccion] = useState<string>('')
+  const [previews, setPreviews] = useState<string[]>([])
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    setFotos(fotosIniciales)
+  }, [fotosIniciales])
+
+  const handleArchivos = (files: FileList | null) => {
+    if (!files) return
+    const nuevos = Array.from(files).filter(f => f.type.startsWith('image/'))
+    const total = [...fotasPendientes, ...nuevos]
+    onFotosPendientesChange(total)
+    setPreviews(prev => [
+      ...prev,
+      ...nuevos.map(f => URL.createObjectURL(f))
+    ])
+  }
+
+  const quitarPendiente = (idx: number) => {
+    URL.revokeObjectURL(previews[idx])
+    onFotosPendientesChange(fotasPendientes.filter((_, i) => i !== idx))
+    setPreviews(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  const handleSetPrincipal = async (fotoId: number) => {
+    if (!propiedadId) return
+    setAccion(`principal-${fotoId}`)
+    try {
+      await setFotoPrincipal(propiedadId, fotoId)
+      setFotos(prev => prev.map(f => ({ ...f, esPrincipal: f.id === fotoId })))
+    } finally {
+      setAccion('')
+    }
+  }
+
+  const handleEliminar = async (fotoId: number) => {
+    if (!propiedadId) return
+    setAccion(`delete-${fotoId}`)
+    try {
+      await deleteFotoPropiedad(propiedadId, fotoId)
+      setFotos(prev => prev.filter(f => f.id !== fotoId))
+    } finally {
+      setAccion('')
+    }
+  }
+
+  const isDragging = accion === 'drag'
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Fotos</p>
+
+      {/* Fotos existentes */}
+      {fotos.length > 0 && (
+        <div className="grid grid-cols-4 gap-2 mb-3">
+          {fotos.map(f => (
+            <div key={f.id} className="relative group rounded-lg overflow-hidden border border-gray-200 aspect-square bg-gray-50">
+              <img
+                src={`${API_URL}${f.url}`}
+                alt={f.nombreArchivo}
+                className="w-full h-full object-cover"
+              />
+              {f.esPrincipal && (
+                <span className="absolute top-1 left-1 bg-yellow-400 text-blue-900 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                  <Star className="w-2.5 h-2.5" /> Principal
+                </span>
+              )}
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
+                {!f.esPrincipal && (
+                  <button
+                    type="button"
+                    onClick={() => handleSetPrincipal(f.id)}
+                    disabled={!!accion}
+                    title="Marcar como principal"
+                    className="p-1.5 bg-yellow-400 text-blue-900 rounded-lg hover:bg-yellow-300 disabled:opacity-50"
+                  >
+                    {accion === `principal-${f.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Star className="w-3.5 h-3.5" />}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleEliminar(f.id)}
+                  disabled={!!accion}
+                  title="Eliminar foto"
+                  className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50"
+                >
+                  {accion === `delete-${f.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Previews de fotos pendientes */}
+      {previews.length > 0 && (
+        <div className="grid grid-cols-4 gap-2 mb-3">
+          {previews.map((src, idx) => (
+            <div key={idx} className="relative group rounded-lg overflow-hidden border-2 border-dashed border-blue-300 aspect-square bg-blue-50">
+              <img src={src} alt="" className="w-full h-full object-cover opacity-80" />
+              <span className="absolute top-1 left-1 bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                Por subir
+              </span>
+              <button
+                type="button"
+                onClick={() => quitarPendiente(idx)}
+                className="absolute top-1 right-1 bg-red-500 text-white p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Zona de drop / selector */}
+      <div
+        onDragOver={e => { e.preventDefault(); setAccion('drag') }}
+        onDragLeave={() => setAccion('')}
+        onDrop={e => { e.preventDefault(); setAccion(''); handleArchivos(e.dataTransfer.files) }}
+        onClick={() => inputRef.current?.click()}
+        className={`border-2 border-dashed rounded-xl p-5 flex flex-col items-center gap-2 cursor-pointer transition-colors ${
+          isDragging ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-blue-400 hover:bg-gray-50'
+        }`}
+      >
+        {isDragging ? (
+          <Upload className="w-6 h-6 text-blue-600" />
+        ) : (
+          <ImagePlus className="w-6 h-6 text-gray-400" />
+        )}
+        <p className="text-sm text-gray-500">
+          {isDragging ? 'Soltá las imágenes aquí' : 'Arrastrá fotos o hacé clic para seleccionar'}
+        </p>
+        <p className="text-xs text-gray-400">JPG, PNG, WebP · máx. 10 MB c/u</p>
+        {!propiedadId && (
+          <p className="text-xs text-blue-600 font-medium">Las fotos se subirán al guardar la propiedad</p>
+        )}
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={e => handleArchivos(e.target.files)}
+        />
+      </div>
+    </div>
+  )
+}
+
+// ---------- Formulario principal ----------
+
 export default function PropiedadForm({ propiedad, onGuardado, onCerrar }: Props) {
   const [form, setForm] = useState<PropiedadFormData>(propiedadFormVacio)
   const [propietarios, setPropietarios] = useState<PropietarioComboDto[]>([])
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
+  const [fotosPendientes, setFotosPendientes] = useState<File[]>([])
 
   useEffect(() => {
     getPropietariosActivos().then(res => {
@@ -158,15 +304,22 @@ export default function PropiedadForm({ propiedad, onGuardado, onCerrar }: Props
     setError('')
     setGuardando(true)
     try {
+      let propiedadId: number
       if (propiedad) {
         await updatePropiedad(propiedad.id, form)
+        propiedadId = propiedad.id
       } else {
-        await createPropiedad(form)
+        const res = await createPropiedad(form)
+        propiedadId = (res.data as { id: number }).id
       }
+
+      if (fotosPendientes.length > 0) {
+        await subirFotosPropiedad(propiedadId, fotosPendientes)
+      }
+
       onGuardado()
     } catch (err: unknown) {
       const axErr = err as { response?: { status?: number; data?: { errors?: string[]; message?: string; title?: string } } }
-      console.error('Error al guardar:', axErr.response?.status, axErr.response?.data)
       const msg = axErr.response?.data?.errors?.[0]
         ?? axErr.response?.data?.message
         ?? axErr.response?.data?.title
@@ -196,9 +349,7 @@ export default function PropiedadForm({ propiedad, onGuardado, onCerrar }: Props
           <div className="px-6 py-5 space-y-5">
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
-                {error}
-              </div>
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">{error}</div>
             )}
 
             {/* Propietario */}
@@ -264,7 +415,7 @@ export default function PropiedadForm({ propiedad, onGuardado, onCerrar }: Props
               </div>
             </div>
 
-            {/* Precio — condicional según operación */}
+            {/* Precio */}
             <div>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Precio</p>
               <div className={`grid gap-3 ${mostrarAlquiler && mostrarVenta ? 'grid-cols-3' : 'grid-cols-2'}`}>
@@ -331,6 +482,14 @@ export default function PropiedadForm({ propiedad, onGuardado, onCerrar }: Props
               />
             </div>
 
+            {/* Fotos */}
+            <FotosSection
+              propiedadId={propiedad?.id ?? null}
+              fotosIniciales={propiedad?.fotos ?? []}
+              fotasPendientes={fotosPendientes}
+              onFotosPendientesChange={setFotosPendientes}
+            />
+
           </div>
 
           {/* FOOTER */}
@@ -347,7 +506,9 @@ export default function PropiedadForm({ propiedad, onGuardado, onCerrar }: Props
               disabled={guardando}
               className="flex-1 bg-blue-900 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-800 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
             >
-              {guardando ? <><Loader2 className="w-4 h-4 animate-spin" /> Guardando...</> : (propiedad ? 'Guardar cambios' : 'Crear propiedad')}
+              {guardando
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> {fotosPendientes.length > 0 ? 'Guardando y subiendo fotos...' : 'Guardando...'}</>
+                : (propiedad ? 'Guardar cambios' : 'Crear propiedad')}
             </button>
           </div>
         </form>

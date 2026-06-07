@@ -39,6 +39,40 @@ public class PropiedadDto
     public DateTime FechaCreacion { get; set; }
     public int PropietarioId { get; set; }
     public string PropietarioNombre { get; set; } = string.Empty;
+    public List<FotoPropiedadDto> Fotos { get; set; } = new();
+    public string? FotoPrincipalUrl => Fotos.FirstOrDefault(f => f.EsPrincipal)?.Url ?? Fotos.FirstOrDefault()?.Url;
+}
+
+public class FotoPropiedadDto
+{
+    public int Id { get; set; }
+    public string Url { get; set; } = string.Empty;
+    public string NombreArchivo { get; set; } = string.Empty;
+    public bool EsPrincipal { get; set; }
+    public int Orden { get; set; }
+}
+
+public class PropiedadPublicaDto
+{
+    public int Id { get; set; }
+    public string TipoNombre { get; set; } = string.Empty;
+    public string OperacionNombre { get; set; } = string.Empty;
+    public string Direccion { get; set; } = string.Empty;
+    public string? Barrio { get; set; }
+    public string? Ciudad { get; set; }
+    public string? Provincia { get; set; }
+    public int? Ambientes { get; set; }
+    public int? Dormitorios { get; set; }
+    public int? Banios { get; set; }
+    public decimal? SuperficieTotal { get; set; }
+    public decimal? SuperficieCubierta { get; set; }
+    public decimal? PrecioAlquiler { get; set; }
+    public decimal? PrecioVenta { get; set; }
+    public bool Cochera { get; set; }
+    public bool AceptaMascotas { get; set; }
+    public string? Descripcion { get; set; }
+    public string? FotoPrincipalUrl { get; set; }
+    public List<string> FotosUrls { get; set; } = new();
 }
 
 public class CreatePropiedadRequest
