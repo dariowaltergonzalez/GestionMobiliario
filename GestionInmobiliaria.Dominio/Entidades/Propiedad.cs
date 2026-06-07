@@ -12,12 +12,21 @@ public enum TipoPropiedad
     Otro = 8
 }
 
+public enum TipoOperacion
+{
+    Alquiler = 1,
+    Venta = 2,
+    AlquilerOVenta = 3
+}
+
 public enum EstadoPropiedad
 {
     Disponible = 1,
     Alquilada = 2,
     EnMantenimiento = 3,
-    NoDisponible = 4
+    NoDisponible = 4,
+    Vendida = 5,
+    Reservada = 6
 }
 
 public enum EstadoConservacion
@@ -32,6 +41,7 @@ public class Propiedad : IAuditable
 {
     public int Id { get; set; }
     public TipoPropiedad Tipo { get; set; }
+    public TipoOperacion Operacion { get; set; } = TipoOperacion.Alquiler;
     public string Direccion { get; set; } = string.Empty;
     public string? Barrio { get; set; }
     public string? Ciudad { get; set; }
@@ -43,7 +53,8 @@ public class Propiedad : IAuditable
     public decimal? SuperficieCubierta { get; set; }
     public string? Piso { get; set; }
     public string? NumeroDepartamento { get; set; }
-    public decimal PrecioAlquiler { get; set; }
+    public decimal? PrecioAlquiler { get; set; }
+    public decimal? PrecioVenta { get; set; }
     public decimal? Expensas { get; set; }
     public EstadoPropiedad Estado { get; set; } = EstadoPropiedad.Disponible;
     public EstadoConservacion? EstadoConservacion { get; set; }

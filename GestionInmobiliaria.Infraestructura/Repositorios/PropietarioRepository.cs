@@ -2,6 +2,7 @@ using GestionInmobiliaria.Dominio.Common;
 using GestionInmobiliaria.Dominio.Entidades;
 using GestionInmobiliaria.Dominio.Interfaces;
 using GestionInmobiliaria.Infraestructura.Extensions;
+using GestionInmobiliaria.Infraestructura.Helpers;
 using GestionInmobiliaria.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,7 +16,7 @@ public class PropietarioRepository : IPropietarioRepository
 
     public async Task<PagedResult<Propietario>> GetPagedAsync(PaginationParams paginacion, string? buscar = null, bool? activo = null)
     {
-        var query = _context.Propietarios.AsQueryable();
+        var query = _context.Propietarios.Include(p => p.Propiedades).AsQueryable();
 
         if (activo.HasValue)
             query = query.Where(p => p.Activo == activo.Value);
@@ -41,6 +42,7 @@ public class PropietarioRepository : IPropietarioRepository
 
     public async Task<Propietario> CreateAsync(Propietario propietario)
     {
+        Normalizar(propietario);
         propietario.FechaCreacion = DateTime.UtcNow;
         propietario.FechaActualizacion = DateTime.UtcNow;
         _context.Propietarios.Add(propietario);
@@ -50,10 +52,18 @@ public class PropietarioRepository : IPropietarioRepository
 
     public async Task<Propietario> UpdateAsync(Propietario propietario)
     {
+        Normalizar(propietario);
         propietario.FechaActualizacion = DateTime.UtcNow;
-        _context.Propietarios.Update(propietario);
         await _context.SaveChangesAsync();
         return propietario;
+    }
+
+    private static void Normalizar(Propietario p)
+    {
+        p.Nombre = TextNormalizer.TitleCase(p.Nombre)!;
+        p.Apellido = TextNormalizer.TitleCase(p.Apellido)!;
+        p.Direccion = TextNormalizer.TitleCase(p.Direccion);
+        p.Email = TextNormalizer.Lower(p.Email);
     }
 
     public async Task<bool> DeleteAsync(int id)
@@ -61,6 +71,7 @@ public class PropietarioRepository : IPropietarioRepository
         var propietario = await _context.Propietarios.FindAsync(id);
         if (propietario is null) return false;
         propietario.Activo = false;
+        propietario.FechaActualizacion = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         return true;
     }

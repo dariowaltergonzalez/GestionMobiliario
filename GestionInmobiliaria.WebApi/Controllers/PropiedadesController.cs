@@ -27,6 +27,7 @@ public class PropiedadesController : ControllerBase
         [FromQuery] string? buscar,
         [FromQuery] TipoPropiedad? tipo,
         [FromQuery] EstadoPropiedad? estado,
+        [FromQuery] TipoOperacion? operacion,
         [FromQuery] int? propietarioId)
     {
         var resultado = await _repo.GetPagedAsync(paginacion, buscar, tipo, estado, propietarioId);
@@ -51,6 +52,7 @@ public class PropiedadesController : ControllerBase
             Direccion = p.Direccion,
             TipoNombre = p.Tipo.ToString(),
             PrecioAlquiler = p.PrecioAlquiler,
+            PrecioVenta = p.PrecioVenta,
             PropietarioNombre = $"{p.Propietario.Apellido}, {p.Propietario.Nombre}"
         });
         return Ok(ApiResponse<IEnumerable<PropiedadComboDto>>.Ok(dtos));
@@ -70,8 +72,9 @@ public class PropiedadesController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Direccion))
             return BadRequest(ApiResponse<PropiedadDto>.Fail("La dirección es requerida."));
 
-        if (request.PrecioAlquiler <= 0)
-            return BadRequest(ApiResponse<PropiedadDto>.Fail("El precio de alquiler debe ser mayor a cero."));
+        ValidarPrecios(request.Operacion, request.PrecioAlquiler, request.PrecioVenta, out var errorPrecio);
+        if (errorPrecio is not null)
+            return BadRequest(ApiResponse<PropiedadDto>.Fail(errorPrecio));
 
         var propietario = await _propietarioRepo.GetByIdAsync(request.PropietarioId);
         if (propietario is null)
@@ -80,6 +83,7 @@ public class PropiedadesController : ControllerBase
         var entidad = new Propiedad
         {
             Tipo = request.Tipo,
+            Operacion = request.Operacion,
             Direccion = request.Direccion,
             Barrio = request.Barrio,
             Ciudad = request.Ciudad,
@@ -92,6 +96,7 @@ public class PropiedadesController : ControllerBase
             Piso = request.Piso,
             NumeroDepartamento = request.NumeroDepartamento,
             PrecioAlquiler = request.PrecioAlquiler,
+            PrecioVenta = request.PrecioVenta,
             Expensas = request.Expensas,
             Estado = request.Estado,
             EstadoConservacion = request.EstadoConservacion,
@@ -119,14 +124,16 @@ public class PropiedadesController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Direccion))
             return BadRequest(ApiResponse<PropiedadDto>.Fail("La dirección es requerida."));
 
-        if (request.PrecioAlquiler <= 0)
-            return BadRequest(ApiResponse<PropiedadDto>.Fail("El precio de alquiler debe ser mayor a cero."));
+        ValidarPrecios(request.Operacion, request.PrecioAlquiler, request.PrecioVenta, out var errorPrecio);
+        if (errorPrecio is not null)
+            return BadRequest(ApiResponse<PropiedadDto>.Fail(errorPrecio));
 
         var propietario = await _propietarioRepo.GetByIdAsync(request.PropietarioId);
         if (propietario is null)
             return BadRequest(ApiResponse<PropiedadDto>.Fail("El propietario indicado no existe."));
 
         existente.Tipo = request.Tipo;
+        existente.Operacion = request.Operacion;
         existente.Direccion = request.Direccion;
         existente.Barrio = request.Barrio;
         existente.Ciudad = request.Ciudad;
@@ -139,6 +146,7 @@ public class PropiedadesController : ControllerBase
         existente.Piso = request.Piso;
         existente.NumeroDepartamento = request.NumeroDepartamento;
         existente.PrecioAlquiler = request.PrecioAlquiler;
+        existente.PrecioVenta = request.PrecioVenta;
         existente.Expensas = request.Expensas;
         existente.Estado = request.Estado;
         existente.EstadoConservacion = request.EstadoConservacion;
@@ -163,10 +171,25 @@ public class PropiedadesController : ControllerBase
         return Ok(ApiResponse<object>.Ok(null, "Propiedad dada de baja correctamente."));
     }
 
+    private static void ValidarPrecios(TipoOperacion operacion, decimal? precioAlquiler, decimal? precioVenta, out string? error)
+    {
+        error = operacion switch
+        {
+            TipoOperacion.Alquiler when (precioAlquiler is null || precioAlquiler <= 0)
+                => "El precio de alquiler es requerido y debe ser mayor a cero.",
+            TipoOperacion.Venta when (precioVenta is null || precioVenta <= 0)
+                => "El precio de venta es requerido y debe ser mayor a cero.",
+            TipoOperacion.AlquilerOVenta when (precioAlquiler is null || precioAlquiler <= 0) && (precioVenta is null || precioVenta <= 0)
+                => "Debe ingresar al menos un precio (alquiler o venta).",
+            _ => null
+        };
+    }
+
     private static PropiedadDto MapToDto(Propiedad p) => new()
     {
         Id = p.Id,
         Tipo = p.Tipo,
+        Operacion = p.Operacion,
         Direccion = p.Direccion,
         Barrio = p.Barrio,
         Ciudad = p.Ciudad,
@@ -179,6 +202,7 @@ public class PropiedadesController : ControllerBase
         Piso = p.Piso,
         NumeroDepartamento = p.NumeroDepartamento,
         PrecioAlquiler = p.PrecioAlquiler,
+        PrecioVenta = p.PrecioVenta,
         Expensas = p.Expensas,
         Estado = p.Estado,
         EstadoConservacion = p.EstadoConservacion,

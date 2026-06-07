@@ -3,6 +3,7 @@ using GestionInmobiliaria.Dominio.Entidades;
 using GestionInmobiliaria.Dominio.Interfaces;
 using GestionInmobiliaria.Infraestructura.Persistencia;
 using GestionInmobiliaria.Infraestructura.Repositorios;
+using GestionInmobiliaria.Aplicacion.Services;
 using GestionInmobiliaria.Infraestructura.Services;
 using GestionInmobiliaria.WebApi.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -74,7 +75,10 @@ builder.Services.AddScoped<IAgenteRepository, AgenteRepository>();
 builder.Services.AddScoped<ILeadRepository, LeadRepository>();
 builder.Services.AddScoped<IEventoAgendaRepository, EventoAgendaRepository>();
 builder.Services.AddScoped<ISolicitudTasacionRepository, SolicitudTasacionRepository>();
+builder.Services.AddScoped<IAppLogRepository, AppLogRepository>();
+builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 builder.Services.AddScoped<IStorageService, LocalStorageService>();
+builder.Services.AddScoped<IPdfReportService, QuestPdfReportService>();
 builder.Services.AddScoped<ITenantService, TenantService>();
 
 builder.Services.AddHttpContextAccessor();
@@ -110,6 +114,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseMiddleware<ExceptionLoggingMiddleware>();
 app.UseHttpsRedirection();
 app.UseCors("FrontendDev");
 app.UseStaticFiles();

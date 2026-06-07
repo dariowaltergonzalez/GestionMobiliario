@@ -35,6 +35,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<SolicitudTasacion> SolicitudesTasacion => Set<SolicitudTasacion>();
     public DbSet<FotoSolicitud> FotosSolicitud => Set<FotoSolicitud>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<AppLog> AppLogs => Set<AppLog>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -48,6 +49,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         builder.Entity<Lead>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<EventoAgenda>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<ConfiguracionEmpresa>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
+        builder.Entity<AppLog>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
+        builder.Entity<AuditLog>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<ApplicationUser>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<SolicitudTasacion>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<FotoSolicitud>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
@@ -104,6 +107,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.Property(p => p.Piso).HasMaxLength(10);
             e.Property(p => p.NumeroDepartamento).HasMaxLength(20);
             e.Property(p => p.PrecioAlquiler).HasColumnType("decimal(18,2)");
+            e.Property(p => p.PrecioVenta).HasColumnType("decimal(18,2)");
             e.Property(p => p.Expensas).HasColumnType("decimal(18,2)");
             e.Property(p => p.SuperficieTotal).HasColumnType("decimal(10,2)");
             e.Property(p => p.SuperficieCubierta).HasColumnType("decimal(10,2)");
@@ -252,6 +256,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.Property(a => a.UserId).HasMaxLength(450);
             e.Property(a => a.UserName).HasMaxLength(200);
         });
+
+        builder.Entity<AppLog>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.Property(a => a.Origen).IsRequired().HasMaxLength(200);
+            e.Property(a => a.Mensaje).IsRequired().HasMaxLength(2000);
+        });
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -281,7 +292,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 EntityName = entry.Entity.GetType().Name,
                 UserId = userId,
                 UserName = userName,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.UtcNow,
+                TenantId = _tenantService.TenantId ?? 0
             };
 
             switch (entry.State)

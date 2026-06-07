@@ -2,6 +2,7 @@ using GestionInmobiliaria.Dominio.Common;
 using GestionInmobiliaria.Dominio.Entidades;
 using GestionInmobiliaria.Dominio.Interfaces;
 using GestionInmobiliaria.Infraestructura.Extensions;
+using GestionInmobiliaria.Infraestructura.Helpers;
 using GestionInmobiliaria.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 
@@ -48,6 +49,7 @@ public class PropiedadRepository : IPropiedadRepository
 
     public async Task<Propiedad> CreateAsync(Propiedad propiedad)
     {
+        Normalizar(propiedad);
         propiedad.FechaCreacion = DateTime.UtcNow;
         propiedad.FechaActualizacion = DateTime.UtcNow;
         _context.Propiedades.Add(propiedad);
@@ -57,10 +59,50 @@ public class PropiedadRepository : IPropiedadRepository
 
     public async Task<Propiedad> UpdateAsync(Propiedad propiedad)
     {
-        propiedad.FechaActualizacion = DateTime.UtcNow;
-        _context.Propiedades.Update(propiedad);
+        var existing = await _context.Propiedades.FindAsync(propiedad.Id)
+            ?? throw new KeyNotFoundException($"Propiedad {propiedad.Id} no encontrada.");
+
+        Normalizar(propiedad);
+
+        existing.Tipo = propiedad.Tipo;
+        existing.Operacion = propiedad.Operacion;
+        existing.Direccion = propiedad.Direccion;
+        existing.Barrio = propiedad.Barrio;
+        existing.Ciudad = propiedad.Ciudad;
+        existing.Provincia = propiedad.Provincia;
+        existing.Ambientes = propiedad.Ambientes;
+        existing.Dormitorios = propiedad.Dormitorios;
+        existing.Banios = propiedad.Banios;
+        existing.SuperficieTotal = propiedad.SuperficieTotal;
+        existing.SuperficieCubierta = propiedad.SuperficieCubierta;
+        existing.Piso = propiedad.Piso;
+        existing.NumeroDepartamento = propiedad.NumeroDepartamento;
+        existing.PrecioAlquiler = propiedad.PrecioAlquiler;
+        existing.PrecioVenta = propiedad.PrecioVenta;
+        existing.Expensas = propiedad.Expensas;
+        existing.Estado = propiedad.Estado;
+        existing.EstadoConservacion = propiedad.EstadoConservacion;
+        existing.Cochera = propiedad.Cochera;
+        existing.Antiguedad = propiedad.Antiguedad;
+        existing.TieneCalefaccion = propiedad.TieneCalefaccion;
+        existing.AceptaMascotas = propiedad.AceptaMascotas;
+        existing.NroCatastro = propiedad.NroCatastro;
+        existing.Descripcion = propiedad.Descripcion;
+        existing.Notas = propiedad.Notas;
+        existing.PropietarioId = propiedad.PropietarioId;
+        existing.AgenteId = propiedad.AgenteId;
+        existing.FechaActualizacion = DateTime.UtcNow;
+
         await _context.SaveChangesAsync();
-        return propiedad;
+        return existing;
+    }
+
+    private static void Normalizar(Propiedad p)
+    {
+        p.Direccion = TextNormalizer.TitleCase(p.Direccion)!;
+        p.Barrio = TextNormalizer.TitleCase(p.Barrio);
+        p.Ciudad = TextNormalizer.TitleCase(p.Ciudad);
+        p.Provincia = TextNormalizer.TitleCase(p.Provincia);
     }
 
     public async Task<bool> DeleteAsync(int id)
@@ -68,6 +110,7 @@ public class PropiedadRepository : IPropiedadRepository
         var propiedad = await _context.Propiedades.FindAsync(id);
         if (propiedad is null) return false;
         propiedad.Activo = false;
+        propiedad.FechaActualizacion = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         return true;
     }
