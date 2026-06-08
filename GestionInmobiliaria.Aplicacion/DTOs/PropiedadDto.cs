@@ -39,6 +39,7 @@ public class PropiedadDto
     public DateTime FechaCreacion { get; set; }
     public int PropietarioId { get; set; }
     public string PropietarioNombre { get; set; } = string.Empty;
+    public string? VideoUrl { get; set; }
     public List<FotoPropiedadDto> Fotos { get; set; } = new();
     public string? FotoPrincipalUrl => Fotos.FirstOrDefault(f => f.EsPrincipal)?.Url ?? Fotos.FirstOrDefault()?.Url;
 }
@@ -71,6 +72,13 @@ public class PropiedadPublicaDto
     public bool Cochera { get; set; }
     public bool AceptaMascotas { get; set; }
     public string? Descripcion { get; set; }
+    public string? VideoUrl { get; set; }
+    public bool TieneCalefaccion { get; set; }
+    public int? Antiguedad { get; set; }
+    public string? EstadoConservacionNombre { get; set; }
+    public string? Piso { get; set; }
+    public string? NumeroDepartamento { get; set; }
+    public decimal? Expensas { get; set; }
     public string? FotoPrincipalUrl { get; set; }
     public List<string> FotosUrls { get; set; } = new();
 }

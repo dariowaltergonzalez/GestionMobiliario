@@ -54,6 +54,11 @@ public class PropiedadRepository : IPropiedadRepository
             .OrderBy(p => p.Direccion)
             .ToListAsync();
 
+    public async Task<Propiedad?> GetPublicaByIdAsync(int id) =>
+        await _context.Propiedades
+            .Include(p => p.Fotos.OrderBy(f => f.Orden))
+            .FirstOrDefaultAsync(p => p.Id == id && p.Activo);
+
     public async Task<Propiedad?> GetByIdAsync(int id) =>
         await _context.Propiedades
             .Include(p => p.Propietario)
@@ -158,5 +163,14 @@ public class PropiedadRepository : IPropiedadRepository
         _context.FotosPropiedad.Remove(foto);
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task SetVideoUrlAsync(int propiedadId, string? url)
+    {
+        var propiedad = await _context.Propiedades.FindAsync(propiedadId);
+        if (propiedad is null) return;
+        propiedad.VideoUrl = url;
+        propiedad.FechaActualizacion = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
     }
 }

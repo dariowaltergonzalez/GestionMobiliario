@@ -216,7 +216,7 @@ export default function LandingPage() {
                   const imgSrc = p.fotoPrincipalUrl ? `${API_URL}${p.fotoPrincipalUrl}` : null
                   const esVenta = p.operacionNombre === 'Venta' || p.operacionNombre === 'AlquilerOVenta'
                   return (
-                    <div key={p.id} className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow group cursor-pointer">
+                    <Link key={p.id} to={`/propiedades/${p.id}`} className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow group cursor-pointer block">
                       <div className="relative overflow-hidden h-52 bg-gray-100">
                         {imgSrc ? (
                           <img
@@ -272,12 +272,12 @@ export default function LandingPage() {
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-base font-bold text-blue-900">{formatPrecio(p)}</span>
-                          <button className="text-yellow-600 hover:text-yellow-700 text-sm font-medium flex items-center gap-1">
+                          <span className="text-yellow-600 text-sm font-medium flex items-center gap-1">
                             Ver más <ChevronRight className="w-4 h-4" />
-                          </button>
+                          </span>
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   )
                 })}
             </div>

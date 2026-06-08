@@ -76,5 +76,7 @@ public class Propiedad : IAuditable
     public int? AgenteId { get; set; }
     public Agente? Agente { get; set; }
 
+    public string? VideoUrl { get; set; }
+
     public ICollection<FotoPropiedad> Fotos { get; set; } = new List<FotoPropiedad>();
 }

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Loader2, ImagePlus, Star, Trash2, Upload } from 'lucide-react'
+import { X, Loader2, ImagePlus, Star, Trash2, Upload, Video, VideoOff } from 'lucide-react'
 import {
   createPropiedad, updatePropiedad, subirFotosPropiedad, setFotoPrincipal, deleteFotoPropiedad,
+  subirVideoPropiedad, deleteVideoPropiedad,
   propiedadFormVacio, TIPOS_PROPIEDAD, TIPOS_OPERACION, ESTADOS_PROPIEDAD, ESTADOS_CONSERVACION,
   type PropiedadDto, type PropiedadFormData, type FotoPropiedadDto,
 } from '../../../api/propiedades'
@@ -233,6 +234,96 @@ function FotosSection({ propiedadId, fotosIniciales, fotasPendientes, onFotosPen
   )
 }
 
+// ---------- Sección de video ----------
+
+function VideoSection({ propiedadId, videoUrlInicial, videoPendiente, onVideoPendienteChange }: {
+  propiedadId: number | null
+  videoUrlInicial: string | null
+  videoPendiente: File | null
+  onVideoPendienteChange: (file: File | null) => void
+}) {
+  const [videoUrl, setVideoUrl] = useState<string | null>(videoUrlInicial)
+  const [eliminando, setEliminando] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const handleArchivo = (file: File | null) => {
+    if (!file) return
+    if (!['video/mp4', 'video/quicktime', 'video/webm'].includes(file.type)) {
+      alert('Formato no permitido. Use MP4, MOV o WebM.')
+      return
+    }
+    if (file.size > 200 * 1024 * 1024) {
+      alert('El video supera el límite de 200 MB.')
+      return
+    }
+    onVideoPendienteChange(file)
+  }
+
+  const handleEliminar = async () => {
+    if (!propiedadId || !videoUrl) return
+    setEliminando(true)
+    try {
+      await deleteVideoPropiedad(propiedadId)
+      setVideoUrl(null)
+      onVideoPendienteChange(null)
+    } finally {
+      setEliminando(false)
+    }
+  }
+
+  const previewUrl = videoPendiente ? URL.createObjectURL(videoPendiente) : null
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Video</p>
+
+      {/* Video existente */}
+      {videoUrl && !videoPendiente && (
+        <div className="mb-3 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+          <video src={`${API_URL}${videoUrl}`} controls className="w-full max-h-48" preload="metadata" />
+          <div className="flex items-center justify-between px-3 py-2">
+            <span className="text-xs text-gray-500 flex items-center gap-1.5"><Video className="w-3.5 h-3.5" /> Video cargado</span>
+            <button type="button" onClick={handleEliminar} disabled={eliminando}
+              className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 disabled:opacity-50">
+              {eliminando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+              Eliminar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Preview del video pendiente */}
+      {videoPendiente && previewUrl && (
+        <div className="mb-3 rounded-xl overflow-hidden border-2 border-dashed border-blue-300 bg-blue-50">
+          <video src={previewUrl} controls className="w-full max-h-48" preload="metadata" />
+          <div className="flex items-center justify-between px-3 py-2">
+            <span className="text-xs text-blue-600 flex items-center gap-1.5 font-medium"><Video className="w-3.5 h-3.5" /> {videoPendiente.name} · Por subir</span>
+            <button type="button" onClick={() => onVideoPendienteChange(null)}
+              className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
+              <X className="w-3.5 h-3.5" /> Quitar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Selector */}
+      {!videoPendiente && (
+        <div
+          onClick={() => inputRef.current?.click()}
+          className="border-2 border-dashed border-gray-200 hover:border-blue-400 hover:bg-gray-50 rounded-xl p-5 flex flex-col items-center gap-2 cursor-pointer transition-colors"
+        >
+          {videoUrl ? <VideoOff className="w-6 h-6 text-gray-400" /> : <Video className="w-6 h-6 text-gray-400" />}
+          <p className="text-sm text-gray-500">{videoUrl ? 'Reemplazar video' : 'Seleccionar video'}</p>
+          <p className="text-xs text-gray-400">MP4, MOV, WebM · máx. 200 MB</p>
+          {!propiedadId && <p className="text-xs text-blue-600 font-medium">El video se subirá al guardar la propiedad</p>}
+          <input ref={inputRef} type="file" accept="video/mp4,video/quicktime,video/webm" className="hidden"
+            onChange={e => handleArchivo(e.target.files?.[0] ?? null)} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ---------- Formulario principal ----------
 
 export default function PropiedadForm({ propiedad, onGuardado, onCerrar }: Props) {
@@ -241,6 +332,7 @@ export default function PropiedadForm({ propiedad, onGuardado, onCerrar }: Props
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
   const [fotosPendientes, setFotosPendientes] = useState<File[]>([])
+  const [videoPendiente, setVideoPendiente] = useState<File | null>(null)
 
   useEffect(() => {
     getPropietariosActivos().then(res => {
@@ -315,6 +407,9 @@ export default function PropiedadForm({ propiedad, onGuardado, onCerrar }: Props
 
       if (fotosPendientes.length > 0) {
         await subirFotosPropiedad(propiedadId, fotosPendientes)
+      }
+      if (videoPendiente) {
+        await subirVideoPropiedad(propiedadId, videoPendiente)
       }
 
       onGuardado()
@@ -488,6 +583,14 @@ export default function PropiedadForm({ propiedad, onGuardado, onCerrar }: Props
               fotosIniciales={propiedad?.fotos ?? []}
               fotasPendientes={fotosPendientes}
               onFotosPendientesChange={setFotosPendientes}
+            />
+
+            {/* Video */}
+            <VideoSection
+              propiedadId={propiedad?.id ?? null}
+              videoUrlInicial={propiedad?.videoUrl ?? null}
+              videoPendiente={videoPendiente}
+              onVideoPendienteChange={setVideoPendiente}
             />
 
           </div>

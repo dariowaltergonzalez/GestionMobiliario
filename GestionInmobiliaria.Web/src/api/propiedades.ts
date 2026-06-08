@@ -212,11 +212,18 @@ export interface PropiedadPublicaDto {
   banios: number | null
   superficieTotal: number | null
   superficieCubierta: number | null
+  piso: string | null
+  numeroDepartamento: string | null
   precioAlquiler: number | null
   precioVenta: number | null
+  expensas: number | null
   cochera: boolean
+  tieneCalefaccion: boolean
   aceptaMascotas: boolean
+  antiguedad: number | null
+  estadoConservacionNombre: string | null
   descripcion: string | null
+  videoUrl: string | null
   fotoPrincipalUrl: string | null
   fotosUrls: string[]
 }
@@ -250,5 +257,27 @@ export const getPropiedadesPublicas = async (tenantSlug?: string | null) => {
   const headers: Record<string, string> = {}
   if (tenantSlug) headers['X-Tenant'] = tenantSlug
   const res = await client.get<ApiResponse<PropiedadPublicaDto[]>>('/api/propiedades/publicas', { headers })
+  return res.data
+}
+
+export const getPropiedadPublica = async (id: number, tenantSlug?: string | null) => {
+  const headers: Record<string, string> = {}
+  if (tenantSlug) headers['X-Tenant'] = tenantSlug
+  const res = await client.get<ApiResponse<PropiedadPublicaDto>>(`/api/propiedades/publica/${id}`, { headers })
+  return res.data
+}
+
+export const subirVideoPropiedad = async (propiedadId: number, archivo: File) => {
+  const form = new FormData()
+  form.append('video', archivo)
+  const res = await client.post<ApiResponse<{ videoUrl: string }>>(
+    `/api/propiedades/${propiedadId}/video`, form,
+    { headers: { 'Content-Type': 'multipart/form-data' } }
+  )
+  return res.data
+}
+
+export const deleteVideoPropiedad = async (propiedadId: number) => {
+  const res = await client.delete<ApiResponse<null>>(`/api/propiedades/${propiedadId}/video`)
   return res.data
 }
