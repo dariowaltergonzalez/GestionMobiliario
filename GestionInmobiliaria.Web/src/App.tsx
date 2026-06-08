@@ -9,6 +9,7 @@ import LogsPage from './pages/dashboard/logs/LogsPage'
 import AuditoriaPage from './pages/dashboard/auditoria/AuditoriaPage'
 import PropietariosPage from './pages/dashboard/propietarios/PropietariosPage'
 import ConfiguracionPage from './pages/dashboard/configuracion/ConfiguracionPage'
+import TasacionPage from './pages/public/TasacionPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth()
@@ -20,6 +21,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/propiedades/:id" element={<PropiedadDetallePage />} />
+      <Route path="/tasacion" element={<TasacionPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
       <Route path="/dashboard/propiedades" element={<ProtectedRoute><PropiedadesPage /></ProtectedRoute>} />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { MapPin, Home, Search, Phone, Mail, ChevronRight, Building2, TrendingUp, Users, Maximize2, BedDouble, Bath } from 'lucide-react'
 import { getConfiguracionPublica, type ConfiguracionPublicaDto } from '../../api/configuracion'
@@ -43,6 +43,15 @@ export default function LandingPage() {
   const [tipo, setTipo] = useState('todos')
   const [config, setConfig] = useState<ConfiguracionPublicaDto | null>(null)
   const [propiedades, setPropiedades] = useState<PropiedadPublicaDto[]>([])
+  const scrollPendiente = useRef<number | null>(null)
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem('landingScrollY')
+    if (saved !== null) {
+      scrollPendiente.current = parseInt(saved, 10)
+      sessionStorage.removeItem('landingScrollY')
+    }
+  }, [])
 
   useEffect(() => {
     getConfiguracionPublica()
@@ -55,6 +64,14 @@ export default function LandingPage() {
       .then(res => { if (res?.success && res.data) setPropiedades(res.data) })
       .catch(() => { /* usa defaults si falla */ })
   }, [])
+
+  useEffect(() => {
+    if (propiedades.length > 0 && scrollPendiente.current !== null) {
+      const y = scrollPendiente.current
+      scrollPendiente.current = null
+      setTimeout(() => window.scrollTo({ top: y, behavior: 'instant' }), 50)
+    }
+  }, [propiedades])
 
   const nombre = config?.nombreComercial || 'Inmobiliaria'
   const slogan = config?.slogan || 'Alquiler, venta y tasaciones online.'
@@ -216,7 +233,7 @@ export default function LandingPage() {
                   const imgSrc = p.fotoPrincipalUrl ? `${API_URL}${p.fotoPrincipalUrl}` : null
                   const esVenta = p.operacionNombre === 'Venta' || p.operacionNombre === 'AlquilerOVenta'
                   return (
-                    <Link key={p.id} to={`/propiedades/${p.id}`} className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow group cursor-pointer block">
+                    <Link key={p.id} to={`/propiedades/${p.id}`} onClick={() => sessionStorage.setItem('landingScrollY', String(window.scrollY))} className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow group cursor-pointer block">
                       <div className="relative overflow-hidden h-52 bg-gray-100">
                         {imgSrc ? (
                           <img
