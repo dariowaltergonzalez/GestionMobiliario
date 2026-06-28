@@ -74,6 +74,7 @@ export default function LoginPage() {
           email: data.email,
           rol: data.roles[0] ?? 'Operador',
           tenantId: data.tenantId,
+          agenteId: data.agenteId ?? null,
         },
         data.accessToken,
         tenantSeleccionado.slug
