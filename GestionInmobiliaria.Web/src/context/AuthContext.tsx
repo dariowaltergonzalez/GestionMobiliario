@@ -6,6 +6,7 @@ interface User {
   email: string
   rol: string
   tenantId: number
+  agenteId: number | null
 }
 
 interface AuthContextType {

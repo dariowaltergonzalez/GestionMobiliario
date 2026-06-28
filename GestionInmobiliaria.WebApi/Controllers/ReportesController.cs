@@ -18,6 +18,7 @@ public class ReportesController : ControllerBase
     private readonly IPdfReportService _pdf;
     private readonly IPropietarioRepository _propietarios;
     private readonly IPropiedadRepository _propiedades;
+    private readonly IEventoAgendaRepository _eventos;
     private readonly ApplicationDbContext _context;
     private readonly IWebHostEnvironment _env;
 
@@ -25,12 +26,14 @@ public class ReportesController : ControllerBase
         IPdfReportService pdf,
         IPropietarioRepository propietarios,
         IPropiedadRepository propiedades,
+        IEventoAgendaRepository eventos,
         ApplicationDbContext context,
         IWebHostEnvironment env)
     {
         _pdf = pdf;
         _propietarios = propietarios;
         _propiedades = propiedades;
+        _eventos = eventos;
         _context = context;
         _env = env;
     }
@@ -72,6 +75,28 @@ public class ReportesController : ControllerBase
             var config = await BuildConfig("Reporte de Propiedades", BuildFiltrosPropiedades(buscar, tipo, estado, operacion));
             var bytes = _pdf.GenerarPropiedades(dtos, config);
             return File(bytes, "application/pdf", $"Propiedades_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<string>.Fail($"Error al generar PDF: {ex.Message}"));
+        }
+    }
+
+    [HttpGet("agenda")]
+    public async Task<IActionResult> Agenda(
+        [FromQuery] int? agenteId,
+        [FromQuery] EstadoEvento? estado,
+        [FromQuery] TipoEvento? tipo)
+    {
+        try
+        {
+            var paginacion = new PaginationParams { Pagina = 1, Tamano = 10000 };
+            var resultado = await _eventos.GetPagedAsync(paginacion, agenteId, estado, tipo);
+            var dtos = resultado.Items.Select(MapEvento).ToList();
+            var filtros = BuildFiltrosAgenda(agenteId, estado, tipo);
+            var config = await BuildConfig("Reporte de Agenda", filtros);
+            var bytes = _pdf.GenerarAgenda(dtos, config);
+            return File(bytes, "application/pdf", $"Agenda_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
         }
         catch (Exception ex)
         {
@@ -136,6 +161,32 @@ public class ReportesController : ControllerBase
         if (operacion.HasValue) partes.Add($"Operación: {operacion}");
         return partes.Count > 0 ? string.Join("  ·  ", partes) : null;
     }
+
+    private static string? BuildFiltrosAgenda(int? agenteId, EstadoEvento? estado, TipoEvento? tipo)
+    {
+        var partes = new List<string>();
+        if (agenteId.HasValue) partes.Add($"Agente ID: {agenteId}");
+        if (estado.HasValue) partes.Add($"Estado: {estado}");
+        if (tipo.HasValue) partes.Add($"Tipo: {tipo}");
+        return partes.Count > 0 ? string.Join("  ·  ", partes) : null;
+    }
+
+    private static EventoAgendaDto MapEvento(EventoAgenda e) => new()
+    {
+        Id = e.Id,
+        Tipo = e.Tipo.ToString(),
+        Estado = e.Estado.ToString(),
+        FechaHora = e.FechaHora,
+        Notas = e.Notas,
+        AgenteId = e.AgenteId,
+        AgenteNombre = $"{e.Agente.User.Apellido}, {e.Agente.User.Nombre}",
+        PropiedadId = e.PropiedadId,
+        PropiedadDireccion = e.Propiedad?.Direccion,
+        LeadId = e.LeadId,
+        LeadNombre = e.Lead is not null ? $"{e.Lead.Apellido}, {e.Lead.Nombre}" : null,
+        InquilinoId = e.InquilinoId,
+        InquilinoNombre = e.Inquilino is not null ? $"{e.Inquilino.Apellido}, {e.Inquilino.Nombre}" : null,
+    };
 
     private static PropietarioDto MapPropietario(Propietario p) => new()
     {

@@ -13,6 +13,7 @@ namespace GestionInmobiliaria.WebApi.Controllers;
 public class SolicitudesTasacionController : ControllerBase
 {
     private readonly ISolicitudTasacionRepository _repo;
+    private readonly ILeadRepository _leadRepo;
     private readonly IStorageService _storage;
     private readonly ITenantService _tenantService;
 
@@ -21,10 +22,12 @@ public class SolicitudesTasacionController : ControllerBase
 
     public SolicitudesTasacionController(
         ISolicitudTasacionRepository repo,
+        ILeadRepository leadRepo,
         IStorageService storage,
         ITenantService tenantService)
     {
         _repo = repo;
+        _leadRepo = leadRepo;
         _storage = storage;
         _tenantService = tenantService;
     }
@@ -90,6 +93,20 @@ public class SolicitudesTasacionController : ControllerBase
         };
 
         var creada = await _repo.CreateAsync(solicitud);
+
+        await _leadRepo.CreateAsync(new Lead
+        {
+            Nombre = creada.Nombre,
+            Apellido = creada.Apellido,
+            Email = creada.Email,
+            Telefono = creada.Telefono,
+            Origen = OrigenLead.Web,
+            Estado = EstadoLead.Nuevo,
+            Notas = $"Solicitud de tasación — {creada.TipoPropiedad} en {creada.Direccion}" +
+                    (!string.IsNullOrWhiteSpace(creada.Barrio) ? $", {creada.Barrio}" : ""),
+            TenantId = creada.TenantId
+        });
+
         return Ok(ApiResponse<SolicitudTasacionDto>.Ok(MapToDto(creada), "Solicitud recibida. Un agente se comunicará con usted a la brevedad."));
     }
 

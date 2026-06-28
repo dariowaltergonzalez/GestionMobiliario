@@ -14,7 +14,7 @@ public class PropiedadRepository : IPropiedadRepository
 
     public PropiedadRepository(ApplicationDbContext context) => _context = context;
 
-    public async Task<PagedResult<Propiedad>> GetPagedAsync(PaginationParams paginacion, string? buscar = null, TipoPropiedad? tipo = null, EstadoPropiedad? estado = null, int? propietarioId = null)
+    public async Task<PagedResult<Propiedad>> GetPagedAsync(PaginationParams paginacion, string? buscar = null, TipoPropiedad? tipo = null, EstadoPropiedad? estado = null, int? propietarioId = null, TipoOperacion? operacion = null)
     {
         var query = _context.Propiedades
             .Include(p => p.Propietario)
@@ -26,6 +26,9 @@ public class PropiedadRepository : IPropiedadRepository
 
         if (estado.HasValue)
             query = query.Where(p => p.Estado == estado.Value);
+
+        if (operacion.HasValue)
+            query = query.Where(p => p.Operacion == operacion.Value);
 
         if (propietarioId.HasValue)
             query = query.Where(p => p.PropietarioId == propietarioId.Value);
@@ -53,6 +56,11 @@ public class PropiedadRepository : IPropiedadRepository
             .Where(p => p.Activo && p.Estado == EstadoPropiedad.Disponible)
             .OrderBy(p => p.Direccion)
             .ToListAsync();
+
+    public async Task<Propiedad?> GetPublicaByIdAsync(int id) =>
+        await _context.Propiedades
+            .Include(p => p.Fotos.OrderBy(f => f.Orden))
+            .FirstOrDefaultAsync(p => p.Id == id && p.Activo);
 
     public async Task<Propiedad?> GetByIdAsync(int id) =>
         await _context.Propiedades
@@ -158,5 +166,14 @@ public class PropiedadRepository : IPropiedadRepository
         _context.FotosPropiedad.Remove(foto);
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task SetVideoUrlAsync(int propiedadId, string? url)
+    {
+        var propiedad = await _context.Propiedades.FindAsync(propiedadId);
+        if (propiedad is null) return;
+        propiedad.VideoUrl = url;
+        propiedad.FechaActualizacion = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
     }
 }

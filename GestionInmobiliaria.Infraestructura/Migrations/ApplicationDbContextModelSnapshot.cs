@@ -716,8 +716,14 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                     b.Property<bool>("TieneCalefaccion")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("TienePiscina")
+                        .HasColumnType("bit");
+
                     b.Property<int>("Tipo")
                         .HasColumnType("int");
+
+                    b.Property<string>("VideoUrl")
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 

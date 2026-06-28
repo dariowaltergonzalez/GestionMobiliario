@@ -28,3 +28,13 @@ export const exportarPropiedadesPdf = async (params: { buscar?: string; tipo?: s
   const res = await client.get(`/api/reportes/propiedades?${query}`, { responseType: 'blob' })
   descargarPdf(res.data, `Propiedades_${new Date().toISOString().slice(0, 10)}.pdf`)
 }
+
+export const exportarAgendaPdf = async (params: { estado?: string; tipo?: string; agenteId?: string }) => {
+  const query = new URLSearchParams()
+  if (params.estado) query.append('estado', params.estado)
+  if (params.tipo) query.append('tipo', params.tipo)
+  if (params.agenteId) query.append('agenteId', params.agenteId)
+
+  const res = await client.get(`/api/reportes/agenda?${query}`, { responseType: 'blob' })
+  descargarPdf(res.data, `Agenda_${new Date().toISOString().slice(0, 10)}.pdf`)
+}

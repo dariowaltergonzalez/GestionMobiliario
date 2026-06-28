@@ -1,19 +1,20 @@
 import { type ReactNode, useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Home, Users, FileText, Calendar, LogOut, Building2, ClipboardList, Bell, ScrollText, ShieldCheck, Settings } from 'lucide-react'
+import { Home, Users, UserCog, FileText, Calendar, LogOut, Building2, ClipboardList, Bell, ScrollText, ShieldCheck, Settings } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { getConfiguracionPublica } from '../../api/configuracion'
 
 const navItems = [
-  { icono: Home, label: 'Dashboard', href: '/dashboard' },
-  { icono: Building2, label: 'Propiedades', href: '/dashboard/propiedades' },
-  { icono: Users, label: 'Leads', href: '/dashboard/leads' },
-  { icono: ClipboardList, label: 'Tasaciones', href: '/dashboard/tasaciones' },
-  { icono: Calendar, label: 'Agenda', href: '/dashboard/agenda' },
-  { icono: FileText, label: 'Propietarios', href: '/dashboard/propietarios' },
-  { icono: ScrollText, label: 'Logs', href: '/dashboard/logs' },
-  { icono: ShieldCheck, label: 'Auditoría', href: '/dashboard/auditoria' },
-  { icono: Settings, label: 'Configuración', href: '/dashboard/configuracion' },
+  { icono: Home,         label: 'Dashboard',    href: '/dashboard',                roles: ['Admin', 'Agente'] },
+  { icono: Building2,    label: 'Propiedades',  href: '/dashboard/propiedades',    roles: ['Admin', 'Agente'] },
+  { icono: Users,        label: 'Leads',        href: '/dashboard/leads',          roles: ['Admin', 'Agente'] },
+  { icono: ClipboardList,label: 'Tasaciones',   href: '/dashboard/tasaciones',     roles: ['Admin', 'Agente'] },
+  { icono: Calendar,     label: 'Agenda',       href: '/dashboard/agenda',         roles: ['Admin', 'Agente'] },
+  { icono: UserCog,      label: 'Agentes',      href: '/dashboard/agentes',        roles: ['Admin'] },
+  { icono: FileText,     label: 'Propietarios', href: '/dashboard/propietarios',   roles: ['Admin'] },
+  { icono: ScrollText,   label: 'Logs',         href: '/dashboard/logs',           roles: ['Admin'] },
+  { icono: ShieldCheck,  label: 'Auditoría',    href: '/dashboard/auditoria',      roles: ['Admin'] },
+  { icono: Settings,     label: 'Configuración',href: '/dashboard/configuracion',  roles: ['Admin'] },
 ]
 
 interface Props {
@@ -63,7 +64,7 @@ export default function DashboardLayout({ children, titulo }: Props) {
         <nav className="flex-1 py-6 px-3 overflow-y-auto">
           <div className="text-blue-500 text-xs font-semibold uppercase tracking-wider px-3 mb-3">Módulos</div>
           <ul className="space-y-1">
-            {navItems.map(({ icono: Icon, label, href }) => (
+            {navItems.filter(item => item.roles.includes(user?.rol ?? '')).map(({ icono: Icon, label, href }) => (
               <li key={href}>
                 <Link
                   to={href}

@@ -62,6 +62,7 @@ public class Propiedad : IAuditable
     public int? Antiguedad { get; set; }
     public bool TieneCalefaccion { get; set; } = false;
     public bool AceptaMascotas { get; set; } = false;
+    public bool TienePiscina { get; set; } = false;
     public string? NroCatastro { get; set; }
     public string? Descripcion { get; set; }
     public string? Notas { get; set; }
@@ -75,6 +76,8 @@ public class Propiedad : IAuditable
 
     public int? AgenteId { get; set; }
     public Agente? Agente { get; set; }
+
+    public string? VideoUrl { get; set; }
 
     public ICollection<FotoPropiedad> Fotos { get; set; } = new List<FotoPropiedad>();
 }

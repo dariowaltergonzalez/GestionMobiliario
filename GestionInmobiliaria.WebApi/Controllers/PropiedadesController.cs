@@ -18,7 +18,9 @@ public class PropiedadesController : ControllerBase
     private readonly ITenantService _tenantService;
 
     private static readonly string[] ExtensionesPermitidas = [".jpg", ".jpeg", ".png", ".webp"];
+    private static readonly string[] ExtensionesVideoPermitidas = [".mp4", ".mov", ".webm"];
     private const long TamanoMaximoBytes = 10 * 1024 * 1024;
+    private const long TamanoMaximoVideoBytes = 200L * 1024 * 1024;
 
     public PropiedadesController(
         IPropiedadRepository repo,
@@ -41,7 +43,7 @@ public class PropiedadesController : ControllerBase
         [FromQuery] TipoOperacion? operacion,
         [FromQuery] int? propietarioId)
     {
-        var resultado = await _repo.GetPagedAsync(paginacion, buscar, tipo, estado, propietarioId);
+        var resultado = await _repo.GetPagedAsync(paginacion, buscar, tipo, estado, propietarioId, operacion);
         var paginado = new PagedResult<PropiedadDto>
         {
             Items = resultado.Items.Select(MapToDto).ToList(),
@@ -74,29 +76,17 @@ public class PropiedadesController : ControllerBase
     public async Task<IActionResult> GetPublicas()
     {
         var lista = await _repo.GetPublicasAsync();
-        var dtos = lista.Select(p => new PropiedadPublicaDto
-        {
-            Id = p.Id,
-            TipoNombre = p.Tipo.ToString(),
-            OperacionNombre = p.Operacion.ToString(),
-            Direccion = p.Direccion,
-            Barrio = p.Barrio,
-            Ciudad = p.Ciudad,
-            Provincia = p.Provincia,
-            Ambientes = p.Ambientes,
-            Dormitorios = p.Dormitorios,
-            Banios = p.Banios,
-            SuperficieTotal = p.SuperficieTotal,
-            SuperficieCubierta = p.SuperficieCubierta,
-            PrecioAlquiler = p.PrecioAlquiler,
-            PrecioVenta = p.PrecioVenta,
-            Cochera = p.Cochera,
-            AceptaMascotas = p.AceptaMascotas,
-            Descripcion = p.Descripcion,
-            FotoPrincipalUrl = p.Fotos.FirstOrDefault(f => f.EsPrincipal)?.Url ?? p.Fotos.OrderBy(f => f.Orden).FirstOrDefault()?.Url,
-            FotosUrls = p.Fotos.OrderBy(f => f.Orden).Select(f => f.Url).ToList()
-        });
+        var dtos = lista.Select(MapToPublicaDto);
         return Ok(ApiResponse<IEnumerable<PropiedadPublicaDto>>.Ok(dtos));
+    }
+
+    [HttpGet("publica/{id}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetPublicaById(int id)
+    {
+        var p = await _repo.GetPublicaByIdAsync(id);
+        if (p is null) return NotFound(ApiResponse<PropiedadPublicaDto>.Fail("Propiedad no encontrada."));
+        return Ok(ApiResponse<PropiedadPublicaDto>.Ok(MapToPublicaDto(p)));
     }
 
     [HttpGet("{id}")]
@@ -145,6 +135,7 @@ public class PropiedadesController : ControllerBase
             Antiguedad = request.Antiguedad,
             TieneCalefaccion = request.TieneCalefaccion,
             AceptaMascotas = request.AceptaMascotas,
+            TienePiscina = request.TienePiscina,
             NroCatastro = request.NroCatastro,
             Descripcion = request.Descripcion,
             Notas = request.Notas,
@@ -195,6 +186,7 @@ public class PropiedadesController : ControllerBase
         existente.Antiguedad = request.Antiguedad;
         existente.TieneCalefaccion = request.TieneCalefaccion;
         existente.AceptaMascotas = request.AceptaMascotas;
+        existente.TienePiscina = request.TienePiscina;
         existente.NroCatastro = request.NroCatastro;
         existente.Descripcion = request.Descripcion;
         existente.Notas = request.Notas;
@@ -251,6 +243,7 @@ public class PropiedadesController : ControllerBase
         Antiguedad = p.Antiguedad,
         TieneCalefaccion = p.TieneCalefaccion,
         AceptaMascotas = p.AceptaMascotas,
+        TienePiscina = p.TienePiscina,
         NroCatastro = p.NroCatastro,
         Descripcion = p.Descripcion,
         Notas = p.Notas,
@@ -258,6 +251,7 @@ public class PropiedadesController : ControllerBase
         FechaCreacion = p.FechaCreacion,
         PropietarioId = p.PropietarioId,
         PropietarioNombre = $"{p.Propietario.Nombre} {p.Propietario.Apellido}",
+        VideoUrl = p.VideoUrl,
         Fotos = p.Fotos.OrderBy(f => f.Orden).Select(f => new FotoPropiedadDto
         {
             Id = f.Id,
@@ -266,6 +260,36 @@ public class PropiedadesController : ControllerBase
             EsPrincipal = f.EsPrincipal,
             Orden = f.Orden
         }).ToList()
+    };
+
+    private static PropiedadPublicaDto MapToPublicaDto(Propiedad p) => new()
+    {
+        Id = p.Id,
+        TipoNombre = p.Tipo.ToString(),
+        OperacionNombre = p.Operacion.ToString(),
+        Direccion = p.Direccion,
+        Barrio = p.Barrio,
+        Ciudad = p.Ciudad,
+        Provincia = p.Provincia,
+        Ambientes = p.Ambientes,
+        Dormitorios = p.Dormitorios,
+        Banios = p.Banios,
+        SuperficieTotal = p.SuperficieTotal,
+        SuperficieCubierta = p.SuperficieCubierta,
+        Piso = p.Piso,
+        NumeroDepartamento = p.NumeroDepartamento,
+        PrecioAlquiler = p.PrecioAlquiler,
+        PrecioVenta = p.PrecioVenta,
+        Expensas = p.Expensas,
+        Cochera = p.Cochera,
+        TieneCalefaccion = p.TieneCalefaccion,
+        AceptaMascotas = p.AceptaMascotas,
+        Antiguedad = p.Antiguedad,
+        EstadoConservacionNombre = p.EstadoConservacion?.ToString(),
+        Descripcion = p.Descripcion,
+        VideoUrl = p.VideoUrl,
+        FotoPrincipalUrl = p.Fotos.FirstOrDefault(f => f.EsPrincipal)?.Url ?? p.Fotos.OrderBy(f => f.Orden).FirstOrDefault()?.Url,
+        FotosUrls = p.Fotos.OrderBy(f => f.Orden).Select(f => f.Url).ToList()
     };
 
     // ---------- Fotos ----------
@@ -351,5 +375,66 @@ public class PropiedadesController : ControllerBase
 
         await _repo.DeleteFotoAsync(id, fotoId);
         return Ok(ApiResponse<object>.Ok(null, "Foto eliminada correctamente."));
+    }
+
+    // ---------- Video ----------
+
+    [HttpPost("{id}/video")]
+    public async Task<IActionResult> SubirVideo(int id, IFormFile video)
+    {
+        var propiedad = await _repo.GetByIdAsync(id);
+        if (propiedad is null)
+            return NotFound(ApiResponse<object>.Fail("Propiedad no encontrada."));
+
+        if (video is null || video.Length == 0)
+            return BadRequest(ApiResponse<object>.Fail("Debe enviar un video."));
+
+        var extension = Path.GetExtension(video.FileName).ToLowerInvariant();
+        if (!ExtensionesVideoPermitidas.Contains(extension))
+            return BadRequest(ApiResponse<object>.Fail($"Formato no permitido: {extension}. Use MP4, MOV o WebM."));
+
+        if (video.Length > TamanoMaximoVideoBytes)
+            return BadRequest(ApiResponse<object>.Fail("El video supera el límite de 200 MB."));
+
+        var tenantId = _tenantService.TenantId ?? 0;
+        var carpeta = Path.Combine(_env.ContentRootPath, "VideosPropiedad", tenantId.ToString(), id.ToString());
+        Directory.CreateDirectory(carpeta);
+
+        // Borrar video anterior si existe
+        if (!string.IsNullOrWhiteSpace(propiedad.VideoUrl))
+        {
+            var rutaAnterior = Path.Combine(_env.ContentRootPath, "VideosPropiedad",
+                tenantId.ToString(), id.ToString(), Path.GetFileName(propiedad.VideoUrl));
+            if (System.IO.File.Exists(rutaAnterior)) System.IO.File.Delete(rutaAnterior);
+        }
+
+        var nuevoNombre = $"{Guid.NewGuid()}{extension}";
+        var rutaFisica = Path.Combine(carpeta, nuevoNombre);
+        using (var stream = new FileStream(rutaFisica, FileMode.Create))
+            await video.CopyToAsync(stream);
+
+        var url = $"/videos-propiedad/{tenantId}/{id}/{nuevoNombre}";
+        await _repo.SetVideoUrlAsync(id, url);
+
+        return Ok(ApiResponse<object>.Ok(new { videoUrl = url }, "Video subido correctamente."));
+    }
+
+    [HttpDelete("{id}/video")]
+    public async Task<IActionResult> DeleteVideo(int id)
+    {
+        var propiedad = await _repo.GetByIdAsync(id);
+        if (propiedad is null)
+            return NotFound(ApiResponse<object>.Fail("Propiedad no encontrada."));
+
+        if (!string.IsNullOrWhiteSpace(propiedad.VideoUrl))
+        {
+            var tenantId = _tenantService.TenantId ?? 0;
+            var rutaFisica = Path.Combine(_env.ContentRootPath, "VideosPropiedad",
+                tenantId.ToString(), id.ToString(), Path.GetFileName(propiedad.VideoUrl));
+            if (System.IO.File.Exists(rutaFisica)) System.IO.File.Delete(rutaFisica);
+        }
+
+        await _repo.SetVideoUrlAsync(id, null);
+        return Ok(ApiResponse<object>.Ok(null, "Video eliminado correctamente."));
     }
 }

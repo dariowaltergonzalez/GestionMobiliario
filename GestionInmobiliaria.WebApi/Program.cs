@@ -85,6 +85,10 @@ builder.Services.AddScoped<ITenantService, TenantService>();
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddControllers();
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 210 * 1024 * 1024; // 210 MB para uploads de video
+});
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -135,6 +139,15 @@ app.UseStaticFiles(new StaticFileOptions
     FileProvider = new PhysicalFileProvider(fotosPath),
     RequestPath = "/fotos-propiedad"
 });
+
+var videosPath = Path.Combine(builder.Environment.ContentRootPath, "VideosPropiedad");
+if (!Directory.Exists(videosPath)) Directory.CreateDirectory(videosPath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(videosPath),
+    RequestPath = "/videos-propiedad"
+});
+
 app.UseAuthentication();
 app.UseMiddleware<TenantMiddleware>();
 app.UseAuthorization();

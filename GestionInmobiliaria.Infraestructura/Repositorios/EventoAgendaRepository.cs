@@ -60,7 +60,7 @@ public class EventoAgendaRepository : IEventoAgendaRepository
         evento.FechaActualizacion = DateTime.UtcNow;
         _context.EventosAgenda.Add(evento);
         await _context.SaveChangesAsync();
-        return evento;
+        return (await GetByIdAsync(evento.Id))!;
     }
 
     public async Task<EventoAgenda> UpdateAsync(EventoAgenda evento)
@@ -68,7 +68,7 @@ public class EventoAgendaRepository : IEventoAgendaRepository
         evento.FechaActualizacion = DateTime.UtcNow;
         _context.EventosAgenda.Update(evento);
         await _context.SaveChangesAsync();
-        return evento;
+        return (await GetByIdAsync(evento.Id))!;
     }
 
     public async Task<bool> DeleteAsync(int id)

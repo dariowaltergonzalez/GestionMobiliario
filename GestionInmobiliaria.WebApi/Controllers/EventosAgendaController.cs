@@ -77,6 +77,7 @@ public class EventosAgendaController : ControllerBase
         evento.Estado = request.Estado;
         evento.FechaHora = request.FechaHora;
         evento.Notas = request.Notas;
+        evento.AgenteId = request.AgenteId;
         evento.PropiedadId = request.PropiedadId;
         evento.LeadId = request.LeadId;
         evento.InquilinoId = request.InquilinoId;

@@ -77,6 +77,7 @@ public class AuthController : ControllerBase
         var roles = await _userManager.GetRolesAsync(user);
         var accessToken = GenerarAccessToken(user, roles);
         var refreshToken = await GenerarYGuardarRefreshTokenAsync(user.Id);
+        var agente = await _context.Agentes.FirstOrDefaultAsync(a => a.UserId == user.Id);
 
         return Ok(new TokenResponse
         {
@@ -86,7 +87,8 @@ public class AuthController : ControllerBase
             Nombre = user.Nombre,
             Apellido = user.Apellido,
             Roles = roles.ToList(),
-            TenantId = user.TenantId
+            TenantId = user.TenantId,
+            AgenteId = agente?.Id
         });
     }
 
@@ -147,6 +149,8 @@ public class AuthController : ControllerBase
         var newAccessToken = GenerarAccessToken(user, roles);
         var newRefreshToken = await GenerarYGuardarRefreshTokenAsync(user.Id);
 
+        var agente = await _context.Agentes.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(a => a.UserId == user.Id);
         await _context.SaveChangesAsync();
 
         return Ok(new TokenResponse
@@ -156,7 +160,9 @@ public class AuthController : ControllerBase
             Email = user.Email!,
             Nombre = user.Nombre,
             Apellido = user.Apellido,
-            Roles = roles.ToList()
+            Roles = roles.ToList(),
+            TenantId = user.TenantId,
+            AgenteId = agente?.Id
         });
     }
 
@@ -275,4 +281,5 @@ public record TokenResponse
     public string Apellido { get; init; } = string.Empty;
     public List<string> Roles { get; init; } = new();
     public int TenantId { get; init; }
+    public int? AgenteId { get; init; }
 }
