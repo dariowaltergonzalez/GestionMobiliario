@@ -14,7 +14,7 @@ public class PropiedadRepository : IPropiedadRepository
 
     public PropiedadRepository(ApplicationDbContext context) => _context = context;
 
-    public async Task<PagedResult<Propiedad>> GetPagedAsync(PaginationParams paginacion, string? buscar = null, TipoPropiedad? tipo = null, EstadoPropiedad? estado = null, int? propietarioId = null)
+    public async Task<PagedResult<Propiedad>> GetPagedAsync(PaginationParams paginacion, string? buscar = null, TipoPropiedad? tipo = null, EstadoPropiedad? estado = null, int? propietarioId = null, TipoOperacion? operacion = null)
     {
         var query = _context.Propiedades
             .Include(p => p.Propietario)
@@ -26,6 +26,9 @@ public class PropiedadRepository : IPropiedadRepository
 
         if (estado.HasValue)
             query = query.Where(p => p.Estado == estado.Value);
+
+        if (operacion.HasValue)
+            query = query.Where(p => p.Operacion == operacion.Value);
 
         if (propietarioId.HasValue)
             query = query.Where(p => p.PropietarioId == propietarioId.Value);

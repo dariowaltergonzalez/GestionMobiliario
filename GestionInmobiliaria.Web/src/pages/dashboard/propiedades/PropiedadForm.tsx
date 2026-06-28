@@ -365,6 +365,7 @@ export default function PropiedadForm({ propiedad, onGuardado, onCerrar }: Props
         cochera: propiedad.cochera,
         tieneCalefaccion: propiedad.tieneCalefaccion,
         aceptaMascotas: propiedad.aceptaMascotas,
+        tienePiscina: propiedad.tienePiscina,
         nroCatastro: propiedad.nroCatastro ?? '',
         descripcion: propiedad.descripcion ?? '',
         notas: propiedad.notas ?? '',
@@ -507,6 +508,7 @@ export default function PropiedadForm({ propiedad, onGuardado, onCerrar }: Props
                 <Checkbox label="Cochera" checked={form.cochera} onChange={e => set('cochera', e.target.checked)} />
                 <Checkbox label="Calefacción" checked={form.tieneCalefaccion} onChange={e => set('tieneCalefaccion', e.target.checked)} />
                 <Checkbox label="Acepta mascotas" checked={form.aceptaMascotas} onChange={e => set('aceptaMascotas', e.target.checked)} />
+                <Checkbox label="Piscina" checked={form.tienePiscina} onChange={e => set('tienePiscina', e.target.checked)} />
               </div>
             </div>
 

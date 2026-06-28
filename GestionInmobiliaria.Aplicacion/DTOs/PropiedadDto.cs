@@ -32,6 +32,7 @@ public class PropiedadDto
     public int? Antiguedad { get; set; }
     public bool TieneCalefaccion { get; set; }
     public bool AceptaMascotas { get; set; }
+    public bool TienePiscina { get; set; }
     public string? NroCatastro { get; set; }
     public string? Descripcion { get; set; }
     public string? Notas { get; set; }
@@ -107,6 +108,7 @@ public class CreatePropiedadRequest
     public int? Antiguedad { get; set; }
     public bool TieneCalefaccion { get; set; }
     public bool AceptaMascotas { get; set; }
+    public bool TienePiscina { get; set; }
     public string? NroCatastro { get; set; }
     public string? Descripcion { get; set; }
     public string? Notas { get; set; }
@@ -137,6 +139,7 @@ public class UpdatePropiedadRequest
     public int? Antiguedad { get; set; }
     public bool TieneCalefaccion { get; set; }
     public bool AceptaMascotas { get; set; }
+    public bool TienePiscina { get; set; }
     public string? NroCatastro { get; set; }
     public string? Descripcion { get; set; }
     public string? Notas { get; set; }

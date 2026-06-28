@@ -5,7 +5,7 @@ namespace GestionInmobiliaria.Dominio.Interfaces;
 
 public interface IPropiedadRepository
 {
-    Task<PagedResult<Propiedad>> GetPagedAsync(PaginationParams paginacion, string? buscar = null, TipoPropiedad? tipo = null, EstadoPropiedad? estado = null, int? propietarioId = null);
+    Task<PagedResult<Propiedad>> GetPagedAsync(PaginationParams paginacion, string? buscar = null, TipoPropiedad? tipo = null, EstadoPropiedad? estado = null, int? propietarioId = null, TipoOperacion? operacion = null);
     Task<IEnumerable<Propiedad>> GetDisponiblesAsync();
     Task<IEnumerable<Propiedad>> GetPublicasAsync();
     Task<Propiedad?> GetPublicaByIdAsync(int id);

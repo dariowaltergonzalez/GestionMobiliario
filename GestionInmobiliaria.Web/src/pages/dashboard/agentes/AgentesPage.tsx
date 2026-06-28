@@ -317,7 +317,7 @@ export default function AgentesPage() {
                 <th className="text-left px-5 py-3.5 font-semibold text-gray-600">Agente</th>
                 <th className="text-left px-5 py-3.5 font-semibold text-gray-600">Contacto</th>
                 <th className="text-left px-5 py-3.5 font-semibold text-gray-600">Zona</th>
-                <th className="text-left px-5 py-3.5 font-semibold text-gray-600">Comisión</th>
+                <th className="text-left px-5 py-3.5 font-semibold text-gray-600">Comisión (%)</th>
                 <th className="text-left px-5 py-3.5 font-semibold text-gray-600">Propiedades</th>
                 <th className="text-left px-5 py-3.5 font-semibold text-gray-600">Estado</th>
                 <th className="text-left px-5 py-3.5 font-semibold text-gray-600">Alta</th>
@@ -355,7 +355,7 @@ export default function AgentesPage() {
                       {a.zona ?? <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-5 py-4 text-sm text-gray-700 font-medium">
-                      {a.comisionPorcentaje}%
+                      {a.comisionPorcentaje}
                     </td>
                     <td className="px-5 py-4 text-xs text-gray-500">
                       {a.cantidadPropiedades} prop. · {a.cantidadInquilinos} inq.

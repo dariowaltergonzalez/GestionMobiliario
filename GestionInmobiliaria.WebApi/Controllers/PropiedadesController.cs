@@ -43,7 +43,7 @@ public class PropiedadesController : ControllerBase
         [FromQuery] TipoOperacion? operacion,
         [FromQuery] int? propietarioId)
     {
-        var resultado = await _repo.GetPagedAsync(paginacion, buscar, tipo, estado, propietarioId);
+        var resultado = await _repo.GetPagedAsync(paginacion, buscar, tipo, estado, propietarioId, operacion);
         var paginado = new PagedResult<PropiedadDto>
         {
             Items = resultado.Items.Select(MapToDto).ToList(),
@@ -135,6 +135,7 @@ public class PropiedadesController : ControllerBase
             Antiguedad = request.Antiguedad,
             TieneCalefaccion = request.TieneCalefaccion,
             AceptaMascotas = request.AceptaMascotas,
+            TienePiscina = request.TienePiscina,
             NroCatastro = request.NroCatastro,
             Descripcion = request.Descripcion,
             Notas = request.Notas,
@@ -185,6 +186,7 @@ public class PropiedadesController : ControllerBase
         existente.Antiguedad = request.Antiguedad;
         existente.TieneCalefaccion = request.TieneCalefaccion;
         existente.AceptaMascotas = request.AceptaMascotas;
+        existente.TienePiscina = request.TienePiscina;
         existente.NroCatastro = request.NroCatastro;
         existente.Descripcion = request.Descripcion;
         existente.Notas = request.Notas;
@@ -241,6 +243,7 @@ public class PropiedadesController : ControllerBase
         Antiguedad = p.Antiguedad,
         TieneCalefaccion = p.TieneCalefaccion,
         AceptaMascotas = p.AceptaMascotas,
+        TienePiscina = p.TienePiscina,
         NroCatastro = p.NroCatastro,
         Descripcion = p.Descripcion,
         Notas = p.Notas,

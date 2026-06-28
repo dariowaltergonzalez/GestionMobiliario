@@ -61,6 +61,7 @@ export interface PropiedadDto {
   antiguedad: number | null
   tieneCalefaccion: boolean
   aceptaMascotas: boolean
+  tienePiscina: boolean
   nroCatastro: string | null
   descripcion: string | null
   notas: string | null
@@ -95,6 +96,7 @@ export interface PropiedadFormData {
   cochera: boolean
   tieneCalefaccion: boolean
   aceptaMascotas: boolean
+  tienePiscina: boolean
   nroCatastro: string
   descripcion: string
   notas: string
@@ -124,6 +126,7 @@ export const propiedadFormVacio = (): PropiedadFormData => ({
   cochera: false,
   tieneCalefaccion: false,
   aceptaMascotas: false,
+  tienePiscina: false,
   nroCatastro: '',
   descripcion: '',
   notas: '',
@@ -164,6 +167,7 @@ const formToRequest = (f: PropiedadFormData) => ({
   cochera: f.cochera,
   tieneCalefaccion: f.tieneCalefaccion,
   aceptaMascotas: f.aceptaMascotas,
+  tienePiscina: f.tienePiscina,
   nroCatastro: f.nroCatastro || null,
   descripcion: f.descripcion || null,
   notas: f.notas || null,
@@ -220,6 +224,7 @@ export interface PropiedadPublicaDto {
   cochera: boolean
   tieneCalefaccion: boolean
   aceptaMascotas: boolean
+  tienePiscina: boolean
   antiguedad: number | null
   estadoConservacionNombre: string | null
   descripcion: string | null
