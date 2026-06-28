@@ -36,6 +36,7 @@ public class UpdateEventoAgendaRequest
     public EstadoEvento Estado { get; set; }
     public DateTime FechaHora { get; set; }
     public string? Notas { get; set; }
+    public int AgenteId { get; set; }
     public int? PropiedadId { get; set; }
     public int? LeadId { get; set; }
     public int? InquilinoId { get; set; }

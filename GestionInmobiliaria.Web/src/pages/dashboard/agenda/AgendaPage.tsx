@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle, X, Save, CheckCircle } from 'lucide-react'
+import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle, X, Save, CheckCircle, FileDown } from 'lucide-react'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
 import {
   getEventos, createEvento, updateEvento, deleteEvento,
@@ -7,6 +7,7 @@ import {
   type EventoAgendaDto, type FiltrosAgenda,
   type CreateEventoAgendaRequest, type UpdateEventoAgendaRequest,
 } from '../../../api/agenda'
+import { exportarAgendaPdf } from '../../../api/reportes'
 import client from '../../../api/client'
 import type { ApiResponse } from '../../../types/api'
 import { useAuth } from '../../../context/AuthContext'
@@ -62,18 +63,24 @@ interface EventoFormProps {
   evento: EventoAgendaDto | null
   agentes: AgenteCombo[]
   leads: LeadCombo[]
+  esAdmin: boolean
+  agenteIdPropio: number | null
   onGuardado: () => void
   onCerrar: () => void
 }
 
-function EventoForm({ evento, agentes, leads, onGuardado, onCerrar }: EventoFormProps) {
+function EventoForm({ evento, agentes, leads, esAdmin, agenteIdPropio, onGuardado, onCerrar }: EventoFormProps) {
   const ahora = toLocalDatetimeInput(new Date().toISOString())
+
+  const agenteDefault = evento
+    ? String(evento.agenteId)
+    : agenteIdPropio ? String(agenteIdPropio) : ''
 
   const [form, setForm] = useState({
     tipo: evento ? String(tipoNumero(evento.tipo)) : '1',
     estado: evento ? String(estadoNumero(evento.estado)) : '1',
     fechaHora: evento ? toLocalDatetimeInput(evento.fechaHora) : ahora,
-    agenteId: evento ? String(evento.agenteId) : '',
+    agenteId: agenteDefault,
     leadId: evento?.leadId ? String(evento.leadId) : '',
     notas: evento?.notas ?? '',
   })
@@ -158,12 +165,18 @@ function EventoForm({ evento, agentes, leads, onGuardado, onCerrar }: EventoForm
 
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Agente *</label>
-            <select value={form.agenteId} onChange={e => set('agenteId', e.target.value)} className={inputCls} required>
-              <option value="">Seleccioná un agente...</option>
-              {agentes.map(a => (
-                <option key={a.id} value={a.id}>{a.nombreCompleto}</option>
-              ))}
-            </select>
+            {esAdmin ? (
+              <select value={form.agenteId} onChange={e => set('agenteId', e.target.value)} className={inputCls} required>
+                <option value="">Seleccioná un agente...</option>
+                {agentes.map(a => (
+                  <option key={a.id} value={a.id}>{a.nombreCompleto}</option>
+                ))}
+              </select>
+            ) : (
+              <div className={`${inputCls} bg-gray-50 text-gray-500 cursor-not-allowed`}>
+                {agentes.find(a => a.id === agenteIdPropio)?.nombreCompleto ?? '—'}
+              </div>
+            )}
           </div>
 
           <div>
@@ -228,6 +241,23 @@ export default function AgendaPage() {
     tamano: 15,
     agenteId: !esAdmin && user?.agenteId ? String(user.agenteId) : '',
   })
+
+  const [exportando, setExportando] = useState(false)
+
+  const handleExportarPdf = async () => {
+    setExportando(true)
+    try {
+      await exportarAgendaPdf({
+        estado: filtros.estado,
+        tipo: filtros.tipo,
+        agenteId: filtros.agenteId,
+      })
+    } catch {
+      setError('No se pudo generar el PDF.')
+    } finally {
+      setExportando(false)
+    }
+  }
 
   const [modalAbierto, setModalAbierto] = useState(false)
   const [eventoEditar, setEventoEditar] = useState<EventoAgendaDto | null>(null)
@@ -342,8 +372,16 @@ export default function AgendaPage() {
           )}
         </div>
         <button
+          onClick={handleExportarPdf}
+          disabled={exportando}
+          className="flex items-center gap-2 border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap disabled:opacity-60 cursor-pointer"
+        >
+          <FileDown className="w-4 h-4" />
+          {exportando ? 'Generando...' : 'Exportar PDF'}
+        </button>
+        <button
           onClick={handleNuevo}
-          className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-blue-900 font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors whitespace-nowrap"
+          className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-blue-900 font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors whitespace-nowrap cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           Nuevo evento
@@ -421,7 +459,7 @@ export default function AgendaPage() {
                             <button
                               onClick={() => handleMarcarRealizada(ev)}
                               disabled={marcando === ev.id}
-                              className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-40"
+                              className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
                               title="Marcar como realizada"
                             >
                               <CheckCircle className="w-4 h-4" />
@@ -429,14 +467,14 @@ export default function AgendaPage() {
                           )}
                           <button
                             onClick={() => handleEditar(ev)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                             title="Editar"
                           >
                             <Pencil className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => setConfirmDelete(ev)}
-                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                             title="Eliminar"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -482,6 +520,8 @@ export default function AgendaPage() {
           evento={eventoEditar}
           agentes={agentes}
           leads={leads}
+          esAdmin={esAdmin}
+          agenteIdPropio={user?.agenteId ?? null}
           onGuardado={handleGuardado}
           onCerrar={() => setModalAbierto(false)}
         />

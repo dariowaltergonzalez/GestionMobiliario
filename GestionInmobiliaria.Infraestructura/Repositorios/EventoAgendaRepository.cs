@@ -68,7 +68,7 @@ public class EventoAgendaRepository : IEventoAgendaRepository
         evento.FechaActualizacion = DateTime.UtcNow;
         _context.EventosAgenda.Update(evento);
         await _context.SaveChangesAsync();
-        return evento;
+        return (await GetByIdAsync(evento.Id))!;
     }
 
     public async Task<bool> DeleteAsync(int id)

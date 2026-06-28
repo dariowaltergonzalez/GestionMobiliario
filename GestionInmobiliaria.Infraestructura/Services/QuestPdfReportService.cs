@@ -48,6 +48,27 @@ public class QuestPdfReportService : IPdfReportService
         }).GeneratePdf();
     }
 
+    public byte[] GenerarAgenda(IEnumerable<EventoAgendaDto> datos, PdfReportConfig config)
+    {
+        var lista = datos.ToList();
+
+        return Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4.Landscape());
+                page.MarginTop(0.6f, Unit.Centimetre);
+                page.MarginBottom(1f, Unit.Centimetre);
+                page.MarginHorizontal(1.5f, Unit.Centimetre);
+                page.DefaultTextStyle(x => x.FontSize(8));
+
+                page.Header().Element(h => ComposeHeader(h, config, lista.Count));
+                page.Content().Element(c => ComposeAgendaTable(c, lista));
+                page.Footer().Element(ComposeFooter);
+            });
+        }).GeneratePdf();
+    }
+
     public byte[] GenerarPropiedades(IEnumerable<PropiedadDto> datos, PdfReportConfig config)
     {
         var lista = datos.ToList();
@@ -218,6 +239,62 @@ public class QuestPdfReportService : IPdfReportService
             }
         });
     }
+
+    private static void ComposeAgendaTable(IContainer container, List<EventoAgendaDto> lista)
+    {
+        container.Table(table =>
+        {
+            table.ColumnsDefinition(cols =>
+            {
+                cols.RelativeColumn(2);
+                cols.RelativeColumn(3);
+                cols.RelativeColumn(3);
+                cols.RelativeColumn(3);
+                cols.RelativeColumn(2.5f);
+                cols.RelativeColumn(2);
+                cols.RelativeColumn(4);
+            });
+
+            table.Header(header =>
+            {
+                string[] cols = ["Tipo", "Fecha y hora", "Contacto", "Propiedad", "Agente", "Estado", "Notas"];
+                foreach (var col in cols)
+                    header.Cell().Background(AzulOscuro).Padding(5)
+                        .Text(col).FontColor("#FFFFFF").Bold().FontSize(7.5f);
+            });
+
+            for (int i = 0; i < lista.Count; i++)
+            {
+                var e = lista[i];
+                var bg = i % 2 == 0 ? "#FFFFFF" : GrisClaro;
+                var fechaLocal = e.FechaHora.ToLocalTime();
+
+                Cell(table, bg, MapTipoEvento(e.Tipo), bold: true);
+                Cell(table, bg, fechaLocal.ToString("dd/MM/yyyy HH:mm"));
+                Cell(table, bg, e.LeadNombre ?? e.InquilinoNombre ?? "—");
+                Cell(table, bg, e.PropiedadDireccion ?? "—");
+                Cell(table, bg, e.AgenteNombre);
+                Cell(table, bg, MapEstadoEvento(e.Estado));
+                Cell(table, bg, e.Notas ?? "—");
+            }
+        });
+    }
+
+    private static string MapTipoEvento(string tipo) => tipo switch
+    {
+        "Visita"  => "Visita",
+        "Llamada" => "Llamada",
+        "Reunion" => "Reunión",
+        _         => "Otro"
+    };
+
+    private static string MapEstadoEvento(string estado) => estado switch
+    {
+        "Pendiente"  => "Pendiente",
+        "Realizada"  => "Realizada",
+        "Cancelada"  => "Cancelada",
+        _            => estado
+    };
 
     private static void Cell(TableDescriptor table, string bg, string text, bool bold = false)
     {
