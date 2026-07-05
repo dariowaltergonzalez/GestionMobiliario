@@ -38,3 +38,12 @@ export const exportarAgendaPdf = async (params: { estado?: string; tipo?: string
   const res = await client.get(`/api/reportes/agenda?${query}`, { responseType: 'blob' })
   descargarPdf(res.data, `Agenda_${new Date().toISOString().slice(0, 10)}.pdf`)
 }
+
+export const exportarTasacionesPdf = async (params: { buscar?: string; estado?: string }) => {
+  const query = new URLSearchParams()
+  if (params.buscar) query.append('buscar', params.buscar)
+  if (params.estado) query.append('estado', params.estado)
+
+  const res = await client.get(`/api/reportes/tasaciones?${query}`, { responseType: 'blob' })
+  descargarPdf(res.data, `Tasaciones_${new Date().toISOString().slice(0, 10)}.pdf`)
+}

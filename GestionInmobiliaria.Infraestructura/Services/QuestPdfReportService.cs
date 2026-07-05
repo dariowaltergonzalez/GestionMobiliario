@@ -69,6 +69,27 @@ public class QuestPdfReportService : IPdfReportService
         }).GeneratePdf();
     }
 
+    public byte[] GenerarTasaciones(IEnumerable<SolicitudTasacionDto> datos, PdfReportConfig config)
+    {
+        var lista = datos.ToList();
+
+        return Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4.Landscape());
+                page.MarginTop(0.6f, Unit.Centimetre);
+                page.MarginBottom(1f, Unit.Centimetre);
+                page.MarginHorizontal(1.5f, Unit.Centimetre);
+                page.DefaultTextStyle(x => x.FontSize(8));
+
+                page.Header().Element(h => ComposeHeader(h, config, lista.Count));
+                page.Content().Element(c => ComposeTasacionesTable(c, lista));
+                page.Footer().Element(ComposeFooter);
+            });
+        }).GeneratePdf();
+    }
+
     public byte[] GenerarPropiedades(IEnumerable<PropiedadDto> datos, PdfReportConfig config)
     {
         var lista = datos.ToList();
@@ -279,6 +300,64 @@ public class QuestPdfReportService : IPdfReportService
             }
         });
     }
+
+    private static void ComposeTasacionesTable(IContainer container, List<SolicitudTasacionDto> lista)
+    {
+        container.Table(table =>
+        {
+            table.ColumnsDefinition(cols =>
+            {
+                cols.RelativeColumn(3);
+                cols.RelativeColumn(2.5f);
+                cols.RelativeColumn(2);
+                cols.RelativeColumn(3.5f);
+                cols.RelativeColumn(2);
+                cols.RelativeColumn(2.5f);
+                cols.RelativeColumn(2.5f);
+                cols.ConstantColumn(60);
+            });
+
+            table.Header(header =>
+            {
+                string[] cols = ["Solicitante", "Teléfono / Email", "Tipo", "Dirección", "Estado", "Agente", "Valor estimado", "Fec. solicitud"];
+                foreach (var col in cols)
+                    header.Cell().Background(AzulOscuro).Padding(5)
+                        .Text(col).FontColor("#FFFFFF").Bold().FontSize(7.5f);
+            });
+
+            for (int i = 0; i < lista.Count; i++)
+            {
+                var t = lista[i];
+                var bg = i % 2 == 0 ? "#FFFFFF" : GrisClaro;
+
+                Cell(table, bg, $"{t.Apellido}, {t.Nombre}", bold: true);
+                Cell(table, bg, string.Join("\n", new[] { t.Telefono, t.Email }.Where(x => !string.IsNullOrWhiteSpace(x))!));
+                Cell(table, bg, MapTipoPropiedad(t.TipoPropiedad));
+                Cell(table, bg, string.IsNullOrWhiteSpace(t.Barrio) ? t.Direccion : $"{t.Direccion}, {t.Barrio}");
+                Cell(table, bg, MapEstadoTasacion(t.Estado));
+                Cell(table, bg, t.NombreAgente ?? "Sin asignar");
+                Cell(table, bg, t.ValorEstimado.HasValue ? $"$ {t.ValorEstimado.Value:N0}" : "—");
+                Cell(table, bg, t.FechaCreacion.ToString("dd/MM/yyyy"));
+            }
+        });
+    }
+
+    private static string MapTipoPropiedad(string tipo) => tipo switch
+    {
+        "Departamento" => "Depto.",
+        "Galpon"       => "Galpón",
+        _              => tipo
+    };
+
+    private static string MapEstadoTasacion(string estado) => estado switch
+    {
+        "Pendiente"   => "Pendiente",
+        "Asignada"    => "Asignada",
+        "EnProceso"   => "En proceso",
+        "Completada"  => "Completada",
+        "Cancelada"   => "Cancelada",
+        _             => estado
+    };
 
     private static string MapTipoEvento(string tipo) => tipo switch
     {

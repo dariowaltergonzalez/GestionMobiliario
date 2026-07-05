@@ -19,6 +19,7 @@ public class ReportesController : ControllerBase
     private readonly IPropietarioRepository _propietarios;
     private readonly IPropiedadRepository _propiedades;
     private readonly IEventoAgendaRepository _eventos;
+    private readonly ISolicitudTasacionRepository _tasaciones;
     private readonly ApplicationDbContext _context;
     private readonly IWebHostEnvironment _env;
 
@@ -27,6 +28,7 @@ public class ReportesController : ControllerBase
         IPropietarioRepository propietarios,
         IPropiedadRepository propiedades,
         IEventoAgendaRepository eventos,
+        ISolicitudTasacionRepository tasaciones,
         ApplicationDbContext context,
         IWebHostEnvironment env)
     {
@@ -34,6 +36,7 @@ public class ReportesController : ControllerBase
         _propietarios = propietarios;
         _propiedades = propiedades;
         _eventos = eventos;
+        _tasaciones = tasaciones;
         _context = context;
         _env = env;
     }
@@ -97,6 +100,28 @@ public class ReportesController : ControllerBase
             var config = await BuildConfig("Reporte de Agenda", filtros);
             var bytes = _pdf.GenerarAgenda(dtos, config);
             return File(bytes, "application/pdf", $"Agenda_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<string>.Fail($"Error al generar PDF: {ex.Message}"));
+        }
+    }
+
+    [HttpGet("tasaciones")]
+    public async Task<IActionResult> Tasaciones(
+        [FromQuery] string? buscar,
+        [FromQuery] EstadoSolicitudTasacion? estado,
+        [FromQuery] int? agenteId)
+    {
+        try
+        {
+            var paginacion = new PaginationParams { Pagina = 1, Tamano = 10000 };
+            var resultado = await _tasaciones.GetPagedAsync(paginacion, buscar, estado, agenteId);
+            var dtos = resultado.Items.Select(MapTasacion).ToList();
+            var filtros = BuildFiltrosTasaciones(buscar, estado, agenteId);
+            var config = await BuildConfig("Reporte de Tasaciones", filtros);
+            var bytes = _pdf.GenerarTasaciones(dtos, config);
+            return File(bytes, "application/pdf", $"Tasaciones_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
         }
         catch (Exception ex)
         {
@@ -202,6 +227,44 @@ public class ReportesController : ControllerBase
         FechaCreacion = p.FechaCreacion,
         CantidadPropiedades = p.Propiedades?.Count ?? 0,
     };
+
+    private static SolicitudTasacionDto MapTasacion(SolicitudTasacion s) => new()
+    {
+        Id = s.Id,
+        Nombre = s.Nombre,
+        Apellido = s.Apellido,
+        Email = s.Email,
+        Telefono = s.Telefono,
+        TipoPropiedad = s.TipoPropiedad.ToString(),
+        Direccion = s.Direccion,
+        Barrio = s.Barrio,
+        Ciudad = s.Ciudad,
+        SuperficieTotal = s.SuperficieTotal,
+        SuperficieCubierta = s.SuperficieCubierta,
+        Ambientes = s.Ambientes,
+        Banios = s.Banios,
+        Antiguedad = s.Antiguedad,
+        EstadoConservacion = s.EstadoConservacion.ToString(),
+        Descripcion = s.Descripcion,
+        TipoContactoPreferido = s.TipoContactoPreferido.ToString(),
+        Estado = s.Estado.ToString(),
+        NotasInternas = s.NotasInternas,
+        ValorEstimado = s.ValorEstimado,
+        AgenteId = s.AgenteId,
+        NombreAgente = s.Agente is not null ? $"{s.Agente.User?.Nombre} {s.Agente.User?.Apellido}" : null,
+        Fotos = [],
+        FechaCreacion = s.FechaCreacion,
+        FechaActualizacion = s.FechaActualizacion
+    };
+
+    private static string? BuildFiltrosTasaciones(string? buscar, EstadoSolicitudTasacion? estado, int? agenteId)
+    {
+        var partes = new List<string>();
+        if (!string.IsNullOrWhiteSpace(buscar)) partes.Add($"Búsqueda: \"{buscar}\"");
+        if (estado.HasValue) partes.Add($"Estado: {estado}");
+        if (agenteId.HasValue) partes.Add($"Agente ID: {agenteId}");
+        return partes.Count > 0 ? string.Join("  ·  ", partes) : null;
+    }
 
     private static PropiedadDto MapPropiedad(Propiedad p) => new()
     {
