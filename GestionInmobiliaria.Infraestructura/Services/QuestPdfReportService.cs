@@ -69,6 +69,27 @@ public class QuestPdfReportService : IPdfReportService
         }).GeneratePdf();
     }
 
+    public byte[] GenerarReservas(IEnumerable<ReservaDto> datos, PdfReportConfig config)
+    {
+        var lista = datos.ToList();
+
+        return Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4.Landscape());
+                page.MarginTop(0.6f, Unit.Centimetre);
+                page.MarginBottom(1f, Unit.Centimetre);
+                page.MarginHorizontal(1.5f, Unit.Centimetre);
+                page.DefaultTextStyle(x => x.FontSize(8));
+
+                page.Header().Element(h => ComposeHeader(h, config, lista.Count));
+                page.Content().Element(c => ComposeReservasTable(c, lista));
+                page.Footer().Element(ComposeFooter);
+            });
+        }).GeneratePdf();
+    }
+
     public byte[] GenerarTasaciones(IEnumerable<SolicitudTasacionDto> datos, PdfReportConfig config)
     {
         var lista = datos.ToList();
@@ -228,6 +249,7 @@ public class QuestPdfReportService : IPdfReportService
         {
             table.ColumnsDefinition(cols =>
             {
+                cols.ConstantColumn(70);
                 cols.RelativeColumn(4);
                 cols.RelativeColumn(2);
                 cols.RelativeColumn(2);
@@ -239,7 +261,7 @@ public class QuestPdfReportService : IPdfReportService
 
             table.Header(header =>
             {
-                string[] cols = ["Dirección", "Tipo", "Operación", "Estado", "Alquiler (ARS)", "Venta (USD)", "Propietario"];
+                string[] cols = ["Código", "Dirección", "Tipo", "Operación", "Estado", "Alquiler (ARS)", "Venta (USD)", "Propietario"];
                 foreach (var col in cols)
                     header.Cell().Background(AzulOscuro).Padding(5)
                         .Text(col).FontColor("#FFFFFF").Bold().FontSize(7.5f);
@@ -250,7 +272,8 @@ public class QuestPdfReportService : IPdfReportService
                 var p = lista[i];
                 var bg = i % 2 == 0 ? "#FFFFFF" : GrisClaro;
 
-                Cell(table, bg, p.DireccionCompleta, bold: true);
+                Cell(table, bg, p.Codigo, bold: true);
+                Cell(table, bg, p.DireccionCompleta);
                 Cell(table, bg, MapTipo(p.Tipo.ToString()));
                 Cell(table, bg, MapOperacion(p.Operacion.ToString()));
                 Cell(table, bg, MapEstado(p.Estado.ToString()));
@@ -300,6 +323,57 @@ public class QuestPdfReportService : IPdfReportService
             }
         });
     }
+
+    private static void ComposeReservasTable(IContainer container, List<ReservaDto> lista)
+    {
+        container.Table(table =>
+        {
+            table.ColumnsDefinition(cols =>
+            {
+                cols.RelativeColumn(3);
+                cols.RelativeColumn(3);
+                cols.RelativeColumn(3.5f);
+                cols.RelativeColumn(2);
+                cols.RelativeColumn(2.5f);
+                cols.RelativeColumn(2.5f);
+                cols.RelativeColumn(2);
+                cols.RelativeColumn(2);
+            });
+
+            table.Header(header =>
+            {
+                string[] cols = ["Comprador", "Vendedor", "Propiedad", "Seña", "Precio total", "Estado", "Fec. reserva", "Vencimiento"];
+                foreach (var col in cols)
+                    header.Cell().Background(AzulOscuro).Padding(5)
+                        .Text(col).FontColor("#FFFFFF").Bold().FontSize(7.5f);
+            });
+
+            for (int i = 0; i < lista.Count; i++)
+            {
+                var r = lista[i];
+                var bg = i % 2 == 0 ? "#FFFFFF" : GrisClaro;
+                var simbolo = r.Moneda == "USD" ? "U$S" : "$";
+
+                Cell(table, bg, $"{r.CompradorApellido}, {r.CompradorNombre}", bold: true);
+                Cell(table, bg, $"{r.VendedorApellido}, {r.VendedorNombre}");
+                Cell(table, bg, r.PropiedadDireccion);
+                Cell(table, bg, $"{simbolo} {r.MontoSenia:N0}");
+                Cell(table, bg, r.PrecioTotal.HasValue ? $"{simbolo} {r.PrecioTotal.Value:N0}" : "—");
+                Cell(table, bg, MapEstadoReserva(r.Estado));
+                Cell(table, bg, r.FechaReserva.ToString("dd/MM/yyyy"));
+                Cell(table, bg, r.FechaVencimiento.ToString("dd/MM/yyyy"));
+            }
+        });
+    }
+
+    private static string MapEstadoReserva(string estado) => estado switch
+    {
+        "Vigente"    => "Vigente",
+        "Vencida"    => "Vencida",
+        "Cancelada"  => "Cancelada",
+        "Convertida" => "Convertida",
+        _            => estado
+    };
 
     private static void ComposeTasacionesTable(IContainer container, List<SolicitudTasacionDto> lista)
     {

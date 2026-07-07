@@ -260,10 +260,13 @@ export default function LandingPage() {
                           {p.direccion}
                         </div>
                         {(p.barrio || p.ciudad) && (
-                          <div className="flex items-center gap-1 text-gray-400 text-sm mb-3">
+                          <div className="flex items-center gap-1 text-gray-400 text-sm">
                             <MapPin className="w-3.5 h-3.5 shrink-0" />
                             <span>{[p.barrio, p.ciudad].filter(Boolean).join(', ')}</span>
                           </div>
+                        )}
+                        {p.codigo && (
+                          <div className="text-xs text-blue-600 font-mono mt-1 mb-2">{p.codigo}</div>
                         )}
                         <div className="flex items-center gap-3 text-xs text-gray-500 mb-4 flex-wrap">
                           {p.ambientes && (

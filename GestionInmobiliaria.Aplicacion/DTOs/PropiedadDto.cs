@@ -5,6 +5,7 @@ namespace GestionInmobiliaria.Aplicacion.DTOs;
 public class PropiedadDto
 {
     public int Id { get; set; }
+    public string Codigo { get; set; } = string.Empty;
     public TipoPropiedad Tipo { get; set; }
     public string TipoNombre => Tipo.ToString();
     public TipoOperacion Operacion { get; set; }
@@ -57,6 +58,7 @@ public class FotoPropiedadDto
 public class PropiedadPublicaDto
 {
     public int Id { get; set; }
+    public string Codigo { get; set; } = string.Empty;
     public string TipoNombre { get; set; } = string.Empty;
     public string OperacionNombre { get; set; } = string.Empty;
     public string Direccion { get; set; } = string.Empty;
