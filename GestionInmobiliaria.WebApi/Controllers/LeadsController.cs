@@ -61,6 +61,21 @@ public class LeadsController : ControllerBase
         return Ok(ApiResponse<IEnumerable<LeadComboDto>>.Ok(dtos));
     }
 
+    [HttpGet("para-reserva")]
+    public async Task<IActionResult> GetParaReserva()
+    {
+        var lista = await _repo.GetActivosAsync();
+        var dtos = lista.Select(l => new
+        {
+            id = l.Id,
+            nombre = l.Nombre,
+            apellido = l.Apellido,
+            telefono = l.Telefono,
+            email = l.Email,
+        });
+        return Ok(ApiResponse<IEnumerable<object>>.Ok(dtos));
+    }
+
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {

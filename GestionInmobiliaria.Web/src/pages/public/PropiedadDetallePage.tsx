@@ -233,6 +233,9 @@ export default function PropiedadDetallePage() {
                   <span>{[propiedad.barrio, propiedad.ciudad, propiedad.provincia].filter(Boolean).join(', ')}</span>
                 </div>
               )}
+              {propiedad.codigo && (
+                <div className="text-xs text-blue-600 font-mono mt-1.5">Ref. {propiedad.codigo}</div>
+              )}
             </div>
 
             {/* Características en grid */}

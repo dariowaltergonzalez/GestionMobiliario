@@ -71,6 +71,23 @@ public class PropiedadesController : ControllerBase
         return Ok(ApiResponse<IEnumerable<PropiedadComboDto>>.Ok(dtos));
     }
 
+    [HttpGet("para-reserva")]
+    public async Task<IActionResult> GetParaReserva()
+    {
+        var lista = await _repo.GetDisponiblesAsync();
+        var dtos = lista.Select(p => new
+        {
+            id = p.Id,
+            direccion = $"[{p.Codigo}] {p.Tipo} — {p.Direccion}{(p.Barrio != null ? ", " + p.Barrio : "")}",
+            propietarioNombre = p.Propietario.Nombre,
+            propietarioApellido = p.Propietario.Apellido,
+            propietarioDni = p.Propietario.Dni,
+            propietarioTelefono = p.Propietario.Telefono,
+            propietarioEmail = p.Propietario.Email,
+        });
+        return Ok(ApiResponse<IEnumerable<object>>.Ok(dtos));
+    }
+
     [HttpGet("publicas")]
     [AllowAnonymous]
     public async Task<IActionResult> GetPublicas()
@@ -221,6 +238,7 @@ public class PropiedadesController : ControllerBase
     private static PropiedadDto MapToDto(Propiedad p) => new()
     {
         Id = p.Id,
+        Codigo = p.Codigo,
         Tipo = p.Tipo,
         Operacion = p.Operacion,
         Direccion = p.Direccion,
@@ -265,6 +283,7 @@ public class PropiedadesController : ControllerBase
     private static PropiedadPublicaDto MapToPublicaDto(Propiedad p) => new()
     {
         Id = p.Id,
+        Codigo = p.Codigo,
         TipoNombre = p.Tipo.ToString(),
         OperacionNombre = p.Operacion.ToString(),
         Direccion = p.Direccion,

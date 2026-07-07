@@ -20,6 +20,7 @@ public class ReportesController : ControllerBase
     private readonly IPropiedadRepository _propiedades;
     private readonly IEventoAgendaRepository _eventos;
     private readonly ISolicitudTasacionRepository _tasaciones;
+    private readonly IReservaRepository _reservas;
     private readonly ApplicationDbContext _context;
     private readonly IWebHostEnvironment _env;
 
@@ -29,6 +30,7 @@ public class ReportesController : ControllerBase
         IPropiedadRepository propiedades,
         IEventoAgendaRepository eventos,
         ISolicitudTasacionRepository tasaciones,
+        IReservaRepository reservas,
         ApplicationDbContext context,
         IWebHostEnvironment env)
     {
@@ -37,6 +39,7 @@ public class ReportesController : ControllerBase
         _propiedades = propiedades;
         _eventos = eventos;
         _tasaciones = tasaciones;
+        _reservas = reservas;
         _context = context;
         _env = env;
     }
@@ -100,6 +103,27 @@ public class ReportesController : ControllerBase
             var config = await BuildConfig("Reporte de Agenda", filtros);
             var bytes = _pdf.GenerarAgenda(dtos, config);
             return File(bytes, "application/pdf", $"Agenda_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<string>.Fail($"Error al generar PDF: {ex.Message}"));
+        }
+    }
+
+    [HttpGet("reservas")]
+    public async Task<IActionResult> Reservas(
+        [FromQuery] string? buscar,
+        [FromQuery] EstadoReserva? estado)
+    {
+        try
+        {
+            var paginacion = new PaginationParams { Pagina = 1, Tamano = 10000 };
+            var resultado = await _reservas.GetPagedAsync(paginacion, buscar, estado);
+            var dtos = resultado.Items.Select(MapReserva).ToList();
+            var filtros = BuildFiltrosReservas(buscar, estado);
+            var config = await BuildConfig("Reporte de Reservas", filtros);
+            var bytes = _pdf.GenerarReservas(dtos, config);
+            return File(bytes, "application/pdf", $"Reservas_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
         }
         catch (Exception ex)
         {
@@ -228,6 +252,44 @@ public class ReportesController : ControllerBase
         CantidadPropiedades = p.Propiedades?.Count ?? 0,
     };
 
+    private static ReservaDto MapReserva(Reserva r) => new()
+    {
+        Id = r.Id,
+        PropiedadId = r.PropiedadId,
+        PropiedadDireccion = r.Propiedad.Direccion,
+        LeadId = r.LeadId,
+        AgenteId = r.AgenteId,
+        AgenteNombre = r.Agente is not null ? $"{r.Agente.User?.Nombre} {r.Agente.User?.Apellido}" : null,
+        CompradorNombre = r.CompradorNombre,
+        CompradorApellido = r.CompradorApellido,
+        CompradorDni = r.CompradorDni,
+        CompradorTelefono = r.CompradorTelefono,
+        CompradorEmail = r.CompradorEmail,
+        VendedorNombre = r.VendedorNombre,
+        VendedorApellido = r.VendedorApellido,
+        VendedorDni = r.VendedorDni,
+        VendedorTelefono = r.VendedorTelefono,
+        VendedorEmail = r.VendedorEmail,
+        MontoSenia = r.MontoSenia,
+        PrecioTotal = r.PrecioTotal,
+        Moneda = r.Moneda.ToString(),
+        MedioDeposito = r.MedioDeposito.ToString(),
+        FechaReserva = r.FechaReserva,
+        FechaVencimiento = r.FechaVencimiento,
+        Estado = r.Estado.ToString(),
+        Observaciones = r.Observaciones,
+        FechaCreacion = r.FechaCreacion,
+        FechaActualizacion = r.FechaActualizacion,
+    };
+
+    private static string? BuildFiltrosReservas(string? buscar, EstadoReserva? estado)
+    {
+        var partes = new List<string>();
+        if (!string.IsNullOrWhiteSpace(buscar)) partes.Add($"Búsqueda: \"{buscar}\"");
+        if (estado.HasValue) partes.Add($"Estado: {estado}");
+        return partes.Count > 0 ? string.Join("  ·  ", partes) : null;
+    }
+
     private static SolicitudTasacionDto MapTasacion(SolicitudTasacion s) => new()
     {
         Id = s.Id,
@@ -269,6 +331,7 @@ public class ReportesController : ControllerBase
     private static PropiedadDto MapPropiedad(Propiedad p) => new()
     {
         Id = p.Id,
+        Codigo = p.Codigo,
         Tipo = p.Tipo,
         Operacion = p.Operacion,
         Direccion = p.Direccion,

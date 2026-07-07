@@ -26,7 +26,8 @@ public enum EstadoPropiedad
     EnMantenimiento = 3,
     NoDisponible = 4,
     Vendida = 5,
-    Reservada = 6
+    Reservada = 6,
+    BoletoFirmado = 7
 }
 
 public enum EstadoConservacion
@@ -40,6 +41,7 @@ public enum EstadoConservacion
 public class Propiedad : IAuditable
 {
     public int Id { get; set; }
+    public string Codigo { get; set; } = string.Empty;
     public TipoPropiedad Tipo { get; set; }
     public TipoOperacion Operacion { get; set; } = TipoOperacion.Alquiler;
     public string Direccion { get; set; } = string.Empty;

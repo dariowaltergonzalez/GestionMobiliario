@@ -34,7 +34,8 @@ public class PropiedadRepository : IPropiedadRepository
             query = query.Where(p => p.PropietarioId == propietarioId.Value);
 
         if (!string.IsNullOrWhiteSpace(buscar))
-            query = query.Where(p => p.Direccion.Contains(buscar) ||
+            query = query.Where(p => p.Codigo.Contains(buscar) ||
+                                     p.Direccion.Contains(buscar) ||
                                      (p.Barrio != null && p.Barrio.Contains(buscar)) ||
                                      (p.Ciudad != null && p.Ciudad.Contains(buscar)));
 
@@ -75,6 +76,11 @@ public class PropiedadRepository : IPropiedadRepository
         propiedad.FechaActualizacion = DateTime.UtcNow;
         _context.Propiedades.Add(propiedad);
         await _context.SaveChangesAsync();
+
+        // Generar código único usando el Id asignado por la BD
+        propiedad.Codigo = $"PRO-{propiedad.FechaCreacion.Year}-{propiedad.Id:D4}";
+        await _context.SaveChangesAsync();
+
         return propiedad;
     }
 

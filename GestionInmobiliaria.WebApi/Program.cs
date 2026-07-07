@@ -76,6 +76,7 @@ builder.Services.AddScoped<IAgenteRepository, AgenteRepository>();
 builder.Services.AddScoped<ILeadRepository, LeadRepository>();
 builder.Services.AddScoped<IEventoAgendaRepository, EventoAgendaRepository>();
 builder.Services.AddScoped<ISolicitudTasacionRepository, SolicitudTasacionRepository>();
+builder.Services.AddScoped<IReservaRepository, ReservaRepository>();
 builder.Services.AddScoped<IAppLogRepository, AppLogRepository>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 builder.Services.AddScoped<IStorageService, LocalStorageService>();

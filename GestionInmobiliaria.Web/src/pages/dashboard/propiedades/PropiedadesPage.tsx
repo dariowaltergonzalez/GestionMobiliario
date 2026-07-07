@@ -221,6 +221,7 @@ export default function PropiedadesPage() {
                         <div>
                           <div className="font-medium text-gray-800">{p.direccion}</div>
                           {p.barrio && <div className="text-xs text-gray-400">{p.barrio}{p.ciudad ? `, ${p.ciudad}` : ''}</div>}
+                          {p.codigo && <div className="text-xs text-blue-600 font-mono mt-0.5">{p.codigo}</div>}
                         </div>
                       </div>
                     </td>

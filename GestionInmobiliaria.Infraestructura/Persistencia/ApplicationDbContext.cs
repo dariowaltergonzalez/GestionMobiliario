@@ -33,6 +33,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<Lead> Leads => Set<Lead>();
     public DbSet<EventoAgenda> EventosAgenda => Set<EventoAgenda>();
     public DbSet<SolicitudTasacion> SolicitudesTasacion => Set<SolicitudTasacion>();
+    public DbSet<Reserva> Reservas => Set<Reserva>();
     public DbSet<FotoSolicitud> FotosSolicitud => Set<FotoSolicitud>();
     public DbSet<FotoPropiedad> FotosPropiedad => Set<FotoPropiedad>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -54,6 +55,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         builder.Entity<AuditLog>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<ApplicationUser>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<SolicitudTasacion>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
+        builder.Entity<Reserva>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<FotoSolicitud>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<FotoPropiedad>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
 
@@ -102,6 +104,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         builder.Entity<Propiedad>(e =>
         {
             e.HasKey(p => p.Id);
+            e.Property(p => p.Codigo).IsRequired().HasMaxLength(20).HasDefaultValue(string.Empty);
+            e.HasIndex(p => p.Codigo).IsUnique();
             e.Property(p => p.Direccion).IsRequired().HasMaxLength(300);
             e.Property(p => p.Barrio).HasMaxLength(100);
             e.Property(p => p.Ciudad).HasMaxLength(100);
@@ -247,6 +251,36 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.HasKey(f => f.Id);
             e.Property(f => f.Url).IsRequired().HasMaxLength(500);
             e.Property(f => f.NombreArchivo).HasMaxLength(255);
+        });
+
+        builder.Entity<Reserva>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.Property(r => r.CompradorNombre).IsRequired().HasMaxLength(100);
+            e.Property(r => r.CompradorApellido).IsRequired().HasMaxLength(100);
+            e.Property(r => r.CompradorDni).HasMaxLength(20);
+            e.Property(r => r.CompradorTelefono).HasMaxLength(50);
+            e.Property(r => r.CompradorEmail).HasMaxLength(200);
+            e.Property(r => r.VendedorNombre).IsRequired().HasMaxLength(100);
+            e.Property(r => r.VendedorApellido).IsRequired().HasMaxLength(100);
+            e.Property(r => r.VendedorDni).HasMaxLength(20);
+            e.Property(r => r.VendedorTelefono).HasMaxLength(50);
+            e.Property(r => r.VendedorEmail).HasMaxLength(200);
+            e.Property(r => r.MontoSenia).HasColumnType("decimal(18,2)");
+            e.Property(r => r.PrecioTotal).HasColumnType("decimal(18,2)");
+            e.Property(r => r.Observaciones).HasMaxLength(2000);
+            e.HasOne(r => r.Propiedad)
+             .WithMany()
+             .HasForeignKey(r => r.PropiedadId)
+             .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(r => r.Lead)
+             .WithMany()
+             .HasForeignKey(r => r.LeadId)
+             .OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(r => r.Agente)
+             .WithMany()
+             .HasForeignKey(r => r.AgenteId)
+             .OnDelete(DeleteBehavior.SetNull);
         });
 
         builder.Entity<FotoPropiedad>(e =>

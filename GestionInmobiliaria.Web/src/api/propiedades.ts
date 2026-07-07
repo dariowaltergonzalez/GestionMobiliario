@@ -3,7 +3,7 @@ import type { ApiResponse, PagedResult } from '../types/api'
 
 export type TipoPropiedad = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
 export type TipoOperacion = 1 | 2 | 3
-export type EstadoPropiedad = 1 | 2 | 3 | 4 | 5 | 6
+export type EstadoPropiedad = 1 | 2 | 3 | 4 | 5 | 6 | 7
 export type EstadoConservacion = 1 | 2 | 3 | 4
 
 export const TIPOS_PROPIEDAD: Record<TipoPropiedad, string> = {
@@ -17,7 +17,7 @@ export const TIPOS_OPERACION: Record<TipoOperacion, string> = {
 
 export const ESTADOS_PROPIEDAD: Record<EstadoPropiedad, string> = {
   1: 'Disponible', 2: 'Alquilada', 3: 'En mantenimiento',
-  4: 'No disponible', 5: 'Vendida', 6: 'Reservada',
+  4: 'No disponible', 5: 'Vendida', 6: 'Reservada', 7: 'Boleto firmado',
 }
 
 export const ESTADOS_CONSERVACION: Record<EstadoConservacion, string> = {
@@ -34,6 +34,7 @@ export interface FotoPropiedadDto {
 
 export interface PropiedadDto {
   id: number
+  codigo: string
   tipo: TipoPropiedad
   tipoNombre: string
   operacion: TipoOperacion
@@ -205,6 +206,7 @@ export const deletePropiedad = async (id: number) => {
 
 export interface PropiedadPublicaDto {
   id: number
+  codigo: string
   tipoNombre: string
   operacionNombre: string
   direccion: string
