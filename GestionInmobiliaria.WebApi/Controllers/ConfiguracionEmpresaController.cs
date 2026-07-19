@@ -90,6 +90,15 @@ public class ConfiguracionEmpresaController : ControllerBase
         config.Instagram = request.Instagram;
         config.Facebook = request.Facebook;
         config.Twitter = request.Twitter;
+
+        config.EmailHabilitado = request.EmailHabilitado;
+        config.EmailSmtpHost = request.EmailSmtpHost;
+        config.EmailSmtpPuerto = request.EmailSmtpPuerto > 0 ? request.EmailSmtpPuerto : 587;
+        config.EmailSmtpUsuario = request.EmailSmtpUsuario;
+        if (!string.IsNullOrWhiteSpace(request.EmailSmtpPassword))
+            config.EmailSmtpPassword = request.EmailSmtpPassword;
+        config.EmailNombreRemitente = request.EmailNombreRemitente;
+
         config.FechaActualizacion = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -118,6 +127,12 @@ public class ConfiguracionEmpresaController : ControllerBase
         Instagram = c.Instagram,
         Facebook = c.Facebook,
         Twitter = c.Twitter,
-        FechaActualizacion = c.FechaActualizacion
+        FechaActualizacion = c.FechaActualizacion,
+        EmailHabilitado = c.EmailHabilitado,
+        EmailSmtpHost = c.EmailSmtpHost,
+        EmailSmtpPuerto = c.EmailSmtpPuerto,
+        EmailSmtpUsuario = c.EmailSmtpUsuario,
+        EmailNombreRemitente = c.EmailNombreRemitente,
+        // Password no se devuelve — solo indicamos si está configurada
     };
 }

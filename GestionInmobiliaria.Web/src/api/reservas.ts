@@ -22,6 +22,10 @@ export interface ReservaDto {
   precioTotal: number | null
   moneda: string
   medioDeposito: string
+  comisionVendedorPorcentaje: number | null
+  comisionVendedorMonto: number | null
+  comisionCompradorPorcentaje: number | null
+  comisionCompradorMonto: number | null
   fechaReserva: string
   fechaVencimiento: string
   estado: string
@@ -48,6 +52,10 @@ export interface CreateReservaRequest {
   precioTotal?: number
   moneda: number
   medioDeposito: number
+  comisionVendedorPorcentaje?: number
+  comisionVendedorMonto?: number
+  comisionCompradorPorcentaje?: number
+  comisionCompradorMonto?: number
   fechaReserva: string
   fechaVencimiento: string
   observaciones?: string

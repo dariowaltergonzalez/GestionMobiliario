@@ -70,6 +70,7 @@ public class PropietariosController : ControllerBase
             Telefono = request.Telefono,
             Telefono2 = request.Telefono2,
             Direccion = request.Direccion,
+            Banco = request.Banco,
             CBU = request.CBU,
             Notas = request.Notas
         };
@@ -96,6 +97,7 @@ public class PropietariosController : ControllerBase
         existente.Telefono = request.Telefono;
         existente.Telefono2 = request.Telefono2;
         existente.Direccion = request.Direccion;
+        existente.Banco = request.Banco;
         existente.CBU = request.CBU;
         existente.Notas = request.Notas;
         existente.Activo = request.Activo;
@@ -123,6 +125,7 @@ public class PropietariosController : ControllerBase
         Telefono = p.Telefono,
         Telefono2 = p.Telefono2,
         Direccion = p.Direccion,
+        Banco = p.Banco,
         CBU = p.CBU,
         Notas = p.Notas,
         Activo = p.Activo,

@@ -4,6 +4,7 @@ using GestionInmobiliaria.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GestionInmobiliaria.Infraestructura.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260718223004_AddEmailSmtpConfig")]
+    partial class AddEmailSmtpConfig
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1184,6 +1187,12 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                     b.Property<DateTime?>("FechaPago")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("MedioPago")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MedioPagoReferencia")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<decimal>("MontoEsperado")
                         .HasColumnType("decimal(18,2)");
 
@@ -1209,57 +1218,6 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                         .IsUnique();
 
                     b.ToTable("Pagos");
-                });
-
-            modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.PagoDetalle", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("Activo")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("ChequeBanco")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime?>("ChequeFechaVencimiento")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ChequeNumero")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime>("FechaActualizacion")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("FechaCreacion")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("Medio")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Monto")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("PagoId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Referencia")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<int>("TenantId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PagoId");
-
-                    b.ToTable("PagoDetalles");
                 });
 
             modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.Propiedad", b =>
@@ -2025,17 +1983,6 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                     b.Navigation("Contrato");
                 });
 
-            modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.PagoDetalle", b =>
-                {
-                    b.HasOne("GestionInmobiliaria.Dominio.Entidades.Pago", "Pago")
-                        .WithMany("Detalles")
-                        .HasForeignKey("PagoId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Pago");
-                });
-
             modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.Propiedad", b =>
                 {
                     b.HasOne("GestionInmobiliaria.Dominio.Entidades.Agente", "Agente")
@@ -2159,11 +2106,6 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
             modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.Lead", b =>
                 {
                     b.Navigation("Eventos");
-                });
-
-            modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.Pago", b =>
-                {
-                    b.Navigation("Detalles");
                 });
 
             modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.Propiedad", b =>

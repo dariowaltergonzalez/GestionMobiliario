@@ -15,6 +15,9 @@ import AgendaPage from './pages/dashboard/agenda/AgendaPage'
 import AgentesPage from './pages/dashboard/agentes/AgentesPage'
 import TasacionesPage from './pages/dashboard/tasaciones/TasacionesPage'
 import ReservasPage from './pages/dashboard/reservas/ReservasPage'
+import ContratosPage from './pages/dashboard/contratos/ContratosPage'
+import ClausulasContratoPage from './pages/dashboard/clausulas/ClausulasContratoPage'
+import PagosPage from './pages/dashboard/pagos/PagosPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth()
@@ -37,6 +40,9 @@ function AppRoutes() {
       <Route path="/dashboard/agentes" element={<ProtectedRoute><AgentesPage /></ProtectedRoute>} />
       <Route path="/dashboard/tasaciones" element={<ProtectedRoute><TasacionesPage /></ProtectedRoute>} />
       <Route path="/dashboard/reservas" element={<ProtectedRoute><ReservasPage /></ProtectedRoute>} />
+      <Route path="/dashboard/contratos" element={<ProtectedRoute><ContratosPage /></ProtectedRoute>} />
+      <Route path="/dashboard/clausulas-contrato" element={<ProtectedRoute><ClausulasContratoPage /></ProtectedRoute>} />
+      <Route path="/dashboard/pagos" element={<ProtectedRoute><PagosPage /></ProtectedRoute>} />
       <Route path="/dashboard/propietarios" element={<ProtectedRoute><PropietariosPage /></ProtectedRoute>} />
       <Route path="/dashboard/configuracion" element={<ProtectedRoute><ConfiguracionPage /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />

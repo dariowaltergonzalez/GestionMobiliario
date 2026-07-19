@@ -22,6 +22,12 @@ export interface ConfiguracionEmpresaDto {
   facebook: string | null
   twitter: string | null
   fechaActualizacion: string
+  // SMTP
+  emailHabilitado: boolean
+  emailSmtpHost: string | null
+  emailSmtpPuerto: number
+  emailSmtpUsuario: string | null
+  emailNombreRemitente: string | null
 }
 
 export interface ConfiguracionPublicaDto {
@@ -48,7 +54,11 @@ export const getConfiguracion = async () => {
   return res.data
 }
 
-export const updateConfiguracion = async (data: Omit<ConfiguracionEmpresaDto, 'id' | 'fechaActualizacion'>) => {
+export interface UpdateConfiguracionRequest extends Omit<ConfiguracionEmpresaDto, 'id' | 'fechaActualizacion'> {
+  emailSmtpPassword?: string
+}
+
+export const updateConfiguracion = async (data: UpdateConfiguracionRequest) => {
   const res = await client.put<ApiResponse<ConfiguracionEmpresaDto>>('/api/configuracion', data)
   return res.data
 }

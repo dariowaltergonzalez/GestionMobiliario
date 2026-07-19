@@ -75,16 +75,16 @@ public class PropiedadesController : ControllerBase
     public async Task<IActionResult> GetParaReserva()
     {
         var lista = await _repo.GetDisponiblesAsync();
-        var dtos = lista.Select(p => new
-        {
-            id = p.Id,
-            direccion = $"[{p.Codigo}] {p.Tipo} — {p.Direccion}{(p.Barrio != null ? ", " + p.Barrio : "")}",
-            propietarioNombre = p.Propietario.Nombre,
-            propietarioApellido = p.Propietario.Apellido,
-            propietarioDni = p.Propietario.Dni,
-            propietarioTelefono = p.Propietario.Telefono,
-            propietarioEmail = p.Propietario.Email,
-        });
+        var dtos = lista.Select(MapParaCombo);
+        return Ok(ApiResponse<IEnumerable<object>>.Ok(dtos));
+    }
+
+    [HttpGet("para-contrato")]
+    public async Task<IActionResult> GetParaContrato()
+    {
+        var paginacion = new PaginationParams { Pagina = 1, Tamano = 10000 };
+        var resultado = await _repo.GetPagedAsync(paginacion, null, null, null);
+        var dtos = resultado.Items.Select(MapParaCombo);
         return Ok(ApiResponse<IEnumerable<object>>.Ok(dtos));
     }
 
@@ -278,6 +278,22 @@ public class PropiedadesController : ControllerBase
             EsPrincipal = f.EsPrincipal,
             Orden = f.Orden
         }).ToList()
+    };
+
+    private static object MapParaCombo(Propiedad p) => new
+    {
+        id = p.Id,
+        direccion = $"[{p.Codigo}] {p.Tipo} — {p.Direccion}{(p.Barrio != null ? ", " + p.Barrio : "")}",
+        propietarioId = p.Propietario.Id,
+        propietarioNombre = p.Propietario.Nombre,
+        propietarioApellido = p.Propietario.Apellido,
+        propietarioDni = p.Propietario.Dni,
+        propietarioTelefono = p.Propietario.Telefono,
+        propietarioEmail = p.Propietario.Email,
+        propietarioDireccion = p.Propietario.Direccion,
+        propietarioBanco = p.Propietario.Banco,
+        propietarioCbu = p.Propietario.CBU,
+        propietarioCuit = p.Propietario.Cuit,
     };
 
     private static PropiedadPublicaDto MapToPublicaDto(Propiedad p) => new()

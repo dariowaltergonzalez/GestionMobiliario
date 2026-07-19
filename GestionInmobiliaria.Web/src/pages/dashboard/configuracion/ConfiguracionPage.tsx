@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react'
-import { Loader2, Save, Check } from 'lucide-react'
+import { Loader2, Save, Check, Eye, EyeOff } from 'lucide-react'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
-import { getConfiguracion, updateConfiguracion, type ConfiguracionEmpresaDto } from '../../../api/configuracion'
+import { getConfiguracion, updateConfiguracion, type UpdateConfiguracionRequest } from '../../../api/configuracion'
 
-type FormData = Omit<ConfiguracionEmpresaDto, 'id' | 'fechaActualizacion'>
+type FormData = UpdateConfiguracionRequest & { emailSmtpPassword: string }
 
 const formVacio: FormData = {
   nombreComercial: '', razonSocial: '', cuit: '', condicionFiscal: '',
   logoUrl: '', slogan: '', telefono: '', whatsApp: '', email: '',
   sitioWeb: '', direccion: '', ciudad: '', provincia: '', codigoPostal: '',
   pais: '', instagram: '', facebook: '', twitter: '',
+  emailHabilitado: false, emailSmtpHost: '', emailSmtpPuerto: 587,
+  emailSmtpUsuario: '', emailSmtpPassword: '', emailNombreRemitente: '',
 }
 
 const Input = ({ label, ...props }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) => (
@@ -35,11 +37,14 @@ export default function ConfiguracionPage() {
   const [guardando, setGuardando] = useState(false)
   const [guardado, setGuardado] = useState(false)
   const [error, setError] = useState('')
+  const [mostrarPassword, setMostrarPassword] = useState(false)
+  const [tienePasswordGuardada, setTienePasswordGuardada] = useState(false)
 
   useEffect(() => {
     getConfiguracion().then(res => {
       if (res.success && res.data) {
         const d = res.data
+        setTienePasswordGuardada(!!d.emailSmtpUsuario)
         setForm({
           nombreComercial: d.nombreComercial ?? '',
           razonSocial: d.razonSocial ?? '',
@@ -59,13 +64,19 @@ export default function ConfiguracionPage() {
           instagram: d.instagram ?? '',
           facebook: d.facebook ?? '',
           twitter: d.twitter ?? '',
+          emailHabilitado: d.emailHabilitado ?? false,
+          emailSmtpHost: d.emailSmtpHost ?? '',
+          emailSmtpPuerto: d.emailSmtpPuerto || 587,
+          emailSmtpUsuario: d.emailSmtpUsuario ?? '',
+          emailSmtpPassword: '',
+          emailNombreRemitente: d.emailNombreRemitente ?? '',
         })
       }
     }).catch(() => setError('No se pudo cargar la configuración.'))
     .finally(() => setLoading(false))
   }, [])
 
-  const set = (campo: keyof FormData, valor: string) =>
+  const set = (campo: keyof FormData, valor: string | boolean | number) =>
     setForm(f => ({ ...f, [campo]: valor }))
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -74,8 +85,12 @@ export default function ConfiguracionPage() {
     setError('')
     setGuardando(true)
     try {
-      await updateConfiguracion(form)
+      const payload: UpdateConfiguracionRequest = { ...form }
+      if (!payload.emailSmtpPassword) delete payload.emailSmtpPassword
+      await updateConfiguracion(payload)
       setGuardado(true)
+      setTienePasswordGuardada(!!form.emailSmtpUsuario)
+      setForm(f => ({ ...f, emailSmtpPassword: '' }))
       setTimeout(() => setGuardado(false), 3000)
     } catch {
       setError('No se pudo guardar la configuración.')
@@ -140,6 +155,97 @@ export default function ConfiguracionPage() {
             <Input label="URL del logo" value={form.logoUrl ?? ''} onChange={e => set('logoUrl', e.target.value)} placeholder="https://..." />
             {form.logoUrl && (
               <img src={form.logoUrl} alt="Logo" className="h-16 object-contain rounded-lg border border-gray-100 p-2" onError={e => (e.currentTarget.style.display = 'none')} />
+            )}
+          </Seccion>
+
+          {/* Configuración de correo electrónico */}
+          <Seccion titulo="Correo electrónico (SMTP)">
+            <p className="text-xs text-gray-500 -mt-2">
+              Configurá el servidor de correo para enviar notificaciones automáticas a propietarios, inquilinos y clientes.
+            </p>
+
+            {/* Toggle habilitado */}
+            <div className="flex items-center gap-3 py-1">
+              <button
+                type="button"
+                onClick={() => set('emailHabilitado', !form.emailHabilitado)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  form.emailHabilitado ? 'bg-blue-600' : 'bg-gray-200'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  form.emailHabilitado ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
+              <span className="text-sm text-gray-700">
+                {form.emailHabilitado ? 'Envío de emails habilitado' : 'Envío de emails deshabilitado'}
+              </span>
+            </div>
+
+            {form.emailHabilitado && (
+              <div className="space-y-4 pt-1">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="col-span-2">
+                    <Input
+                      label="Servidor SMTP"
+                      value={form.emailSmtpHost ?? ''}
+                      onChange={e => set('emailSmtpHost', e.target.value)}
+                      placeholder="smtp.gmail.com"
+                    />
+                  </div>
+                  <Input
+                    label="Puerto"
+                    type="number"
+                    value={form.emailSmtpPuerto}
+                    onChange={e => set('emailSmtpPuerto', parseInt(e.target.value) || 587)}
+                    placeholder="587"
+                  />
+                </div>
+
+                <Input
+                  label="Usuario (email remitente)"
+                  type="email"
+                  value={form.emailSmtpUsuario ?? ''}
+                  onChange={e => set('emailSmtpUsuario', e.target.value)}
+                  placeholder="tu@gmail.com"
+                />
+
+                {/* Password con toggle visibilidad */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Contraseña / App Password
+                    {tienePasswordGuardada && !form.emailSmtpPassword && (
+                      <span className="ml-2 text-green-600 font-normal">● Configurada</span>
+                    )}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={mostrarPassword ? 'text' : 'password'}
+                      value={form.emailSmtpPassword}
+                      onChange={e => set('emailSmtpPassword', e.target.value)}
+                      placeholder={tienePasswordGuardada ? 'Dejá vacío para no cambiarla' : 'xxxx xxxx xxxx xxxx'}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 pr-10 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 transition"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setMostrarPassword(p => !p)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {mostrarPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Para Gmail: usá una <strong>Contraseña de aplicación</strong> (Google Account → Seguridad → Contraseñas de aplicación).
+                  </p>
+                </div>
+
+                <Input
+                  label="Nombre del remitente"
+                  value={form.emailNombreRemitente ?? ''}
+                  onChange={e => set('emailNombreRemitente', e.target.value)}
+                  placeholder="Inmobiliaria del Sur"
+                />
+              </div>
             )}
           </Seccion>
 

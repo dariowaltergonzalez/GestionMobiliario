@@ -94,6 +94,10 @@ public class ReservasController : ControllerBase
         reserva.PrecioTotal = request.PrecioTotal;
         reserva.Moneda = (Moneda)request.Moneda;
         reserva.MedioDeposito = (MedioDeposito)request.MedioDeposito;
+        reserva.ComisionVendedorPorcentaje = request.ComisionVendedorPorcentaje;
+        reserva.ComisionVendedorMonto = request.ComisionVendedorMonto;
+        reserva.ComisionCompradorPorcentaje = request.ComisionCompradorPorcentaje;
+        reserva.ComisionCompradorMonto = request.ComisionCompradorMonto;
         reserva.FechaReserva = request.FechaReserva;
         reserva.FechaVencimiento = request.FechaVencimiento;
         reserva.Estado = (EstadoReserva)request.Estado;
@@ -132,6 +136,10 @@ public class ReservasController : ControllerBase
         PrecioTotal = r.PrecioTotal,
         Moneda = (Moneda)r.Moneda,
         MedioDeposito = (MedioDeposito)r.MedioDeposito,
+        ComisionVendedorPorcentaje = r.ComisionVendedorPorcentaje,
+        ComisionVendedorMonto = r.ComisionVendedorMonto,
+        ComisionCompradorPorcentaje = r.ComisionCompradorPorcentaje,
+        ComisionCompradorMonto = r.ComisionCompradorMonto,
         FechaReserva = r.FechaReserva,
         FechaVencimiento = r.FechaVencimiento,
         Observaciones = r.Observaciones,
@@ -159,6 +167,10 @@ public class ReservasController : ControllerBase
         PrecioTotal = r.PrecioTotal,
         Moneda = r.Moneda.ToString(),
         MedioDeposito = r.MedioDeposito.ToString(),
+        ComisionVendedorPorcentaje = r.ComisionVendedorPorcentaje,
+        ComisionVendedorMonto = r.ComisionVendedorMonto,
+        ComisionCompradorPorcentaje = r.ComisionCompradorPorcentaje,
+        ComisionCompradorMonto = r.ComisionCompradorMonto,
         FechaReserva = r.FechaReserva,
         FechaVencimiento = r.FechaVencimiento,
         Estado = r.Estado.ToString(),

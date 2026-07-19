@@ -11,6 +11,7 @@ public class Propietario : IAuditable
     public string? Telefono { get; set; }
     public string? Telefono2 { get; set; }
     public string? Direccion { get; set; }
+    public string? Banco { get; set; }
     public string? CBU { get; set; }
     public string? Notas { get; set; }
     public bool Activo { get; set; } = true;

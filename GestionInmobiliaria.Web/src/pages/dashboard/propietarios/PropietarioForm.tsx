@@ -66,6 +66,7 @@ export default function PropietarioForm({ propietario, onGuardado, onCerrar }: P
         telefono: propietario.telefono ?? '',
         telefono2: propietario.telefono2 ?? '',
         direccion: propietario.direccion ?? '',
+        banco: propietario.banco ?? '',
         cbu: propietario.cbu ?? '',
         notas: propietario.notas ?? '',
       })
@@ -140,7 +141,10 @@ export default function PropietarioForm({ propietario, onGuardado, onCerrar }: P
             </div>
 
             <Input label="Dirección" value={form.direccion} onChange={e => set('direccion', e.target.value)} placeholder="Av. San Martín 456" />
-            <Input label="CBU" value={form.cbu} onChange={e => set('cbu', e.target.value)} placeholder="0000000000000000000000" />
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Banco" value={form.banco} onChange={e => set('banco', e.target.value)} placeholder="Banco Nación" />
+              <Input label="CBU" value={form.cbu} onChange={e => set('cbu', e.target.value)} placeholder="0000000000000000000000" />
+            </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Notas</label>

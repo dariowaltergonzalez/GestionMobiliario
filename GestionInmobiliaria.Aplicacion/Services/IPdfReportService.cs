@@ -10,4 +10,6 @@ public interface IPdfReportService
     byte[] GenerarAgenda(IEnumerable<EventoAgendaDto> datos, PdfReportConfig config);
     byte[] GenerarTasaciones(IEnumerable<SolicitudTasacionDto> datos, PdfReportConfig config);
     byte[] GenerarReservas(IEnumerable<ReservaDto> datos, PdfReportConfig config);
+    byte[] GenerarContrato(ContratoDto contrato, PdfReportConfig config, IEnumerable<ClausulaContratoDto> clausulas);
+    byte[] GenerarReciboPago(PagoDto pago, ContratoDto contrato, PdfReportConfig config);
 }

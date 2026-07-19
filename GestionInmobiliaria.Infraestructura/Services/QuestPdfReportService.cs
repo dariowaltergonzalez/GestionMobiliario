@@ -552,4 +552,390 @@ public class QuestPdfReportService : IPdfReportService
             return null;
         }
     }
+
+    // ─── Contrato de Locación ──────────────────────────────────────────────────
+
+    public byte[] GenerarContrato(ContratoDto c, PdfReportConfig config, IEnumerable<ClausulaContratoDto> clausulas)
+    {
+        return Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.MarginTop(1.5f, Unit.Centimetre);
+                page.MarginBottom(2f, Unit.Centimetre);
+                page.MarginHorizontal(2.2f, Unit.Centimetre);
+                page.DefaultTextStyle(x => x.FontSize(9f).FontFamily("Arial"));
+
+                page.Header().Element(h => ComposeContratoHeader(h, c, config));
+                page.Content().Element(cnt => ComposeContratoClauses(cnt, c, config, clausulas));
+                page.Footer().Element(ComposeFooter);
+            });
+        }).GeneratePdf();
+    }
+
+    private static void ComposeContratoHeader(IContainer container, ContratoDto c, PdfReportConfig config)
+    {
+        container.Column(col =>
+        {
+            col.Item().Row(row =>
+            {
+                row.RelativeItem().Column(info =>
+                {
+                    info.Item().Text(config.NombreEmpresa).FontSize(13).Bold().FontColor(AzulOscuro);
+                    if (!string.IsNullOrWhiteSpace(config.InfoEmpresa))
+                        info.Item().Text(config.InfoEmpresa).FontSize(7).FontColor(Colors.Grey.Darken2);
+                });
+                row.ConstantItem(160).AlignRight().Column(cod =>
+                {
+                    cod.Item().Text("CONTRATO DE LOCACIÓN").FontSize(10).Bold().FontColor(AzulOscuro);
+                    cod.Item().Text(c.Codigo).FontSize(9).FontColor(AzulOscuro);
+                    cod.Item().Text($"Generado: {DateTime.Now:dd/MM/yyyy}").FontSize(7).FontColor(Colors.Grey.Darken2);
+                });
+            });
+            col.Item().PaddingTop(4).LineHorizontal(1.5f).LineColor(AzulOscuro);
+            col.Item().PaddingTop(8);
+        });
+    }
+
+    private static void ComposeContratoClauses(IContainer container, ContratoDto c, PdfReportConfig config, IEnumerable<ClausulaContratoDto> clausulas)
+    {
+        var vars = BuildPlaceholders(c, config);
+        var ciudad = vars["{ciudad}"];
+
+        container.Column(col =>
+        {
+            col.Spacing(0);
+
+            col.Item().AlignCenter().Text("CONTRATO DE LOCACIÓN DE VIVIENDA")
+                .FontSize(12).Bold().FontColor(AzulOscuro);
+            col.Item().AlignCenter().Text("Ley N° 27551 — Código Civil y Comercial de la Nación")
+                .FontSize(8).Italic().FontColor(Colors.Grey.Darken1);
+            col.Item().PaddingTop(10);
+
+            foreach (var cl in clausulas)
+                Clausula(col, cl.Numero, cl.Titulo, Interpolar(cl.Texto, vars));
+
+            if (!string.IsNullOrWhiteSpace(c.Observaciones))
+            {
+                col.Item().PaddingTop(6);
+                col.Item().Text("OBSERVACIONES:").FontSize(8.5f).Bold().FontColor(AzulOscuro);
+                col.Item().PaddingTop(2).Text(c.Observaciones).FontSize(8.5f);
+            }
+
+            col.Item().PaddingTop(20);
+            col.Item().Text($"En {ciudad}, a los ____ días del mes de _________________________ de ________.")
+                .FontSize(9f).Italic();
+
+            col.Item().PaddingTop(24).Row(row =>
+            {
+                row.RelativeItem().Column(f =>
+                {
+                    f.Item().LineHorizontal(0.5f).LineColor(Colors.Black);
+                    f.Item().PaddingTop(4).Text($"LOCADOR/A\n{c.LocadorNombre} {c.LocadorApellido}")
+                        .FontSize(8.5f).AlignCenter();
+                });
+                row.ConstantItem(40);
+                row.RelativeItem().Column(f =>
+                {
+                    f.Item().LineHorizontal(0.5f).LineColor(Colors.Black);
+                    f.Item().PaddingTop(4).Text($"LOCATARIO/A\n{c.LocatarioNombre} {c.LocatarioApellido}")
+                        .FontSize(8.5f).AlignCenter();
+                });
+            });
+
+            if (!string.IsNullOrWhiteSpace(c.GaranteNombre))
+            {
+                col.Item().PaddingTop(24).Row(row =>
+                {
+                    row.RelativeItem(2).Column(f =>
+                    {
+                        f.Item().LineHorizontal(0.5f).LineColor(Colors.Black);
+                        f.Item().PaddingTop(4).Text($"GARANTE/FIADOR\n{c.GaranteNombre} {c.GaranteApellido}")
+                            .FontSize(8.5f).AlignCenter();
+                    });
+                    row.RelativeItem(3);
+                });
+            }
+        });
+    }
+
+    private static Dictionary<string, string> BuildPlaceholders(ContratoDto c, PdfReportConfig config)
+    {
+        var moneda = c.Moneda == "USD" ? "U$S" : "$";
+        var monto = $"{moneda} {c.MontoBase:N0}";
+        var duracionMeses = c.FechaFin.HasValue
+            ? ((c.FechaFin.Value.Year - c.FechaInicio.Year) * 12 + c.FechaFin.Value.Month - c.FechaInicio.Month).ToString()
+            : "36";
+        var ciudad = config.InfoEmpresa?.Split('|').LastOrDefault()?.Trim() ?? "Buenos Aires";
+
+        var locador = $"{c.LocadorNombre} {c.LocadorApellido}" +
+            (string.IsNullOrWhiteSpace(c.LocadorDni) ? "" : $" (DNI {c.LocadorDni})");
+        var locatario = $"{c.LocatarioNombre} {c.LocatarioApellido}" +
+            (string.IsNullOrWhiteSpace(c.LocatarioDni) ? "" : $" (DNI {c.LocatarioDni})");
+
+        var ajusteTexto = c.TipoAjuste switch
+        {
+            "IndiceICL"  => "conforme el art. 14 de la Ley N° 27737 (Índice ICL)",
+            "Porcentaje" => "por porcentaje pactado entre las partes",
+            "Fijo"       => "sin ajuste (monto fijo durante toda la vigencia)",
+            _            => "conforme lo acordado entre las partes",
+        };
+
+        string pagoMedio;
+        if (!string.IsNullOrWhiteSpace(c.LocadorCbu))
+        {
+            pagoMedio = "El pago se efectuará por transferencia electrónica o depósito bancario";
+            if (!string.IsNullOrWhiteSpace(c.LocadorBanco)) pagoMedio += $" en el Banco {c.LocadorBanco}";
+            pagoMedio += $", CBU {c.LocadorCbu}";
+            if (!string.IsNullOrWhiteSpace(c.LocadorCuit)) pagoMedio += $", CUIT {c.LocadorCuit}";
+            pagoMedio += ", titular del/la LOCADOR/A. En contrapartida, EL/LA LOCADOR/A extenderá la factura electrónica correspondiente dentro de las 72hs (Res. N° 4004-E AFIP).";
+        }
+        else
+        {
+            pagoMedio = "El medio y lugar de pago serán acordados entre las partes.";
+        }
+
+        string garanteTexto;
+        if (!string.IsNullOrWhiteSpace(c.GaranteNombre))
+        {
+            garanteTexto = $"Actúa como garante/fiador {c.GaranteNombre} {c.GaranteApellido}" +
+                (string.IsNullOrWhiteSpace(c.GaranteDni) ? "" : $" (DNI {c.GaranteDni})") +
+                (string.IsNullOrWhiteSpace(c.GaranteTelefono) ? "" : $", Tel: {c.GaranteTelefono}") +
+                ", quien se obliga en forma solidaria al cumplimiento de todas las obligaciones emergentes del presente contrato.";
+        }
+        else
+        {
+            garanteTexto = "Las partes podrán convenir la garantía que corresponda conforme la Ley N° 27551.";
+        }
+
+        var locadorDomicilio = string.IsNullOrWhiteSpace(c.LocadorDomicilio) ? "___________________________" : c.LocadorDomicilio;
+        var locadorEmail    = string.IsNullOrWhiteSpace(c.LocadorEmail)    ? "_______@_______.com" : c.LocadorEmail;
+        var locatarioEmail  = string.IsNullOrWhiteSpace(c.LocatarioEmail)  ? "_______@_______.com" : c.LocatarioEmail;
+
+        return new Dictionary<string, string>
+        {
+            // ── Compatibilidad con variables antiguas ────────────────────────
+            { "{locador}",            locador },
+            { "{locatario}",          locatario },
+            { "{locadorDomicilio}",   locadorDomicilio },
+            { "{propiedadDireccion}", c.PropiedadDireccion },
+            { "{montoAlquiler}",      monto },
+            { "{duracionMeses}",      duracionMeses },
+            { "{fechaInicio}",        c.FechaInicio.ToString("dd/MM/yyyy") },
+            { "{fechaFin}",           c.FechaFin.HasValue ? c.FechaFin.Value.ToString("dd/MM/yyyy") : "______/__/____" },
+            { "{mesInicio}",          c.FechaInicio.ToString("MMMM yyyy", new System.Globalization.CultureInfo("es-AR")).ToUpper() },
+            { "{ajusteTexto}",        ajusteTexto },
+            { "{periodicidad}",       c.PeriodicidadAjusteMeses.HasValue ? $"cada {c.PeriodicidadAjusteMeses} meses" : "según lo convenido" },
+            { "{diaVencimiento}",     c.DiaVencimientoPago.HasValue ? $", hasta el día {c.DiaVencimientoPago} de cada mes" : "" },
+            { "{pagoMedio}",          pagoMedio },
+            { "{garanteTexto}",       garanteTexto },
+            { "{ciudad}",             ciudad },
+            { "{locadorEmail}",       locadorEmail },
+            { "{locatarioEmail}",     locatarioEmail },
+
+            // ── Locador ──────────────────────────────────────────────────────
+            { "{locador.nombreCompleto}", $"{c.LocadorNombre} {c.LocadorApellido}" },
+            { "{locador.nombre}",         c.LocadorNombre },
+            { "{locador.apellido}",       c.LocadorApellido },
+            { "{locador.dni}",            c.LocadorDni ?? "" },
+            { "{locador.email}",          locadorEmail },
+            { "{locador.telefono}",       c.LocadorTelefono ?? "" },
+            { "{locador.domicilio}",      locadorDomicilio },
+            { "{locador.banco}",          c.LocadorBanco ?? "" },
+            { "{locador.cbu}",            c.LocadorCbu ?? "" },
+            { "{locador.cuit}",           c.LocadorCuit ?? "" },
+
+            // ── Locatario ────────────────────────────────────────────────────
+            { "{locatario.nombreCompleto}", $"{c.LocatarioNombre} {c.LocatarioApellido}" },
+            { "{locatario.nombre}",         c.LocatarioNombre },
+            { "{locatario.apellido}",       c.LocatarioApellido },
+            { "{locatario.dni}",            c.LocatarioDni ?? "" },
+            { "{locatario.email}",          locatarioEmail },
+            { "{locatario.telefono}",       c.LocatarioTelefono ?? "" },
+
+            // ── Propiedad ────────────────────────────────────────────────────
+            { "{propiedad.direccion}", c.PropiedadDireccion },
+            { "{propiedad.codigo}",    c.PropiedadCodigo ?? "" },
+
+            // ── Garante ──────────────────────────────────────────────────────
+            { "{garante.nombreCompleto}", $"{c.GaranteNombre ?? ""} {c.GaranteApellido ?? ""}".Trim() },
+            { "{garante.nombre}",         c.GaranteNombre ?? "" },
+            { "{garante.apellido}",       c.GaranteApellido ?? "" },
+            { "{garante.dni}",            c.GaranteDni ?? "" },
+            { "{garante.telefono}",       c.GaranteTelefono ?? "" },
+            { "{garante.texto}",          garanteTexto },
+
+            // ── Contrato ─────────────────────────────────────────────────────
+            { "{contrato.montoAlquiler}",  monto },
+            { "{contrato.duracionMeses}",  duracionMeses },
+            { "{contrato.fechaInicio}",    c.FechaInicio.ToString("dd/MM/yyyy") },
+            { "{contrato.fechaFin}",       c.FechaFin.HasValue ? c.FechaFin.Value.ToString("dd/MM/yyyy") : "______/__/____" },
+            { "{contrato.mesInicio}",      c.FechaInicio.ToString("MMMM yyyy", new System.Globalization.CultureInfo("es-AR")).ToUpper() },
+            { "{contrato.ajusteTexto}",    ajusteTexto },
+            { "{contrato.periodicidad}",   c.PeriodicidadAjusteMeses.HasValue ? $"cada {c.PeriodicidadAjusteMeses} meses" : "según lo convenido" },
+            { "{contrato.diaVencimiento}", c.DiaVencimientoPago.HasValue ? $", hasta el día {c.DiaVencimientoPago} de cada mes" : "" },
+            { "{contrato.pagoMedio}",      pagoMedio },
+            { "{contrato.garanteTexto}",   garanteTexto },
+
+            // ── Empresa ──────────────────────────────────────────────────────
+            { "{empresa.nombre}",   config.NombreEmpresa },
+            { "{empresa.ciudad}",   ciudad },
+        };
+    }
+
+    private static string Interpolar(string texto, Dictionary<string, string> vars)
+    {
+        foreach (var (key, value) in vars)
+            texto = texto.Replace(key, value);
+        return texto;
+    }
+
+    // ─── Recibo de Pago ───────────────────────────────────────────────────────
+
+    public byte[] GenerarReciboPago(PagoDto pago, ContratoDto contrato, PdfReportConfig config)
+    {
+        return Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A5);
+                page.MarginTop(1.5f, Unit.Centimetre);
+                page.MarginBottom(1.5f, Unit.Centimetre);
+                page.MarginHorizontal(1.8f, Unit.Centimetre);
+                page.DefaultTextStyle(x => x.FontSize(9f).FontFamily("Arial"));
+
+                page.Content().Element(cnt => ComposeRecibo(cnt, pago, contrato, config));
+                page.Footer().Element(ComposeFooter);
+            });
+        }).GeneratePdf();
+    }
+
+    private static void ComposeRecibo(IContainer container, PagoDto pago, ContratoDto contrato, PdfReportConfig config)
+    {
+        var moneda = contrato.Moneda == "USD" ? "U$S" : "$";
+        var monto = $"{moneda} {(pago.MontoPagado ?? pago.MontoEsperado):N0}";
+        var periodo = pago.Periodo.ToString("MMMM yyyy", new System.Globalization.CultureInfo("es-AR")).ToUpper();
+        var fechaPago = pago.FechaPago.HasValue
+            ? pago.FechaPago.Value.ToLocalTime().ToString("dd/MM/yyyy")
+            : DateTime.Now.ToString("dd/MM/yyyy");
+
+        container.Column(col =>
+        {
+            col.Spacing(0);
+
+            // Header empresa
+            col.Item().Row(row =>
+            {
+                row.RelativeItem().Column(c =>
+                {
+                    c.Item().Text(config.NombreEmpresa).FontSize(13).Bold().FontColor(AzulOscuro);
+                    if (!string.IsNullOrWhiteSpace(config.InfoEmpresa))
+                        c.Item().Text(config.InfoEmpresa).FontSize(7).FontColor(Colors.Grey.Darken2);
+                });
+            });
+
+            col.Item().PaddingTop(4).LineHorizontal(1.5f).LineColor(AzulOscuro);
+            col.Item().PaddingTop(8).AlignCenter().Text("RECIBO DE PAGO DE ALQUILER")
+                .FontSize(11).Bold().FontColor(AzulOscuro);
+            col.Item().PaddingTop(2).AlignCenter().Text($"Período: {periodo}")
+                .FontSize(9).Italic().FontColor(Colors.Grey.Darken1);
+            col.Item().PaddingTop(6).LineHorizontal(0.5f).LineColor(Colors.Grey.Lighten1);
+
+            // Datos del recibo
+            col.Item().PaddingTop(8).Column(datos =>
+            {
+                FilaRecibo(datos, "Contrato",     contrato.Codigo);
+                FilaRecibo(datos, "Cuota N°",     pago.NumeroCuota.ToString());
+                FilaRecibo(datos, "Fecha de pago", fechaPago);
+            });
+
+            col.Item().PaddingTop(8).LineHorizontal(0.5f).LineColor(Colors.Grey.Lighten1);
+
+            // Datos inmueble y partes
+            col.Item().PaddingTop(8).Text("INMUEBLE").FontSize(8).Bold().FontColor(AzulOscuro);
+            col.Item().PaddingTop(2).Text(contrato.PropiedadDireccion).FontSize(9);
+
+            col.Item().PaddingTop(6).Text("LOCADOR/A").FontSize(8).Bold().FontColor(AzulOscuro);
+            col.Item().PaddingTop(2).Text($"{contrato.LocadorNombre} {contrato.LocadorApellido}" +
+                (string.IsNullOrWhiteSpace(contrato.LocadorDni) ? "" : $"  ·  DNI {contrato.LocadorDni}"))
+                .FontSize(9);
+
+            col.Item().PaddingTop(6).Text("LOCATARIO/A").FontSize(8).Bold().FontColor(AzulOscuro);
+            col.Item().PaddingTop(2).Text($"{contrato.LocatarioNombre} {contrato.LocatarioApellido}" +
+                (string.IsNullOrWhiteSpace(contrato.LocatarioDni) ? "" : $"  ·  DNI {contrato.LocatarioDni}"))
+                .FontSize(9);
+
+            col.Item().PaddingTop(8).LineHorizontal(0.5f).LineColor(Colors.Grey.Lighten1);
+
+            // Monto destacado
+            col.Item().PaddingTop(10).Background("#e8f0fe").Padding(10).Row(row =>
+            {
+                row.RelativeItem().Text("MONTO ABONADO").FontSize(9).Bold().FontColor(AzulOscuro);
+                row.AutoItem().Text(monto).FontSize(13).Bold().FontColor("#1a6e2e");
+            });
+
+            col.Item().PaddingTop(6).Column(datos =>
+            {
+                foreach (var detalle in pago.Detalles)
+                {
+                    var descripcion = detalle.Medio switch
+                    {
+                        "Efectivo" => "Efectivo",
+                        "Debito"   => "Transferencia / Débito",
+                        "Credito"  => "Tarjeta de crédito",
+                        "Cheque"   => BuildDescripcionChequeRecibo(detalle),
+                        _          => detalle.Medio
+                    };
+                    if (!string.IsNullOrWhiteSpace(detalle.Referencia) && detalle.Medio != "Cheque")
+                        descripcion += $" — {detalle.Referencia}";
+                    FilaRecibo(datos, $"{moneda} {detalle.Monto:N0}", descripcion);
+                }
+                if (!string.IsNullOrWhiteSpace(pago.Observaciones))
+                    FilaRecibo(datos, "Observaciones", pago.Observaciones);
+            });
+
+            col.Item().PaddingTop(24).Column(firma =>
+            {
+                firma.Item().Width(160).LineHorizontal(0.5f).LineColor(Colors.Black);
+                firma.Item().PaddingTop(4).Text($"Firma del/la LOCADOR/A\n{contrato.LocadorNombre} {contrato.LocadorApellido}")
+                    .FontSize(8).FontColor(Colors.Grey.Darken2);
+            });
+
+            col.Item().PaddingTop(12).Text(
+                "Este recibo cancela el canon locativo correspondiente al período indicado.")
+                .FontSize(7.5f).Italic().FontColor(Colors.Grey.Darken1);
+        });
+    }
+
+    private static void FilaRecibo(ColumnDescriptor col, string etiqueta, string valor)
+    {
+        col.Item().PaddingBottom(3).Row(row =>
+        {
+            row.ConstantItem(90).Text(etiqueta + ":").FontSize(8).FontColor(Colors.Grey.Darken2);
+            row.RelativeItem().Text(valor).FontSize(8.5f).Bold();
+        });
+    }
+
+    private static string BuildDescripcionChequeRecibo(PagoDetalleDto d)
+    {
+        var partes = new System.Text.StringBuilder("Cheque");
+        if (!string.IsNullOrWhiteSpace(d.ChequeBanco)) partes.Append($" — {d.ChequeBanco}");
+        if (!string.IsNullOrWhiteSpace(d.ChequeNumero)) partes.Append($" N° {d.ChequeNumero}");
+        if (d.ChequeFechaVencimiento.HasValue) partes.Append($" — vence {d.ChequeFechaVencimiento.Value:dd/MM/yyyy}");
+        return partes.ToString();
+    }
+
+    private static void Clausula(ColumnDescriptor col, string numero, string titulo, string texto)
+    {
+        col.Item().PaddingTop(7).Row(row =>
+        {
+            row.AutoItem().Text($"{numero}: ").FontSize(8.5f).Bold();
+            row.RelativeItem().Text(t =>
+            {
+                t.Span($"{titulo}. ").Bold().FontSize(8.5f);
+                t.Span(texto).FontSize(8.5f);
+            });
+        });
+    }
 }
