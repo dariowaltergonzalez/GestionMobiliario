@@ -23,4 +23,12 @@ public class ConfiguracionEmpresa
     public string? Twitter { get; set; }
     public DateTime FechaActualizacion { get; set; }
     public int TenantId { get; set; }
+
+    // Configuración SMTP
+    public bool EmailHabilitado { get; set; }
+    public string? EmailSmtpHost { get; set; }
+    public int EmailSmtpPuerto { get; set; } = 587;
+    public string? EmailSmtpUsuario { get; set; }
+    public string? EmailSmtpPassword { get; set; }
+    public string? EmailNombreRemitente { get; set; }
 }

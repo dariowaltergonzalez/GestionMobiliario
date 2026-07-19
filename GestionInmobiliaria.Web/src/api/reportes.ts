@@ -56,3 +56,8 @@ export const exportarTasacionesPdf = async (params: { buscar?: string; estado?: 
   const res = await client.get(`/api/reportes/tasaciones?${query}`, { responseType: 'blob' })
   descargarPdf(res.data, `Tasaciones_${new Date().toISOString().slice(0, 10)}.pdf`)
 }
+
+export const exportarContratoPdf = async (id: number, codigo: string) => {
+  const res = await client.get(`/api/reportes/contratos/${id}`, { responseType: 'blob' })
+  descargarPdf(res.data, `Contrato_${codigo}.pdf`)
+}

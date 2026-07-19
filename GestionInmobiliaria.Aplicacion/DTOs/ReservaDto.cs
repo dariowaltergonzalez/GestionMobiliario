@@ -28,6 +28,11 @@ public class ReservaDto
     public string Moneda { get; set; } = string.Empty;
     public string MedioDeposito { get; set; } = string.Empty;
 
+    public decimal? ComisionVendedorPorcentaje { get; set; }
+    public decimal? ComisionVendedorMonto { get; set; }
+    public decimal? ComisionCompradorPorcentaje { get; set; }
+    public decimal? ComisionCompradorMonto { get; set; }
+
     public DateTime FechaReserva { get; set; }
     public DateTime FechaVencimiento { get; set; }
 
@@ -60,6 +65,11 @@ public class CreateReservaRequest
     public decimal? PrecioTotal { get; set; }
     public int Moneda { get; set; } = 2; // USD por defecto
     public int MedioDeposito { get; set; } = 1;
+
+    public decimal? ComisionVendedorPorcentaje { get; set; }
+    public decimal? ComisionVendedorMonto { get; set; }
+    public decimal? ComisionCompradorPorcentaje { get; set; }
+    public decimal? ComisionCompradorMonto { get; set; }
 
     public DateTime FechaReserva { get; set; }
     public DateTime FechaVencimiento { get; set; }

@@ -77,6 +77,10 @@ function ReservaForm({ reserva, propiedades, agentes, leads, onGuardado, onCerra
     precioTotal: reserva?.precioTotal ? String(reserva.precioTotal) : '',
     moneda: reserva ? (reserva.moneda === 'ARS' ? '1' : '2') : '2',
     medioDeposito: reserva ? String(Object.entries(MEDIOS_DEPOSITO).find(([, v]) => v === reserva.medioDeposito)?.[0] ?? '1') : '1',
+    comisionVendedorPorcentaje: reserva?.comisionVendedorPorcentaje != null ? String(reserva.comisionVendedorPorcentaje) : '',
+    comisionVendedorMonto: reserva?.comisionVendedorMonto != null ? String(reserva.comisionVendedorMonto) : '',
+    comisionCompradorPorcentaje: reserva?.comisionCompradorPorcentaje != null ? String(reserva.comisionCompradorPorcentaje) : '',
+    comisionCompradorMonto: reserva?.comisionCompradorMonto != null ? String(reserva.comisionCompradorMonto) : '',
     // Vigencia
     fechaReserva: reserva ? toDateInput(reserva.fechaReserva) : hoy,
     fechaVencimiento: reserva ? toDateInput(reserva.fechaVencimiento) : en15,
@@ -151,6 +155,10 @@ function ReservaForm({ reserva, propiedades, agentes, leads, onGuardado, onCerra
         precioTotal: form.precioTotal ? Number(form.precioTotal) : undefined,
         moneda: Number(form.moneda),
         medioDeposito: Number(form.medioDeposito),
+        comisionVendedorPorcentaje: form.comisionVendedorPorcentaje ? Number(form.comisionVendedorPorcentaje) : undefined,
+        comisionVendedorMonto: form.comisionVendedorMonto ? Number(form.comisionVendedorMonto) : undefined,
+        comisionCompradorPorcentaje: form.comisionCompradorPorcentaje ? Number(form.comisionCompradorPorcentaje) : undefined,
+        comisionCompradorMonto: form.comisionCompradorMonto ? Number(form.comisionCompradorMonto) : undefined,
         fechaReserva: new Date(form.fechaReserva).toISOString(),
         fechaVencimiento: new Date(form.fechaVencimiento).toISOString(),
         observaciones: form.observaciones.trim() || undefined,
@@ -308,6 +316,29 @@ function ReservaForm({ reserva, propiedades, agentes, leads, onGuardado, onCerra
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Precio total pactado</label>
                 <input type="number" min={0} value={form.precioTotal} onChange={e => set('precioTotal', e.target.value)} className={inp} placeholder="0" />
+              </div>
+            </div>
+          </div>
+
+          {/* Comisiones */}
+          <div>
+            <p className={sec}>Comisiones de la inmobiliaria</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Comisión vendedor %</label>
+                <input type="number" min={0} step={0.01} value={form.comisionVendedorPorcentaje} onChange={e => set('comisionVendedorPorcentaje', e.target.value)} className={inp} placeholder="0.00" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Comisión vendedor monto</label>
+                <input type="number" min={0} value={form.comisionVendedorMonto} onChange={e => set('comisionVendedorMonto', e.target.value)} className={inp} placeholder="0" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Comisión comprador %</label>
+                <input type="number" min={0} step={0.01} value={form.comisionCompradorPorcentaje} onChange={e => set('comisionCompradorPorcentaje', e.target.value)} className={inp} placeholder="0.00" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Comisión comprador monto</label>
+                <input type="number" min={0} value={form.comisionCompradorMonto} onChange={e => set('comisionCompradorMonto', e.target.value)} className={inp} placeholder="0" />
               </div>
             </div>
           </div>

@@ -11,6 +11,7 @@ export interface PropietarioDto {
   telefono: string | null
   telefono2: string | null
   direccion: string | null
+  banco: string | null
   cbu: string | null
   notas: string | null
   activo: boolean
@@ -32,13 +33,14 @@ export interface PropietarioFormData {
   telefono: string
   telefono2: string
   direccion: string
+  banco: string
   cbu: string
   notas: string
 }
 
 export const propietarioFormVacio: PropietarioFormData = {
   nombre: '', apellido: '', dni: '', cuit: '', email: '',
-  telefono: '', telefono2: '', direccion: '', cbu: '', notas: '',
+  telefono: '', telefono2: '', direccion: '', banco: '', cbu: '', notas: '',
 }
 
 export interface FiltrosPropietarios {
@@ -73,6 +75,7 @@ const toRequest = (f: PropietarioFormData, activo?: boolean) => ({
   telefono: f.telefono || null,
   telefono2: f.telefono2 || null,
   direccion: f.direccion || null,
+  banco: f.banco || null,
   cbu: f.cbu || null,
   notas: f.notas || null,
   ...(activo !== undefined ? { activo } : {}),

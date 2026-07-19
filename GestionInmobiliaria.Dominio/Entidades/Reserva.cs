@@ -55,6 +55,12 @@ public class Reserva : IAuditable
     public Moneda Moneda { get; set; } = Moneda.USD;
     public MedioDeposito MedioDeposito { get; set; } = MedioDeposito.Efectivo;
 
+    // Comisiones (doble: inmobiliaria puede cobrar a ambas partes)
+    public decimal? ComisionVendedorPorcentaje { get; set; }
+    public decimal? ComisionVendedorMonto { get; set; }
+    public decimal? ComisionCompradorPorcentaje { get; set; }
+    public decimal? ComisionCompradorMonto { get; set; }
+
     // Vigencia
     public DateTime FechaReserva { get; set; }
     public DateTime FechaVencimiento { get; set; }

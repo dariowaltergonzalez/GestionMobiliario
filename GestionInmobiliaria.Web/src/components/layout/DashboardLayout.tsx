@@ -1,6 +1,6 @@
 import { type ReactNode, useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Home, Users, UserCog, FileText, Calendar, LogOut, Building2, ClipboardList, Bell, ScrollText, ShieldCheck, Settings, Handshake } from 'lucide-react'
+import { Home, Users, UserCog, FileText, Calendar, LogOut, Building2, ClipboardList, Bell, ScrollText, ShieldCheck, Settings, Handshake, BookOpen, FilePen, Banknote } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { getConfiguracionPublica } from '../../api/configuracion'
 
@@ -10,6 +10,9 @@ const navItems = [
   { icono: Users,        label: 'Leads',        href: '/dashboard/leads',          roles: ['Admin', 'Agente'] },
   { icono: ClipboardList,label: 'Tasaciones',   href: '/dashboard/tasaciones',     roles: ['Admin', 'Agente'] },
   { icono: Handshake,    label: 'Reservas',     href: '/dashboard/reservas',       roles: ['Admin', 'Agente'] },
+  { icono: BookOpen,     label: 'Contratos',    href: '/dashboard/contratos',      roles: ['Admin', 'Agente'] },
+  { icono: Banknote,     label: 'Pagos',        href: '/dashboard/pagos',          roles: ['Admin', 'Operador'] },
+  { icono: FilePen,      label: 'Plantilla Contrato', href: '/dashboard/clausulas-contrato', roles: ['Admin'] },
   { icono: Calendar,     label: 'Agenda',       href: '/dashboard/agenda',         roles: ['Admin', 'Agente'] },
   { icono: UserCog,      label: 'Agentes',      href: '/dashboard/agentes',        roles: ['Admin'] },
   { icono: FileText,     label: 'Propietarios', href: '/dashboard/propietarios',   roles: ['Admin'] },

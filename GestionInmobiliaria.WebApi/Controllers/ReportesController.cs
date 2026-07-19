@@ -21,6 +21,8 @@ public class ReportesController : ControllerBase
     private readonly IEventoAgendaRepository _eventos;
     private readonly ISolicitudTasacionRepository _tasaciones;
     private readonly IReservaRepository _reservas;
+    private readonly IContratoRepository _contratos;
+    private readonly IClausulaContratoRepository _clausulas;
     private readonly ApplicationDbContext _context;
     private readonly IWebHostEnvironment _env;
 
@@ -31,6 +33,8 @@ public class ReportesController : ControllerBase
         IEventoAgendaRepository eventos,
         ISolicitudTasacionRepository tasaciones,
         IReservaRepository reservas,
+        IContratoRepository contratos,
+        IClausulaContratoRepository clausulas,
         ApplicationDbContext context,
         IWebHostEnvironment env)
     {
@@ -40,6 +44,8 @@ public class ReportesController : ControllerBase
         _eventos = eventos;
         _tasaciones = tasaciones;
         _reservas = reservas;
+        _contratos = contratos;
+        _clausulas = clausulas;
         _context = context;
         _env = env;
     }
@@ -124,6 +130,33 @@ public class ReportesController : ControllerBase
             var config = await BuildConfig("Reporte de Reservas", filtros);
             var bytes = _pdf.GenerarReservas(dtos, config);
             return File(bytes, "application/pdf", $"Reservas_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<string>.Fail($"Error al generar PDF: {ex.Message}"));
+        }
+    }
+
+    [HttpGet("contratos/{id}")]
+    public async Task<IActionResult> Contrato(int id)
+    {
+        try
+        {
+            var contrato = await _contratos.GetByIdAsync(id);
+            if (contrato is null)
+                return NotFound(ApiResponse<string>.Fail("Contrato no encontrado."));
+
+            var clausulas = (await _clausulas.GetActivasAsync())
+                .Select(c => new ClausulaContratoDto
+                {
+                    Id = c.Id, Orden = c.Orden, Numero = c.Numero,
+                    Titulo = c.Titulo, Texto = c.Texto, Activo = c.Activo
+                });
+
+            var dto = MapContrato(contrato);
+            var config = await BuildConfig("Contrato de Locación", null);
+            var bytes = _pdf.GenerarContrato(dto, config, clausulas);
+            return File(bytes, "application/pdf", $"Contrato_{contrato.Codigo}_{DateTime.Now:yyyyMMdd}.pdf");
         }
         catch (Exception ex)
         {
@@ -274,12 +307,57 @@ public class ReportesController : ControllerBase
         PrecioTotal = r.PrecioTotal,
         Moneda = r.Moneda.ToString(),
         MedioDeposito = r.MedioDeposito.ToString(),
+        ComisionVendedorPorcentaje = r.ComisionVendedorPorcentaje,
+        ComisionVendedorMonto = r.ComisionVendedorMonto,
+        ComisionCompradorPorcentaje = r.ComisionCompradorPorcentaje,
+        ComisionCompradorMonto = r.ComisionCompradorMonto,
         FechaReserva = r.FechaReserva,
         FechaVencimiento = r.FechaVencimiento,
         Estado = r.Estado.ToString(),
         Observaciones = r.Observaciones,
         FechaCreacion = r.FechaCreacion,
         FechaActualizacion = r.FechaActualizacion,
+    };
+
+    private static ContratoDto MapContrato(Contrato c) => new()
+    {
+        Id = c.Id,
+        Codigo = c.Codigo,
+        Tipo = c.Tipo.ToString(),
+        Estado = c.Estado.ToString(),
+        PropiedadId = c.PropiedadId,
+        PropiedadDireccion = c.Propiedad.Direccion,
+        PropiedadCodigo = c.Propiedad.Codigo,
+        LocadorNombre = c.LocadorNombre,
+        LocadorApellido = c.LocadorApellido,
+        LocadorDni = c.LocadorDni,
+        LocadorEmail = c.LocadorEmail,
+        LocadorTelefono = c.LocadorTelefono,
+        LocadorDomicilio = c.LocadorDomicilio,
+        LocadorBanco = c.LocadorBanco,
+        LocadorCbu = c.LocadorCbu,
+        LocadorCuit = c.LocadorCuit,
+        LocatarioNombre = c.LocatarioNombre,
+        LocatarioApellido = c.LocatarioApellido,
+        LocatarioDni = c.LocatarioDni,
+        LocatarioEmail = c.LocatarioEmail,
+        LocatarioTelefono = c.LocatarioTelefono,
+        GaranteNombre = c.GaranteNombre,
+        GaranteApellido = c.GaranteApellido,
+        GaranteDni = c.GaranteDni,
+        GaranteTelefono = c.GaranteTelefono,
+        MontoBase = c.MontoBase,
+        Moneda = c.Moneda.ToString(),
+        TipoAjuste = c.TipoAjuste.ToString(),
+        PeriodicidadAjusteMeses = c.PeriodicidadAjusteMeses,
+        DiaVencimientoPago = c.DiaVencimientoPago,
+        AdministracionCobros = c.AdministracionCobros,
+        FechaInicio = c.FechaInicio,
+        FechaFin = c.FechaFin,
+        FechaEscrituracion = c.FechaEscrituracion,
+        Observaciones = c.Observaciones,
+        FechaCreacion = c.FechaCreacion,
+        FechaActualizacion = c.FechaActualizacion,
     };
 
     private static string? BuildFiltrosReservas(string? buscar, EstadoReserva? estado)

@@ -22,6 +22,14 @@ public class ConfiguracionEmpresaDto
     public string? Facebook { get; set; }
     public string? Twitter { get; set; }
     public DateTime FechaActualizacion { get; set; }
+
+    // SMTP
+    public bool EmailHabilitado { get; set; }
+    public string? EmailSmtpHost { get; set; }
+    public int EmailSmtpPuerto { get; set; }
+    public string? EmailSmtpUsuario { get; set; }
+    public string? EmailNombreRemitente { get; set; }
+    // EmailSmtpPassword no se expone en el DTO de respuesta por seguridad
 }
 
 public class ConfiguracionPublicaDto
@@ -59,4 +67,12 @@ public class UpdateConfiguracionEmpresaRequest
     public string? Instagram { get; set; }
     public string? Facebook { get; set; }
     public string? Twitter { get; set; }
+
+    // SMTP
+    public bool EmailHabilitado { get; set; }
+    public string? EmailSmtpHost { get; set; }
+    public int EmailSmtpPuerto { get; set; } = 587;
+    public string? EmailSmtpUsuario { get; set; }
+    public string? EmailSmtpPassword { get; set; }
+    public string? EmailNombreRemitente { get; set; }
 }
