@@ -38,6 +38,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<Pago> Pagos => Set<Pago>();
     public DbSet<PagoDetalle> PagoDetalles => Set<PagoDetalle>();
     public DbSet<AjusteContrato> AjustesContrato => Set<AjusteContrato>();
+    public DbSet<DocumentoContrato> DocumentosContrato => Set<DocumentoContrato>();
     public DbSet<FotoSolicitud> FotosSolicitud => Set<FotoSolicitud>();
     public DbSet<FotoPropiedad> FotosPropiedad => Set<FotoPropiedad>();
     public DbSet<ClausulaContrato> ClausulasContrato => Set<ClausulaContrato>();
@@ -65,6 +66,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         builder.Entity<Pago>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<PagoDetalle>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<AjusteContrato>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
+        builder.Entity<DocumentoContrato>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<FotoSolicitud>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<FotoPropiedad>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<ClausulaContrato>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
@@ -499,6 +501,20 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.HasOne(a => a.Contrato)
              .WithMany(c => c.Ajustes)
              .HasForeignKey(a => a.ContratoId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<DocumentoContrato>(e =>
+        {
+            e.HasKey(d => d.Id);
+            e.Property(d => d.NombreOriginal).IsRequired().HasMaxLength(255);
+            e.Property(d => d.NombreArchivo).IsRequired().HasMaxLength(255);
+            e.Property(d => d.RutaRelativa).IsRequired().HasMaxLength(500);
+            e.Property(d => d.TipoMime).IsRequired().HasMaxLength(100);
+            e.Property(d => d.Descripcion).HasMaxLength(500);
+            e.HasOne(d => d.Contrato)
+             .WithMany(c => c.Documentos)
+             .HasForeignKey(d => d.ContratoId)
              .OnDelete(DeleteBehavior.Cascade);
         });
     }

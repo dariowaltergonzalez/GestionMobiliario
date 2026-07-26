@@ -125,6 +125,27 @@ public class Contrato : IAuditable
 
     public ICollection<Pago> Pagos { get; set; } = new List<Pago>();
     public ICollection<AjusteContrato> Ajustes { get; set; } = new List<AjusteContrato>();
+    public ICollection<DocumentoContrato> Documentos { get; set; } = new List<DocumentoContrato>();
+}
+
+public class DocumentoContrato : IAuditable
+{
+    public int Id { get; set; }
+
+    public int ContratoId { get; set; }
+    public Contrato Contrato { get; set; } = null!;
+
+    public string NombreOriginal { get; set; } = string.Empty;
+    public string NombreArchivo { get; set; } = string.Empty;
+    public string RutaRelativa { get; set; } = string.Empty;
+    public string TipoMime { get; set; } = string.Empty;
+    public long TamanoBytes { get; set; }
+    public string? Descripcion { get; set; }
+
+    public bool Activo { get; set; } = true;
+    public DateTime FechaCreacion { get; set; }
+    public DateTime FechaActualizacion { get; set; }
+    public int TenantId { get; set; }
 }
 
 public class Pago : IAuditable

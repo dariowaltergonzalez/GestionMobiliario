@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, ChevronUp, Banknote, FileDown } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, ChevronUp, Banknote, FileDown, Paperclip } from 'lucide-react'
+import DocumentosModal from './DocumentosModal'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
 import {
-  getContratos, createContrato, updateContrato, deleteContrato, transicionEstado,
+  getContratos, getContrato, createContrato, updateContrato, deleteContrato, transicionEstado,
   TIPOS_CONTRATO, ESTADOS_CONTRATO, TIPOS_AJUSTE,
   estadoContratoNumero,
   type ContratoDto, type PagoDto, type FiltrosContratos,
@@ -307,6 +308,7 @@ function ContratoForm({ contrato, onGuardado, onCerrar }: {
                 <option value="2">Vigente</option>
                 <option value="3">Finalizado</option>
                 <option value="4">Rescindido</option>
+                <option value="5">Anulado</option>
               </select>
             </div>
           </div>
@@ -558,6 +560,7 @@ export default function ContratosPage() {
   const [cuotasContrato, setCuotasContrato] = useState<ContratoDto | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<ContratoDto | null>(null)
   const [deletando, setDeletando] = useState(false)
+  const [documentosContrato, setDocumentosContrato] = useState<ContratoDto | null>(null)
   const [transicionContrato, setTransicionContrato] = useState<ContratoDto | null>(null)
   const [transicionEstadoVal, setTransicionEstadoVal] = useState('')
   const [transicionMotivo, setTransicionMotivo] = useState('')
@@ -658,6 +661,7 @@ export default function ContratosPage() {
             <option value="2">Vigente</option>
             <option value="3">Finalizado</option>
             <option value="4">Rescindido</option>
+            <option value="5">Anulado</option>
           </select>
           <button onClick={handleNuevo}
             className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-blue-900 font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors">
@@ -741,6 +745,9 @@ export default function ContratosPage() {
                               <Banknote className="w-4 h-4" />
                             </button>
                           )}
+                          <button onClick={() => setDocumentosContrato(c)} className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" title="Documentos adjuntos">
+                            <Paperclip className="w-4 h-4" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -777,6 +784,10 @@ export default function ContratosPage() {
 
       {cuotasContrato && (
         <CuotasModal contrato={cuotasContrato} onCerrar={() => setCuotasContrato(null)} />
+      )}
+
+      {documentosContrato && (
+        <DocumentosModal contrato={documentosContrato} onCerrar={() => setDocumentosContrato(null)} />
       )}
 
       {confirmDelete && (
