@@ -2,6 +2,7 @@ using GestionInmobiliaria.Aplicacion.DTOs;
 using GestionInmobiliaria.Dominio.Common;
 using GestionInmobiliaria.Dominio.Entidades;
 using GestionInmobiliaria.Dominio.Interfaces;
+using GestionInmobiliaria.Infraestructura.Persistencia;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,11 +15,13 @@ public class ContratosController : ControllerBase
 {
     private readonly IContratoRepository _repo;
     private readonly IPagoRepository _pagos;
+    private readonly ApplicationDbContext _context;
 
-    public ContratosController(IContratoRepository repo, IPagoRepository pagos)
+    public ContratosController(IContratoRepository repo, IPagoRepository pagos, ApplicationDbContext context)
     {
         _repo = repo;
         _pagos = pagos;
+        _context = context;
     }
 
     [HttpGet]
@@ -140,6 +143,81 @@ public class ContratosController : ControllerBase
 
         var resultado = await _repo.GetByIdAsync(contrato!.Id);
         return Ok(ApiResponse<ContratoDto>.Ok(MapToDto(resultado!), $"Contrato pasado a estado '{nuevoEstado}' correctamente."));
+    }
+
+    [HttpPost("{id}/ajustes")]
+    [Authorize(Roles = "Admin,Operador")]
+    public async Task<IActionResult> AplicarAjuste(int id, [FromBody] AplicarAjusteRequest request)
+    {
+        var contrato = await _repo.GetByIdAsync(id);
+        if (contrato is null)
+            return NotFound(ApiResponse<object>.Fail("Contrato no encontrado."));
+
+        if (contrato.Estado != EstadoContrato.Vigente)
+            return BadRequest(ApiResponse<object>.Fail("Solo se pueden ajustar contratos en estado Vigente."));
+
+        if (request.Valor == 0)
+            return BadRequest(ApiResponse<object>.Fail("El valor del ajuste no puede ser cero."));
+
+        if (request.Tipo != "Porcentaje" && request.Tipo != "MontoFijo")
+            return BadRequest(ApiResponse<object>.Fail("Tipo de ajuste inválido. Use 'Porcentaje' o 'MontoFijo'."));
+
+        var montoAnterior = contrato.MontoActual;
+        var montoNuevo = request.Tipo == "Porcentaje"
+            ? Math.Round(montoAnterior * (1 + request.Valor / 100), 2)
+            : Math.Round(montoAnterior + request.Valor, 2);
+
+        if (montoNuevo <= 0)
+            return BadRequest(ApiResponse<object>.Fail("El nuevo monto no puede ser menor o igual a cero."));
+
+        // Actualizar cuotas pendientes y atrasadas
+        var pagosPendientes = contrato.Pagos
+            .Where(p => p.Estado == EstadoPago.Pendiente || p.Estado == EstadoPago.Atrasado)
+            .ToList();
+
+        foreach (var pago in pagosPendientes)
+        {
+            pago.MontoEsperado = montoNuevo;
+            pago.FechaActualizacion = DateTime.UtcNow;
+        }
+
+        // Actualizar contrato
+        contrato.MontoActual = montoNuevo;
+        contrato.FechaUltimoAjuste = DateTime.UtcNow;
+        contrato.FechaActualizacion = DateTime.UtcNow;
+
+        // Registrar en historial
+        var ajuste = new AjusteContrato
+        {
+            ContratoId      = id,
+            FechaAplicacion = DateTime.UtcNow,
+            MontoPrevio     = montoAnterior,
+            MontoNuevo      = montoNuevo,
+            Porcentaje      = request.Tipo == "Porcentaje" ? request.Valor : null,
+            TipoAjuste      = request.Tipo,
+            Observaciones   = request.Observaciones?.Trim(),
+            Activo          = true,
+            FechaCreacion   = DateTime.UtcNow,
+            FechaActualizacion = DateTime.UtcNow,
+        };
+        _context.AjustesContrato.Add(ajuste);
+
+        await _context.SaveChangesAsync();
+
+        var dto = new AjusteContratoDto
+        {
+            Id              = ajuste.Id,
+            ContratoId      = ajuste.ContratoId,
+            FechaAplicacion = ajuste.FechaAplicacion,
+            MontoPrevio     = ajuste.MontoPrevio,
+            MontoNuevo      = ajuste.MontoNuevo,
+            Porcentaje      = ajuste.Porcentaje,
+            TipoAjuste      = ajuste.TipoAjuste,
+            Observaciones   = ajuste.Observaciones,
+        };
+
+        return Ok(ApiResponse<AjusteContratoDto>.Ok(dto,
+            $"Ajuste aplicado: {pagosPendientes.Count} cuota(s) actualizada(s) de {montoAnterior:N2} a {montoNuevo:N2}."));
     }
 
     [HttpDelete("{id}")]

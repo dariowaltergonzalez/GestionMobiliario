@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, ChevronUp, Banknote, FileDown, Paperclip } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, ChevronUp, Banknote, FileDown, Paperclip, TrendingUp } from 'lucide-react'
 import DocumentosModal from './DocumentosModal'
+import AjusteModal from './AjusteModal'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
 import {
   getContratos, getContrato, createContrato, updateContrato, deleteContrato, transicionEstado,
@@ -565,6 +566,7 @@ export default function ContratosPage() {
   const [transicionEstadoVal, setTransicionEstadoVal] = useState('')
   const [transicionMotivo, setTransicionMotivo] = useState('')
   const [transicionando, setTransicionando] = useState(false)
+  const [ajusteContrato, setAjusteContrato] = useState<ContratoDto | null>(null)
 
   const cargar = useCallback(async () => {
     setLoading(true); setError('')
@@ -740,6 +742,11 @@ export default function ContratosPage() {
                               <AlertTriangle className="w-4 h-4" />
                             </button>
                           )}
+                          {c.estado === 'Vigente' && (
+                            <button onClick={() => setAjusteContrato(c)} className="p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors cursor-pointer" title="Aplicar ajuste de cuotas">
+                              <TrendingUp className="w-4 h-4" />
+                            </button>
+                          )}
                           {c.administracionCobros && (
                             <button onClick={() => handleVerCuotas(c)} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors cursor-pointer" title="Ver cuotas">
                               <Banknote className="w-4 h-4" />
@@ -815,6 +822,14 @@ export default function ContratosPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {ajusteContrato && (
+        <AjusteModal
+          contrato={ajusteContrato}
+          onConfirmado={() => { setAjusteContrato(null); cargar() }}
+          onCerrar={() => setAjusteContrato(null)}
+        />
       )}
 
       {transicionContrato && (
