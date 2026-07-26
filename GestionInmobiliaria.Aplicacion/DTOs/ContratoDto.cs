@@ -205,6 +205,15 @@ public class DocumentoContratoDto
     public DateTime FechaCreacion { get; set; }
 }
 
+public class AplicarAjusteRequest
+{
+    // "Porcentaje" o "MontoFijo"
+    public string Tipo { get; set; } = "Porcentaje";
+    // Positivo = aumento, negativo = baja
+    public decimal Valor { get; set; }
+    public string? Observaciones { get; set; }
+}
+
 public class AjusteContratoDto
 {
     public int Id { get; set; }
