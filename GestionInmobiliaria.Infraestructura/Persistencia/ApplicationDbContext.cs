@@ -37,6 +37,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<Contrato> Contratos => Set<Contrato>();
     public DbSet<Pago> Pagos => Set<Pago>();
     public DbSet<PagoDetalle> PagoDetalles => Set<PagoDetalle>();
+    public DbSet<AjusteContrato> AjustesContrato => Set<AjusteContrato>();
     public DbSet<FotoSolicitud> FotosSolicitud => Set<FotoSolicitud>();
     public DbSet<FotoPropiedad> FotosPropiedad => Set<FotoPropiedad>();
     public DbSet<ClausulaContrato> ClausulasContrato => Set<ClausulaContrato>();
@@ -63,6 +64,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         builder.Entity<Contrato>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<Pago>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<PagoDetalle>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
+        builder.Entity<AjusteContrato>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<FotoSolicitud>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<FotoPropiedad>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<ClausulaContrato>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
@@ -436,10 +438,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.Property(c => c.GaranteDni).HasMaxLength(20);
             e.Property(c => c.GaranteTelefono).HasMaxLength(50);
             e.Property(c => c.MontoBase).HasColumnType("decimal(18,2)");
+            e.Property(c => c.MontoActual).HasColumnType("decimal(18,2)");
+            e.Property(c => c.PorcentajeAjuste).HasColumnType("decimal(5,2)");
             e.Property(c => c.ComisionLocadorPorcentaje).HasColumnType("decimal(5,2)");
             e.Property(c => c.ComisionLocadorMonto).HasColumnType("decimal(18,2)");
             e.Property(c => c.ComisionLocatarioPorcentaje).HasColumnType("decimal(5,2)");
             e.Property(c => c.ComisionLocatarioMonto).HasColumnType("decimal(18,2)");
+            e.Property(c => c.MotivoRescision).HasMaxLength(1000);
+            e.Property(c => c.MotivoAnulacion).HasMaxLength(1000);
             e.Property(c => c.Observaciones).HasMaxLength(2000);
             e.Property(c => c.ArchivoUrl).HasMaxLength(500);
             e.HasOne(c => c.Propiedad)
@@ -479,6 +485,20 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.HasOne(d => d.Pago)
              .WithMany(p => p.Detalles)
              .HasForeignKey(d => d.PagoId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<AjusteContrato>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.Property(a => a.MontoPrevio).HasColumnType("decimal(18,2)");
+            e.Property(a => a.MontoNuevo).HasColumnType("decimal(18,2)");
+            e.Property(a => a.Porcentaje).HasColumnType("decimal(5,2)");
+            e.Property(a => a.TipoAjuste).IsRequired().HasMaxLength(50);
+            e.Property(a => a.Observaciones).HasMaxLength(1000);
+            e.HasOne(a => a.Contrato)
+             .WithMany(c => c.Ajustes)
+             .HasForeignKey(a => a.ContratoId)
              .OnDelete(DeleteBehavior.Cascade);
         });
     }

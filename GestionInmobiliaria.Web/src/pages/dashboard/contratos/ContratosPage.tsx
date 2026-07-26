@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, ChevronUp, CheckCircle2, Clock, XCircle, Banknote, FileDown } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, ChevronUp, Banknote, FileDown } from 'lucide-react'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
 import {
-  getContratos, getContrato, createContrato, updateContrato, deleteContrato, updatePago,
-  TIPOS_CONTRATO, ESTADOS_CONTRATO, ESTADOS_PAGO, MEDIOS_PAGO, REFERENCIA_PLACEHOLDER,
-  estadoContratoNumero, estadoPagoNumero,
+  getContratos, createContrato, updateContrato, deleteContrato, transicionEstado,
+  TIPOS_CONTRATO, ESTADOS_CONTRATO, TIPOS_AJUSTE,
+  estadoContratoNumero,
   type ContratoDto, type PagoDto, type FiltrosContratos,
-  type CreateContratoRequest, type UpdateContratoRequest, type MedioPago,
+  type CreateContratoRequest, type UpdateContratoRequest,
 } from '../../../api/contratos'
 import { exportarContratoPdf } from '../../../api/reportes'
 import client from '../../../api/client'
@@ -38,129 +38,20 @@ function mesAnio(iso: string) {
   return d.toLocaleDateString('es-AR', { month: 'short', year: 'numeric' })
 }
 
-// ─── PagoRow ────────────────────────────────────────────────────────────────
-
-function PagoRow({ pago, contratoId, onActualizado }: { pago: PagoDto; contratoId: number; onActualizado: () => void }) {
-  const [editando, setEditando] = useState(false)
-  const [monto, setMonto] = useState(pago.montoPagado != null ? String(pago.montoPagado) : '')
-  const [fecha, setFecha] = useState(pago.fechaPago ? toDateInput(pago.fechaPago) : hoy)
-  const [medio, setMedio] = useState<string>('1')
-  const [referencia, setReferencia] = useState('')
-  const [guardando, setGuardando] = useState(false)
-  const estadoNum = estadoPagoNumero(pago.estado)
-  const info = ESTADOS_PAGO[estadoNum as keyof typeof ESTADOS_PAGO]
-  const medioNum = Number(medio) as MedioPago
-  const refPlaceholder = REFERENCIA_PLACEHOLDER[medioNum]
-
-  const handlePagar = async () => {
-    setGuardando(true)
-    try {
-      const montoDetalle = monto ? Number(monto) : pago.montoEsperado
-      await updatePago(contratoId, pago.id, {
-        estado: 2,
-        fechaPago: new Date(fecha).toISOString(),
-        observaciones: pago.observaciones ?? undefined,
-        detalles: [{
-          medio: Number(medio),
-          monto: montoDetalle,
-          referencia: referencia.trim() || undefined,
-        }],
-      })
-      setEditando(false)
-      onActualizado()
-    } finally { setGuardando(false) }
-  }
-
-  const handleAnular = async () => {
-    setGuardando(true)
-    try {
-      await updatePago(contratoId, pago.id, { estado: 4, detalles: [] })
-      onActualizado()
-    } finally { setGuardando(false) }
-  }
-
-  return (
-    <div className="border border-gray-100 rounded-xl p-3">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xs text-gray-400 w-6 shrink-0 text-right">#{pago.numeroCuota}</span>
-          <span className="text-sm font-medium text-gray-700">{mesAnio(pago.periodo)}</span>
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${info.color}`}>{info.label}</span>
-          {pago.detalles?.length > 0 && (
-            <span className="text-xs text-gray-400">{pago.detalles.map(d => d.medio).join(' + ')}</span>
-          )}
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <span className="text-sm font-semibold text-gray-800">
-            {pago.montoPagado != null
-              ? <span className="text-green-700">{pago.montoPagado.toLocaleString('es-AR')}</span>
-              : pago.montoEsperado.toLocaleString('es-AR')}
-          </span>
-          {estadoNum === 1 && !editando && (
-            <button onClick={() => setEditando(true)} className="text-xs text-blue-600 hover:underline">Registrar</button>
-          )}
-          {estadoNum === 1 && (
-            <button onClick={handleAnular} disabled={guardando} className="p-1 text-gray-400 hover:text-red-500 transition-colors">
-              <XCircle className="w-4 h-4" />
-            </button>
-          )}
-          {estadoNum === 2 && <CheckCircle2 className="w-4 h-4 text-green-500" />}
-          {estadoNum === 3 && <Clock className="w-4 h-4 text-red-500" />}
-        </div>
-      </div>
-      {editando && (
-        <div className="mt-3 space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Monto pagado</label>
-              <input type="number" value={monto} onChange={e => setMonto(e.target.value)}
-                placeholder={String(pago.montoEsperado)}
-                className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm w-full outline-none" />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Fecha de pago</label>
-              <input type="date" value={fecha} onChange={e => setFecha(e.target.value)}
-                className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm w-full outline-none" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Medio de pago</label>
-              <select value={medio} onChange={e => { setMedio(e.target.value); setReferencia('') }}
-                className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm w-full outline-none bg-white">
-                {(Object.entries(MEDIOS_PAGO) as [string, string][]).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
-              </select>
-            </div>
-            {refPlaceholder && (
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Referencia</label>
-                <input value={referencia} onChange={e => setReferencia(e.target.value)}
-                  placeholder={refPlaceholder}
-                  className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm w-full outline-none" />
-              </div>
-            )}
-          </div>
-          <div className="flex gap-2 justify-end">
-            <button onClick={() => setEditando(false)} className="text-xs text-gray-500 hover:text-gray-700">Cancelar</button>
-            <button onClick={handlePagar} disabled={guardando}
-              className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 disabled:opacity-60">
-              {guardando ? 'Guardando...' : 'Confirmar pago'}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ─── CuotasModal ─────────────────────────────────────────────────────────────
 
-function CuotasModal({ contrato, onCerrar, onActualizado }: {
+function estadoBadge(estado: string) {
+  switch (estado) {
+    case 'Pagado':    return 'bg-green-100 text-green-700'
+    case 'Pendiente': return 'bg-yellow-100 text-yellow-700'
+    case 'Atrasado':  return 'bg-red-100 text-red-700'
+    default:          return 'bg-gray-100 text-gray-500'
+  }
+}
+
+function CuotasModal({ contrato, onCerrar }: {
   contrato: ContratoDto
   onCerrar: () => void
-  onActualizado: () => void
 }) {
   const pagados = contrato.pagos.filter(p => p.estado === 'Pagado').length
   const total = contrato.pagos.length
@@ -192,10 +83,28 @@ function CuotasModal({ contrato, onCerrar, onActualizado }: {
           {contrato.pagos.length === 0 ? (
             <p className="text-center text-gray-400 py-8 text-sm">Este contrato no tiene administración de cobros activa.</p>
           ) : (
-            contrato.pagos.map(p => (
-              <PagoRow key={p.id} pago={p} contratoId={contrato.id} onActualizado={onActualizado} />
+            contrato.pagos.map((p: PagoDto) => (
+              <div key={p.id} className="border border-gray-100 rounded-xl px-4 py-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xs text-gray-400 w-6 shrink-0 text-right">#{p.numeroCuota}</span>
+                  <span className="text-sm font-medium text-gray-700">{mesAnio(p.periodo)}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${estadoBadge(p.estado)}`}>{p.estado}</span>
+                  {p.detalles?.length > 0 && (
+                    <span className="text-xs text-gray-400 truncate">{p.detalles.map(d => d.medio).join(' + ')}</span>
+                  )}
+                </div>
+                <span className="text-sm font-semibold shrink-0">
+                  {p.montoPagado != null
+                    ? <span className="text-green-700">{p.montoPagado.toLocaleString('es-AR')}</span>
+                    : <span className="text-gray-700">{p.montoEsperado.toLocaleString('es-AR')}</span>}
+                </span>
+              </div>
             ))
           )}
+        </div>
+
+        <div className="px-6 py-3 border-t border-gray-100">
+          <p className="text-xs text-gray-400 text-center">Para registrar cobros, usá la sección <strong>Pagos</strong>.</p>
         </div>
       </div>
     </div>
@@ -245,6 +154,7 @@ function ContratoForm({ contrato, onGuardado, onCerrar }: {
     montoBase: contrato ? String(contrato.montoBase) : '',
     moneda: contrato ? (contrato.moneda === 'ARS' ? '1' : '2') : '1',
     tipoAjuste: contrato ? String(['Fijo','IndiceICL','Porcentaje','Otro'].indexOf(contrato.tipoAjuste) + 1) : '1',
+    porcentajeAjuste: contrato?.porcentajeAjuste != null ? String(contrato.porcentajeAjuste) : '',
     periodicidadAjusteMeses: contrato?.periodicidadAjusteMeses ? String(contrato.periodicidadAjusteMeses) : '',
     diaVencimientoPago: contrato?.diaVencimientoPago ? String(contrato.diaVencimientoPago) : '',
     comisionLocadorPorcentaje: contrato?.comisionLocadorPorcentaje != null ? String(contrato.comisionLocadorPorcentaje) : '',
@@ -347,6 +257,7 @@ function ContratoForm({ contrato, onGuardado, onCerrar }: {
         montoBase: Number(form.montoBase),
         moneda: Number(form.moneda),
         tipoAjuste: Number(form.tipoAjuste),
+        porcentajeAjuste: form.porcentajeAjuste ? Number(form.porcentajeAjuste) : undefined,
         periodicidadAjusteMeses: form.periodicidadAjusteMeses ? Number(form.periodicidadAjusteMeses) : undefined,
         diaVencimientoPago: form.diaVencimientoPago ? Number(form.diaVencimientoPago) : undefined,
         comisionLocadorPorcentaje: form.comisionLocadorPorcentaje ? Number(form.comisionLocadorPorcentaje) : undefined,
@@ -543,6 +454,12 @@ function ContratoForm({ contrato, onGuardado, onCerrar }: {
                   <option value="4">Otro</option>
                 </select>
               </div>
+              {form.tipoAjuste === '3' && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Porcentaje de ajuste (%)</label>
+                  <input type="number" min={0} step="0.01" value={form.porcentajeAjuste} onChange={e => set('porcentajeAjuste', e.target.value)} className={inp} placeholder="Ej: 10" />
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Periodicidad ajuste (meses)</label>
                 <input type="number" min={1} value={form.periodicidadAjusteMeses} onChange={e => set('periodicidadAjusteMeses', e.target.value)} className={inp} placeholder="Ej: 6" />
@@ -641,6 +558,10 @@ export default function ContratosPage() {
   const [cuotasContrato, setCuotasContrato] = useState<ContratoDto | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<ContratoDto | null>(null)
   const [deletando, setDeletando] = useState(false)
+  const [transicionContrato, setTransicionContrato] = useState<ContratoDto | null>(null)
+  const [transicionEstadoVal, setTransicionEstadoVal] = useState('')
+  const [transicionMotivo, setTransicionMotivo] = useState('')
+  const [transicionando, setTransicionando] = useState(false)
 
   const cargar = useCallback(async () => {
     setLoading(true); setError('')
@@ -656,13 +577,6 @@ export default function ContratosPage() {
   }, [filtros])
 
   useEffect(() => { cargar() }, [cargar])
-
-  const recargarCuotas = useCallback(async () => {
-    if (!cuotasContrato) return
-    const res = await getContrato(cuotasContrato.id)
-    if (res.success) setCuotasContrato(res.data)
-    cargar()
-  }, [cuotasContrato, cargar])
 
   const handleBuscar = () => setFiltros(f => ({ ...f, buscar: buscarInput, pagina: 1 }))
   const handleFiltro = (campo: keyof FiltrosContratos, valor: string) =>
@@ -680,6 +594,27 @@ export default function ContratosPage() {
   const handleDescargarPdf = async (c: ContratoDto) => {
     try { await exportarContratoPdf(c.id, c.codigo) }
     catch { setError('No se pudo generar el PDF del contrato.') }
+  }
+
+  const handleAbrirTransicion = (c: ContratoDto) => {
+    setTransicionContrato(c)
+    setTransicionEstadoVal('')
+    setTransicionMotivo('')
+  }
+
+  const handleConfirmarTransicion = async () => {
+    if (!transicionContrato || !transicionEstadoVal) return
+    setTransicionando(true)
+    try {
+      const necesitaMotivo = ['4', '5'].includes(transicionEstadoVal)
+      await transicionEstado(transicionContrato.id, {
+        estado: Number(transicionEstadoVal),
+        motivo: necesitaMotivo ? transicionMotivo : undefined,
+      })
+      setTransicionContrato(null)
+      cargar()
+    } catch { setError('No se pudo cambiar el estado del contrato.') }
+    finally { setTransicionando(false) }
   }
 
   const handleConfirmarDelete = async () => {
@@ -786,12 +721,21 @@ export default function ContratosPage() {
                           <button onClick={() => handleDescargarPdf(c)} className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" title="Descargar contrato PDF">
                             <FileDown className="w-4 h-4" />
                           </button>
-                          <button onClick={() => handleEditar(c)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer" title="Editar">
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => setConfirmDelete(c)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer" title="Eliminar">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {c.estado === 'Borrador' && (
+                            <>
+                              <button onClick={() => handleEditar(c)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer" title="Editar">
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => setConfirmDelete(c)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer" title="Eliminar">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                          {!['Finalizado', 'Rescindido', 'Anulado'].includes(c.estado) && (
+                            <button onClick={() => handleAbrirTransicion(c)} className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors cursor-pointer" title="Cambiar estado">
+                              <AlertTriangle className="w-4 h-4" />
+                            </button>
+                          )}
                           {c.administracionCobros && (
                             <button onClick={() => handleVerCuotas(c)} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors cursor-pointer" title="Ver cuotas">
                               <Banknote className="w-4 h-4" />
@@ -832,7 +776,7 @@ export default function ContratosPage() {
       )}
 
       {cuotasContrato && (
-        <CuotasModal contrato={cuotasContrato} onCerrar={() => setCuotasContrato(null)} onActualizado={recargarCuotas} />
+        <CuotasModal contrato={cuotasContrato} onCerrar={() => setCuotasContrato(null)} />
       )}
 
       {confirmDelete && (
@@ -846,7 +790,7 @@ export default function ContratosPage() {
             </div>
             <p className="text-sm text-gray-600 mb-6">
               ¿Confirmás eliminar el contrato <strong>{confirmDelete.codigo}</strong>?
-              Si estaba vigente, la propiedad volverá a <strong>Disponible</strong>.
+              Solo es posible eliminar contratos en estado Borrador.
             </p>
             <div className="flex gap-3">
               <button onClick={() => setConfirmDelete(null)}
@@ -856,6 +800,55 @@ export default function ContratosPage() {
               <button onClick={handleConfirmarDelete} disabled={deletando}
                 className="flex-1 bg-red-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-red-700 disabled:opacity-60 transition-colors">
                 {deletando ? 'Procesando...' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {transicionContrato && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800">Cambiar estado</h3>
+                <p className="text-xs text-gray-400">{transicionContrato.codigo} — actualmente: <strong>{transicionContrato.estado}</strong></p>
+              </div>
+            </div>
+            <div className="space-y-3 mb-5">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Nuevo estado</label>
+                <select value={transicionEstadoVal} onChange={e => setTransicionEstadoVal(e.target.value)}
+                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full outline-none bg-white focus:border-purple-400">
+                  <option value="">— Seleccioná —</option>
+                  {transicionContrato.estado === 'Borrador' && <option value="2">Vigente</option>}
+                  {transicionContrato.estado === 'Borrador' && <option value="5">Anulado</option>}
+                  {transicionContrato.estado === 'Vigente' && <option value="3">Finalizado</option>}
+                  {transicionContrato.estado === 'Vigente' && <option value="4">Rescindido</option>}
+                  {transicionContrato.estado === 'Vigente' && <option value="5">Anulado</option>}
+                </select>
+              </div>
+              {['4', '5'].includes(transicionEstadoVal) && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Motivo *</label>
+                  <textarea value={transicionMotivo} onChange={e => setTransicionMotivo(e.target.value)}
+                    rows={3} placeholder="Describí el motivo..."
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full outline-none resize-none focus:border-purple-400" />
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setTransicionContrato(null)}
+                className="flex-1 border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
+                Cancelar
+              </button>
+              <button onClick={handleConfirmarTransicion}
+                disabled={transicionando || !transicionEstadoVal || (['4','5'].includes(transicionEstadoVal) && !transicionMotivo.trim())}
+                className="flex-1 bg-purple-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-purple-700 disabled:opacity-60 transition-colors">
+                {transicionando ? 'Guardando...' : 'Confirmar'}
               </button>
             </div>
           </div>

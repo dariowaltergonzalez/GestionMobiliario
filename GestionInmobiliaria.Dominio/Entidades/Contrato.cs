@@ -11,7 +11,8 @@ public enum EstadoContrato
     Borrador = 1,
     Vigente = 2,
     Finalizado = 3,
-    Rescindido = 4
+    Rescindido = 4,
+    Anulado = 5
 }
 
 public enum TipoAjuste
@@ -98,10 +99,21 @@ public class Contrato : IAuditable
 
     public bool AdministracionCobros { get; set; } = false;
 
+    // Ajuste de cuotas
+    public decimal? PorcentajeAjuste { get; set; }
+    public decimal MontoActual { get; set; }
+    public DateTime? FechaUltimoAjuste { get; set; }
+
     // Vigencia
     public DateTime FechaInicio { get; set; }
     public DateTime? FechaFin { get; set; }
     public DateTime? FechaEscrituracion { get; set; }
+
+    // Transiciones de estado
+    public string? MotivoRescision { get; set; }
+    public DateTime? FechaRescision { get; set; }
+    public string? MotivoAnulacion { get; set; }
+    public DateTime? FechaAnulacion { get; set; }
 
     public string? Observaciones { get; set; }
     public string? ArchivoUrl { get; set; }
@@ -112,6 +124,7 @@ public class Contrato : IAuditable
     public int TenantId { get; set; }
 
     public ICollection<Pago> Pagos { get; set; } = new List<Pago>();
+    public ICollection<AjusteContrato> Ajustes { get; set; } = new List<AjusteContrato>();
 }
 
 public class Pago : IAuditable
@@ -137,6 +150,26 @@ public class Pago : IAuditable
     public int TenantId { get; set; }
 
     public List<PagoDetalle> Detalles { get; set; } = [];
+}
+
+public class AjusteContrato : IAuditable
+{
+    public int Id { get; set; }
+
+    public int ContratoId { get; set; }
+    public Contrato Contrato { get; set; } = null!;
+
+    public DateTime FechaAplicacion { get; set; }
+    public decimal MontoPrevio { get; set; }
+    public decimal MontoNuevo { get; set; }
+    public decimal? Porcentaje { get; set; }
+    public string TipoAjuste { get; set; } = string.Empty;
+    public string? Observaciones { get; set; }
+
+    public bool Activo { get; set; } = true;
+    public DateTime FechaCreacion { get; set; }
+    public DateTime FechaActualizacion { get; set; }
+    public int TenantId { get; set; }
 }
 
 public class PagoDetalle : IAuditable

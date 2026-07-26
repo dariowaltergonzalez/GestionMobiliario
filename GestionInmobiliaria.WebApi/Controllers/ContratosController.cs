@@ -72,11 +72,14 @@ public class ContratosController : ControllerBase
         if (contrato is null)
             return NotFound(ApiResponse<ContratoDto>.Fail("Contrato no encontrado."));
 
+        if (contrato.Estado != EstadoContrato.Borrador)
+            return BadRequest(ApiResponse<ContratoDto>.Fail(
+                $"Solo se pueden editar contratos en estado Borrador. Este contrato está en estado '{contrato.Estado}'."));
+
         var validacion = Validar(request);
         if (validacion is not null) return BadRequest(validacion);
 
         contrato.Tipo = (TipoContrato)request.Tipo;
-        contrato.Estado = (EstadoContrato)request.Estado;
         contrato.PropiedadId = request.PropiedadId;
         contrato.ReservaId = request.ReservaId;
         contrato.AgenteId = request.AgenteId;
@@ -101,9 +104,11 @@ public class ContratosController : ControllerBase
         contrato.GaranteDni = request.GaranteDni;
         contrato.GaranteTelefono = request.GaranteTelefono;
         contrato.MontoBase = request.MontoBase;
+        contrato.MontoActual = request.MontoBase;
         contrato.Moneda = (Moneda)request.Moneda;
         contrato.TipoAjuste = (TipoAjuste)request.TipoAjuste;
         contrato.PeriodicidadAjusteMeses = request.PeriodicidadAjusteMeses;
+        contrato.PorcentajeAjuste = request.PorcentajeAjuste;
         contrato.DiaVencimientoPago = request.DiaVencimientoPago;
         contrato.ComisionLocadorPorcentaje = request.ComisionLocadorPorcentaje;
         contrato.ComisionLocadorMonto = request.ComisionLocadorMonto;
@@ -120,10 +125,35 @@ public class ContratosController : ControllerBase
         return Ok(ApiResponse<ContratoDto>.Ok(MapToDto(resultado!), "Contrato actualizado correctamente."));
     }
 
+    [HttpPut("{id}/estado")]
+    [Authorize(Roles = "Admin,Operador")]
+    public async Task<IActionResult> TransicionEstado(int id, [FromBody] TransicionEstadoRequest request)
+    {
+        var nuevoEstado = (EstadoContrato)request.Estado;
+
+        if (nuevoEstado is EstadoContrato.Rescindido or EstadoContrato.Anulado
+            && string.IsNullOrWhiteSpace(request.Motivo))
+            return BadRequest(ApiResponse<ContratoDto>.Fail("El motivo es requerido para este cambio de estado."));
+
+        var (ok, error, contrato) = await _repo.TransicionEstadoAsync(id, nuevoEstado, request.Motivo, request.Fecha);
+        if (!ok) return BadRequest(ApiResponse<ContratoDto>.Fail(error!));
+
+        var resultado = await _repo.GetByIdAsync(contrato!.Id);
+        return Ok(ApiResponse<ContratoDto>.Ok(MapToDto(resultado!), $"Contrato pasado a estado '{nuevoEstado}' correctamente."));
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)
     {
+        var contrato = await _repo.GetByIdAsync(id);
+        if (contrato is null)
+            return NotFound(ApiResponse<object>.Fail("Contrato no encontrado."));
+
+        if (contrato.Estado != EstadoContrato.Borrador)
+            return BadRequest(ApiResponse<object>.Fail(
+                $"Solo se pueden eliminar contratos en estado Borrador. Para otros estados, usá la transición de estado correspondiente."));
+
         var eliminado = await _repo.DeleteAsync(id);
         if (!eliminado)
             return NotFound(ApiResponse<object>.Fail("Contrato no encontrado."));
@@ -218,6 +248,7 @@ public class ContratosController : ControllerBase
         ComisionLocatarioPorcentaje = r.ComisionLocatarioPorcentaje,
         ComisionLocatarioMonto = r.ComisionLocatarioMonto,
         AdministracionCobros = r.AdministracionCobros,
+        PorcentajeAjuste = r.PorcentajeAjuste,
         FechaInicio = r.FechaInicio,
         FechaFin = r.FechaFin,
         FechaEscrituracion = r.FechaEscrituracion,
@@ -266,12 +297,30 @@ public class ContratosController : ControllerBase
         ComisionLocatarioPorcentaje = c.ComisionLocatarioPorcentaje,
         ComisionLocatarioMonto = c.ComisionLocatarioMonto,
         AdministracionCobros = c.AdministracionCobros,
+        PorcentajeAjuste = c.PorcentajeAjuste,
+        MontoActual = c.MontoActual,
+        FechaUltimoAjuste = c.FechaUltimoAjuste,
         FechaInicio = c.FechaInicio,
         FechaFin = c.FechaFin,
         FechaEscrituracion = c.FechaEscrituracion,
+        MotivoRescision = c.MotivoRescision,
+        FechaRescision = c.FechaRescision,
+        MotivoAnulacion = c.MotivoAnulacion,
+        FechaAnulacion = c.FechaAnulacion,
         Observaciones = c.Observaciones,
         ArchivoUrl = c.ArchivoUrl,
         Pagos = c.Pagos.Select(MapPagoToDto).ToList(),
+        Ajustes = c.Ajustes.Select(a => new AjusteContratoDto
+        {
+            Id = a.Id,
+            ContratoId = a.ContratoId,
+            FechaAplicacion = a.FechaAplicacion,
+            MontoPrevio = a.MontoPrevio,
+            MontoNuevo = a.MontoNuevo,
+            Porcentaje = a.Porcentaje,
+            TipoAjuste = a.TipoAjuste,
+            Observaciones = a.Observaciones,
+        }).ToList(),
         FechaCreacion = c.FechaCreacion,
         FechaActualizacion = c.FechaActualizacion,
     };

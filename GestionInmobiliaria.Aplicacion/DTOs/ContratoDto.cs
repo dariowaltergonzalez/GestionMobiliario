@@ -52,14 +52,24 @@ public class ContratoDto
 
     public bool AdministracionCobros { get; set; }
 
+    public decimal? PorcentajeAjuste { get; set; }
+    public decimal MontoActual { get; set; }
+    public DateTime? FechaUltimoAjuste { get; set; }
+
     public DateTime FechaInicio { get; set; }
     public DateTime? FechaFin { get; set; }
     public DateTime? FechaEscrituracion { get; set; }
+
+    public string? MotivoRescision { get; set; }
+    public DateTime? FechaRescision { get; set; }
+    public string? MotivoAnulacion { get; set; }
+    public DateTime? FechaAnulacion { get; set; }
 
     public string? Observaciones { get; set; }
     public string? ArchivoUrl { get; set; }
 
     public List<PagoDto> Pagos { get; set; } = new();
+    public List<AjusteContratoDto> Ajustes { get; set; } = new();
 
     public DateTime FechaCreacion { get; set; }
     public DateTime FechaActualizacion { get; set; }
@@ -146,6 +156,8 @@ public class CreateContratoRequest
 
     public bool AdministracionCobros { get; set; } = false;
 
+    public decimal? PorcentajeAjuste { get; set; }
+
     public DateTime FechaInicio { get; set; }
     public DateTime? FechaFin { get; set; }
     public DateTime? FechaEscrituracion { get; set; }
@@ -154,6 +166,13 @@ public class CreateContratoRequest
 }
 
 public class UpdateContratoRequest : CreateContratoRequest { }
+
+public class TransicionEstadoRequest
+{
+    public int Estado { get; set; }
+    public string? Motivo { get; set; }
+    public DateTime? Fecha { get; set; }
+}
 
 public class UpdatePagoRequest
 {
@@ -174,6 +193,18 @@ public class PagoListDto : PagoDto
     public string? LocadorEmail { get; set; }
 }
 
+
+public class AjusteContratoDto
+{
+    public int Id { get; set; }
+    public int ContratoId { get; set; }
+    public DateTime FechaAplicacion { get; set; }
+    public decimal MontoPrevio { get; set; }
+    public decimal MontoNuevo { get; set; }
+    public decimal? Porcentaje { get; set; }
+    public string TipoAjuste { get; set; } = string.Empty;
+    public string? Observaciones { get; set; }
+}
 
 public class PagoMetricasDto
 {
