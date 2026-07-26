@@ -61,6 +61,8 @@ public class ContratoRepository : IContratoRepository
             .Include(c => c.Propiedad)
             .Include(c => c.Agente).ThenInclude(a => a!.User)
             .Include(c => c.Pagos.OrderBy(p => p.NumeroCuota))
+                .ThenInclude(p => p.Detalles)
+            .Include(c => c.Ajustes.OrderByDescending(a => a.FechaAplicacion))
             .FirstOrDefaultAsync(c => c.Id == id);
     }
 
@@ -68,6 +70,7 @@ public class ContratoRepository : IContratoRepository
     {
         contrato.FechaCreacion = DateTime.UtcNow;
         contrato.FechaActualizacion = DateTime.UtcNow;
+        contrato.MontoActual = contrato.MontoBase;
         _context.Contratos.Add(contrato);
         await _context.SaveChangesAsync();
 
@@ -131,6 +134,55 @@ public class ContratoRepository : IContratoRepository
         return true;
     }
 
+    public async Task<(bool Ok, string? Error, Contrato? Contrato)> TransicionEstadoAsync(
+        int id, EstadoContrato nuevoEstado, string? motivo, DateTime? fecha)
+    {
+        var contrato = await _context.Contratos.FindAsync(id);
+        if (contrato is null) return (false, "Contrato no encontrado.", null);
+
+        // Estados terminales: no admiten más transiciones
+        if (contrato.Estado is EstadoContrato.Finalizado or EstadoContrato.Rescindido or EstadoContrato.Anulado)
+            return (false, $"El contrato en estado '{contrato.Estado}' no puede cambiar de estado.", null);
+
+        // Transiciones válidas
+        var valida = (contrato.Estado, nuevoEstado) switch
+        {
+            (EstadoContrato.Borrador, EstadoContrato.Vigente)     => true,
+            (EstadoContrato.Borrador, EstadoContrato.Anulado)     => true,
+            (EstadoContrato.Vigente,  EstadoContrato.Finalizado)  => true,
+            (EstadoContrato.Vigente,  EstadoContrato.Rescindido)  => true,
+            (EstadoContrato.Vigente,  EstadoContrato.Anulado)     => true,
+            _ => false
+        };
+
+        if (!valida)
+            return (false, $"Transición de '{contrato.Estado}' a '{nuevoEstado}' no permitida.", null);
+
+        contrato.Estado = nuevoEstado;
+        contrato.FechaActualizacion = DateTime.UtcNow;
+
+        switch (nuevoEstado)
+        {
+            case EstadoContrato.Rescindido:
+                contrato.MotivoRescision = motivo;
+                contrato.FechaRescision = fecha ?? DateTime.UtcNow;
+                break;
+            case EstadoContrato.Anulado:
+                contrato.MotivoAnulacion = motivo;
+                contrato.FechaAnulacion = fecha ?? DateTime.UtcNow;
+                break;
+            case EstadoContrato.Vigente when contrato.AdministracionCobros:
+                var tienePagos = await _context.Pagos.AnyAsync(p => p.ContratoId == contrato.Id && p.Activo);
+                if (!tienePagos)
+                    await GenerarPagosAsync(contrato);
+                break;
+        }
+
+        await SincronizarEstadoPropiedadAsync(contrato);
+        await _context.SaveChangesAsync();
+        return (true, null, contrato);
+    }
+
     private async Task SincronizarEstadoPropiedadAsync(Contrato contrato)
     {
         var propiedad = await _context.Propiedades.FindAsync(contrato.PropiedadId);
@@ -141,9 +193,11 @@ public class ContratoRepository : IContratoRepository
             (TipoContrato.Locacion, EstadoContrato.Vigente)              => EstadoPropiedad.Alquilada,
             (TipoContrato.Locacion, EstadoContrato.Finalizado)           => EstadoPropiedad.Disponible,
             (TipoContrato.Locacion, EstadoContrato.Rescindido)           => EstadoPropiedad.Disponible,
+            (TipoContrato.Locacion, EstadoContrato.Anulado)              => EstadoPropiedad.Disponible,
             (TipoContrato.BoletoCompraventa, EstadoContrato.Vigente)     => EstadoPropiedad.BoletoFirmado,
             (TipoContrato.BoletoCompraventa, EstadoContrato.Finalizado)  => EstadoPropiedad.Vendida,
             (TipoContrato.BoletoCompraventa, EstadoContrato.Rescindido)  => EstadoPropiedad.Disponible,
+            (TipoContrato.BoletoCompraventa, EstadoContrato.Anulado)     => EstadoPropiedad.Disponible,
             _ => propiedad.Estado
         };
     }

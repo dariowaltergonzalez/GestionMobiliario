@@ -2,7 +2,7 @@ import client from './client'
 import type { ApiResponse, PagedResult } from '../types/api'
 
 export type TipoContrato = 1 | 2
-export type EstadoContrato = 1 | 2 | 3 | 4
+export type EstadoContrato = 1 | 2 | 3 | 4 | 5
 export type TipoAjuste = 1 | 2 | 3 | 4
 export type EstadoPago = 1 | 2 | 3 | 4
 export type MedioPago = 1 | 2 | 3 | 4
@@ -17,6 +17,7 @@ export const ESTADOS_CONTRATO: Record<EstadoContrato, { label: string; color: st
   2: { label: 'Vigente',     color: 'bg-green-100 text-green-700' },
   3: { label: 'Finalizado',  color: 'bg-blue-100 text-blue-700' },
   4: { label: 'Rescindido',  color: 'bg-red-100 text-red-600' },
+  5: { label: 'Anulado',     color: 'bg-orange-100 text-orange-700' },
 }
 
 export const TIPOS_AJUSTE: Record<TipoAjuste, string> = {
@@ -122,14 +123,33 @@ export interface ContratoDto {
   comisionLocatarioPorcentaje: number | null
   comisionLocatarioMonto: number | null
   administracionCobros: boolean
+  porcentajeAjuste: number | null
+  montoActual: number
+  fechaUltimoAjuste: string | null
   fechaInicio: string
   fechaFin: string | null
   fechaEscrituracion: string | null
+  motivoRescision: string | null
+  fechaRescision: string | null
+  motivoAnulacion: string | null
+  fechaAnulacion: string | null
   observaciones: string | null
   archivoUrl: string | null
   pagos: PagoDto[]
+  ajustes: AjusteContratoDto[]
   fechaCreacion: string
   fechaActualizacion: string
+}
+
+export interface AjusteContratoDto {
+  id: number
+  contratoId: number
+  fechaAplicacion: string
+  montoPrevio: number
+  montoNuevo: number
+  porcentaje: number | null
+  tipoAjuste: string
+  observaciones: string | null
 }
 
 export interface CreateContratoRequest {
@@ -168,6 +188,7 @@ export interface CreateContratoRequest {
   comisionLocatarioPorcentaje?: number
   comisionLocatarioMonto?: number
   administracionCobros: boolean
+  porcentajeAjuste?: number
   fechaInicio: string
   fechaFin?: string
   fechaEscrituracion?: string
@@ -175,6 +196,12 @@ export interface CreateContratoRequest {
 }
 
 export interface UpdateContratoRequest extends CreateContratoRequest {}
+
+export interface TransicionEstadoRequest {
+  estado: number
+  motivo?: string
+  fecha?: string
+}
 
 export interface UpdatePagoRequest {
   estado: number
@@ -192,7 +219,7 @@ export interface FiltrosContratos {
 }
 
 export const estadoContratoNumero = (s: string): number =>
-  ({ Borrador: 1, Vigente: 2, Finalizado: 3, Rescindido: 4 } as Record<string, number>)[s] ?? 1
+  ({ Borrador: 1, Vigente: 2, Finalizado: 3, Rescindido: 4, Anulado: 5 } as Record<string, number>)[s] ?? 1
 
 export const estadoPagoNumero = (s: string): number =>
   ({ Pendiente: 1, Pagado: 2, Atrasado: 3, Anulado: 4 } as Record<string, number>)[s] ?? 1
@@ -236,5 +263,10 @@ export const getPagos = async (contratoId: number) => {
 
 export const updatePago = async (contratoId: number, pagoId: number, data: UpdatePagoRequest) => {
   const res = await client.put<ApiResponse<PagoDto>>(`/api/contratos/${contratoId}/pagos/${pagoId}`, data)
+  return res.data
+}
+
+export const transicionEstado = async (id: number, data: TransicionEstadoRequest) => {
+  const res = await client.put<ApiResponse<ContratoDto>>(`/api/contratos/${id}/estado`, data)
   return res.data
 }

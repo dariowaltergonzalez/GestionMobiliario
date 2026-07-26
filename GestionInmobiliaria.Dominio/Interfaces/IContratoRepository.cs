@@ -10,6 +10,7 @@ public interface IContratoRepository
     Task<Contrato> CreateAsync(Contrato contrato);
     Task<Contrato> UpdateAsync(Contrato contrato);
     Task<bool> DeleteAsync(int id);
+    Task<(bool Ok, string? Error, Contrato? Contrato)> TransicionEstadoAsync(int id, EstadoContrato nuevoEstado, string? motivo, DateTime? fecha);
 }
 
 public interface IPagoRepository
