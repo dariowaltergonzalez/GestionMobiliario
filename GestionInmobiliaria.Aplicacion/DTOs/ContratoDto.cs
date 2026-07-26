@@ -194,6 +194,17 @@ public class PagoListDto : PagoDto
 }
 
 
+public class DocumentoContratoDto
+{
+    public int Id { get; set; }
+    public int ContratoId { get; set; }
+    public string NombreOriginal { get; set; } = string.Empty;
+    public string TipoMime { get; set; } = string.Empty;
+    public long TamanoBytes { get; set; }
+    public string? Descripcion { get; set; }
+    public DateTime FechaCreacion { get; set; }
+}
+
 public class AjusteContratoDto
 {
     public int Id { get; set; }
