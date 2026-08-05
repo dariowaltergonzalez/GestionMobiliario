@@ -8,3 +8,7 @@ appsettings.*.json
 # Archivos subidos por usuarios
 GestionInmobiliaria.WebApi/Logos/
 GestionInmobiliaria.WebApi/FotosPropiedad/
+GestionInmobiliaria.WebApi/DocumentosContrato/
+
+# Config local de herramientas
+.claude/

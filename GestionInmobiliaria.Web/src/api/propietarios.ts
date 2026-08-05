@@ -14,6 +14,7 @@ export interface PropietarioDto {
   banco: string | null
   cbu: string | null
   notas: string | null
+  notificaciones: Record<string, boolean>
   activo: boolean
   fechaCreacion: string
   cantidadPropiedades: number
@@ -22,6 +23,11 @@ export interface PropietarioDto {
 export interface PropietarioComboDto {
   id: number
   nombreCompleto: string
+}
+
+export interface TemaNotificacionDto {
+  codigo: string
+  label: string
 }
 
 export interface PropietarioFormData {
@@ -36,11 +42,18 @@ export interface PropietarioFormData {
   banco: string
   cbu: string
   notas: string
+  notificaciones: Record<string, boolean>
 }
 
 export const propietarioFormVacio: PropietarioFormData = {
   nombre: '', apellido: '', dni: '', cuit: '', email: '',
   telefono: '', telefono2: '', direccion: '', banco: '', cbu: '', notas: '',
+  notificaciones: {},
+}
+
+export const getTemasNotificacionPropietario = async () => {
+  const res = await client.get<ApiResponse<TemaNotificacionDto[]>>('/api/propietarios/temas-notificacion')
+  return res.data
 }
 
 export interface FiltrosPropietarios {
@@ -78,6 +91,7 @@ const toRequest = (f: PropietarioFormData, activo?: boolean) => ({
   banco: f.banco || null,
   cbu: f.cbu || null,
   notas: f.notas || null,
+  notificaciones: f.notificaciones,
   ...(activo !== undefined ? { activo } : {}),
 })
 

@@ -1,6 +1,6 @@
 import { type ReactNode, useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Home, Users, UserCog, FileText, Calendar, LogOut, Building2, ClipboardList, Bell, ScrollText, ShieldCheck, Settings, Handshake, BookOpen, FilePen, Banknote } from 'lucide-react'
+import { Home, Users, UserCog, FileText, Calendar, LogOut, Building2, ClipboardList, Bell, ScrollText, ShieldCheck, Settings, Handshake, BookOpen, FilePen, Banknote, User } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { getConfiguracionPublica } from '../../api/configuracion'
 
@@ -16,6 +16,7 @@ const navItems = [
   { icono: Calendar,     label: 'Agenda',       href: '/dashboard/agenda',         roles: ['Admin', 'Agente'] },
   { icono: UserCog,      label: 'Agentes',      href: '/dashboard/agentes',        roles: ['Admin'] },
   { icono: FileText,     label: 'Propietarios', href: '/dashboard/propietarios',   roles: ['Admin'] },
+  { icono: User,         label: 'Inquilinos',   href: '/dashboard/inquilinos',     roles: ['Admin'] },
   { icono: ScrollText,   label: 'Logs',         href: '/dashboard/logs',           roles: ['Admin'] },
   { icono: ShieldCheck,  label: 'Auditoría',    href: '/dashboard/auditoria',      roles: ['Admin'] },
   { icono: Settings,     label: 'Configuración',href: '/dashboard/configuracion',  roles: ['Admin'] },

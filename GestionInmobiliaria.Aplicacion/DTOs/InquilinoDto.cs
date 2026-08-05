@@ -17,6 +17,7 @@ public class InquilinoDto
     public string? TelefonoGarante { get; set; }
     public string? DniGarante { get; set; }
     public string? Notas { get; set; }
+    public Dictionary<string, bool> Notificaciones { get; set; } = new();
     public bool Activo { get; set; }
     public DateTime FechaCreacion { get; set; }
 }
@@ -36,6 +37,7 @@ public class CreateInquilinoRequest
     public string? TelefonoGarante { get; set; }
     public string? DniGarante { get; set; }
     public string? Notas { get; set; }
+    public Dictionary<string, bool>? Notificaciones { get; set; }
 }
 
 public class UpdateInquilinoRequest
@@ -53,6 +55,7 @@ public class UpdateInquilinoRequest
     public string? TelefonoGarante { get; set; }
     public string? DniGarante { get; set; }
     public string? Notas { get; set; }
+    public Dictionary<string, bool>? Notificaciones { get; set; }
     public bool Activo { get; set; }
 }
 

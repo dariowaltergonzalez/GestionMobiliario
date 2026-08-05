@@ -14,6 +14,7 @@ public class Propietario : IAuditable
     public string? Banco { get; set; }
     public string? CBU { get; set; }
     public string? Notas { get; set; }
+    public string? Notificaciones { get; set; }
     public bool Activo { get; set; } = true;
     public DateTime FechaCreacion { get; set; }
     public DateTime FechaActualizacion { get; set; }
