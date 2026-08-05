@@ -1,3 +1,4 @@
+using System.Text.Json;
 using GestionInmobiliaria.Aplicacion.DTOs;
 using GestionInmobiliaria.Dominio.Common;
 using GestionInmobiliaria.Dominio.Entidades;
@@ -32,6 +33,27 @@ public class InquilinosController : ControllerBase
             TotalPaginas = resultado.TotalPaginas
         };
         return Ok(ApiResponse<PagedResult<InquilinoDto>>.Ok(paginado));
+    }
+
+    [HttpGet("temas-notificacion")]
+    public IActionResult GetTemasNotificacion()
+        => Ok(ApiResponse<IReadOnlyList<TemaNotificacionDto>>.Ok(TemasNotificacion.Inquilino));
+
+    [HttpGet("para-contrato")]
+    public async Task<IActionResult> GetParaContrato()
+    {
+        var lista = await _repo.GetActivosAsync();
+        var dtos = lista.Select(i => new
+        {
+            id = i.Id,
+            nombreCompleto = $"{i.Apellido}, {i.Nombre}",
+            nombre = i.Nombre,
+            apellido = i.Apellido,
+            dni = i.Dni,
+            email = i.Email,
+            telefono = i.Telefono,
+        });
+        return Ok(ApiResponse<IEnumerable<object>>.Ok(dtos));
     }
 
     [HttpGet("activos")]
@@ -74,7 +96,8 @@ public class InquilinosController : ControllerBase
             NombreGarante = request.NombreGarante,
             TelefonoGarante = request.TelefonoGarante,
             DniGarante = request.DniGarante,
-            Notas = request.Notas
+            Notas = request.Notas,
+            Notificaciones = SerializarNotificaciones(request.Notificaciones),
         };
 
         var creado = await _repo.CreateAsync(entidad);
@@ -104,6 +127,7 @@ public class InquilinosController : ControllerBase
         existente.TelefonoGarante = request.TelefonoGarante;
         existente.DniGarante = request.DniGarante;
         existente.Notas = request.Notas;
+        existente.Notificaciones = SerializarNotificaciones(request.Notificaciones);
         existente.Activo = request.Activo;
 
         await _repo.UpdateAsync(existente);
@@ -134,7 +158,16 @@ public class InquilinosController : ControllerBase
         TelefonoGarante = i.TelefonoGarante,
         DniGarante = i.DniGarante,
         Notas = i.Notas,
+        Notificaciones = DeserializarNotificaciones(i.Notificaciones),
         Activo = i.Activo,
         FechaCreacion = i.FechaCreacion
     };
+
+    private static string? SerializarNotificaciones(Dictionary<string, bool>? notificaciones) =>
+        notificaciones is null or { Count: 0 } ? null : JsonSerializer.Serialize(notificaciones);
+
+    private static Dictionary<string, bool> DeserializarNotificaciones(string? json) =>
+        string.IsNullOrWhiteSpace(json)
+            ? new Dictionary<string, bool>()
+            : JsonSerializer.Deserialize<Dictionary<string, bool>>(json) ?? new Dictionary<string, bool>();
 }

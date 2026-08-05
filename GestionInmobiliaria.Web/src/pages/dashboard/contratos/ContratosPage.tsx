@@ -24,7 +24,11 @@ interface PropiedadCombo {
   propietarioDireccion?: string; propietarioBanco?: string; propietarioCbu?: string; propietarioCuit?: string
 }
 interface AgenteCombo { id: number; nombreCompleto: string }
-interface InquilinoCombo { id: number; nombreCompleto: string }
+interface InquilinoCombo {
+  id: number; nombreCompleto: string
+  nombre: string; apellido: string
+  dni?: string; email?: string; telefono?: string
+}
 
 const toDateInput = (iso: string) => iso.split('T')[0]
 const hoy = new Date().toISOString().split('T')[0]
@@ -181,7 +185,7 @@ function ContratoForm({ contrato, onGuardado, onCerrar }: {
     Promise.all([
       client.get<ApiResponse<PropiedadCombo[]>>('/api/propiedades/para-contrato').then(r => r.data.data ?? []),
       client.get<ApiResponse<AgenteCombo[]>>('/api/agentes/activos').then(r => r.data.data ?? []),
-      client.get<ApiResponse<InquilinoCombo[]>>('/api/inquilinos/activos').then(r => r.data.data ?? []),
+      client.get<ApiResponse<InquilinoCombo[]>>('/api/inquilinos/para-contrato').then(r => r.data.data ?? []),
     ]).then(([props, ags, inqs]) => {
       setPropiedades(props)
       setAgentes(ags)
@@ -209,14 +213,15 @@ function ContratoForm({ contrato, onGuardado, onCerrar }: {
 
   const handleInquilinoChange = (iqId: string) => {
     const inq = inquilinos.find(i => String(i.id) === iqId)
-    if (inq) {
-      const [apellido, nombre] = inq.nombreCompleto.includes(',')
-        ? inq.nombreCompleto.split(',').map(s => s.trim())
-        : [inq.nombreCompleto, '']
-      setForm(prev => ({ ...prev, inquilinoRefId: iqId, locatarioApellido: apellido, locatarioNombre: nombre }))
-    } else {
-      set('inquilinoRefId', iqId)
-    }
+    setForm(prev => ({
+      ...prev,
+      inquilinoRefId: iqId,
+      locatarioNombre: inq?.nombre ?? prev.locatarioNombre,
+      locatarioApellido: inq?.apellido ?? prev.locatarioApellido,
+      locatarioDni: inq?.dni ?? prev.locatarioDni,
+      locatarioEmail: inq?.email ?? prev.locatarioEmail,
+      locatarioTelefono: inq?.telefono ?? prev.locatarioTelefono,
+    }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -596,6 +601,11 @@ export default function ContratosPage() {
     if (res.success) setCuotasContrato(res.data)
   }
 
+  const handleAbrirAjuste = async (c: ContratoDto) => {
+    const res = await getContrato(c.id)
+    if (res.success) setAjusteContrato(res.data)
+  }
+
   const handleDescargarPdf = async (c: ContratoDto) => {
     try { await exportarContratoPdf(c.id, c.codigo) }
     catch { setError('No se pudo generar el PDF del contrato.') }
@@ -743,7 +753,7 @@ export default function ContratosPage() {
                             </button>
                           )}
                           {c.estado === 'Vigente' && (
-                            <button onClick={() => setAjusteContrato(c)} className="p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors cursor-pointer" title="Aplicar ajuste de cuotas">
+                            <button onClick={() => handleAbrirAjuste(c)} className="p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors cursor-pointer" title="Aplicar ajuste de cuotas">
                               <TrendingUp className="w-4 h-4" />
                             </button>
                           )}

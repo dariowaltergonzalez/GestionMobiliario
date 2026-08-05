@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { X, Loader2, Plus, Trash2 } from 'lucide-react'
 import {
-  createPropietario, updatePropietario, getTemasNotificacionPropietario,
-  propietarioFormVacio,
-  type PropietarioDto, type PropietarioFormData, type TemaNotificacionDto,
-} from '../../../api/propietarios'
+  createInquilino, updateInquilino, getTemasNotificacionInquilino,
+  inquilinoFormVacio,
+  type InquilinoDto, type InquilinoFormData, type TemaNotificacionDto,
+} from '../../../api/inquilinos'
 
 interface Props {
-  propietario: PropietarioDto | null
+  inquilino: InquilinoDto | null
   onGuardado: () => void
   onCerrar: () => void
 }
@@ -49,8 +49,8 @@ const CuitInput = ({ value, onChange }: { value: string; onChange: (val: string)
   )
 }
 
-export default function PropietarioForm({ propietario, onGuardado, onCerrar }: Props) {
-  const [form, setForm] = useState<PropietarioFormData>(propietarioFormVacio)
+export default function InquilinoForm({ inquilino, onGuardado, onCerrar }: Props) {
+  const [form, setForm] = useState<InquilinoFormData>(inquilinoFormVacio)
   const [activo, setActivo] = useState(true)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
@@ -58,33 +58,35 @@ export default function PropietarioForm({ propietario, onGuardado, onCerrar }: P
   const [temaAAgregar, setTemaAAgregar] = useState('')
 
   useEffect(() => {
-    getTemasNotificacionPropietario().then(res => { if (res.success) setTemas(res.data) }).catch(() => {})
+    getTemasNotificacionInquilino().then(res => { if (res.success) setTemas(res.data) }).catch(() => {})
   }, [])
 
   useEffect(() => {
-    if (propietario) {
+    if (inquilino) {
       setForm({
-        nombre: propietario.nombre,
-        apellido: propietario.apellido,
-        dni: propietario.dni ?? '',
-        cuit: propietario.cuit ?? '',
-        email: propietario.email ?? '',
-        telefono: propietario.telefono ?? '',
-        telefono2: propietario.telefono2 ?? '',
-        direccion: propietario.direccion ?? '',
-        banco: propietario.banco ?? '',
-        cbu: propietario.cbu ?? '',
-        notas: propietario.notas ?? '',
-        notificaciones: { ...propietario.notificaciones },
+        nombre: inquilino.nombre,
+        apellido: inquilino.apellido,
+        dni: inquilino.dni ?? '',
+        cuit: inquilino.cuit ?? '',
+        email: inquilino.email ?? '',
+        telefono: inquilino.telefono ?? '',
+        telefono2: inquilino.telefono2 ?? '',
+        direccion: inquilino.direccion ?? '',
+        ocupacion: inquilino.ocupacion ?? '',
+        nombreGarante: inquilino.nombreGarante ?? '',
+        telefonoGarante: inquilino.telefonoGarante ?? '',
+        dniGarante: inquilino.dniGarante ?? '',
+        notas: inquilino.notas ?? '',
+        notificaciones: { ...inquilino.notificaciones },
       })
-      setActivo(propietario.activo)
+      setActivo(inquilino.activo)
     } else {
-      setForm(propietarioFormVacio)
+      setForm(inquilinoFormVacio)
       setActivo(true)
     }
-  }, [propietario])
+  }, [inquilino])
 
-  const set = (campo: keyof PropietarioFormData, valor: string) =>
+  const set = (campo: keyof InquilinoFormData, valor: string) =>
     setForm(f => ({ ...f, [campo]: valor }))
 
   const temasDisponibles = temas.filter(t => !(t.codigo in form.notificaciones))
@@ -110,10 +112,10 @@ export default function PropietarioForm({ propietario, onGuardado, onCerrar }: P
     setError('')
     setGuardando(true)
     try {
-      if (propietario) {
-        await updatePropietario(propietario.id, form, activo)
+      if (inquilino) {
+        await updateInquilino(inquilino.id, form, activo)
       } else {
-        await createPropietario(form)
+        await createInquilino(form)
       }
       onGuardado()
     } catch (err: unknown) {
@@ -121,7 +123,7 @@ export default function PropietarioForm({ propietario, onGuardado, onCerrar }: P
       const msg = axErr.response?.data?.errors?.[0]
         ?? axErr.response?.data?.message
         ?? axErr.response?.data?.title
-        ?? 'Error al guardar el propietario.'
+        ?? 'Error al guardar el inquilino.'
       setError(msg)
     } finally {
       setGuardando(false)
@@ -134,19 +136,19 @@ export default function PropietarioForm({ propietario, onGuardado, onCerrar }: P
 
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="font-bold text-gray-800 text-lg">
-            {propietario ? 'Editar propietario' : 'Nuevo propietario'}
+            {inquilino ? 'Editar inquilino' : 'Nuevo inquilino'}
           </h2>
           <div className="flex items-center gap-2">
-            {propietario && (
+            {inquilino && (
               <button
                 type="button"
                 onClick={() => setActivo(a => !a)}
-                title="Estado del propietario en el sistema"
+                title="Estado del inquilino en el sistema"
                 className={`text-xs px-3 py-1.5 rounded-full font-semibold transition-colors ${
                   activo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
                 }`}
               >
-                Propietario {activo ? 'activo' : 'inactivo'}
+                Inquilino {activo ? 'activo' : 'inactivo'}
               </button>
             )}
             <button onClick={onCerrar} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
@@ -163,8 +165,8 @@ export default function PropietarioForm({ propietario, onGuardado, onCerrar }: P
             )}
 
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Apellido" required value={form.apellido} onChange={e => set('apellido', e.target.value)} placeholder="González" />
-              <Input label="Nombre" required value={form.nombre} onChange={e => set('nombre', e.target.value)} placeholder="Juan" />
+              <Input label="Apellido" required value={form.apellido} onChange={e => set('apellido', e.target.value)} placeholder="Domínguez" />
+              <Input label="Nombre" required value={form.nombre} onChange={e => set('nombre', e.target.value)} placeholder="Gustavo" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -172,17 +174,25 @@ export default function PropietarioForm({ propietario, onGuardado, onCerrar }: P
               <CuitInput value={form.cuit} onChange={val => set('cuit', val)} />
             </div>
 
-            <Input label="Email" type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="juan@ejemplo.com" />
+            <Input label="Email" type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="gustavo@ejemplo.com" />
 
             <div className="grid grid-cols-2 gap-3">
               <Input label="Teléfono" value={form.telefono} onChange={e => set('telefono', e.target.value)} placeholder="2664123456" />
               <Input label="Teléfono 2" value={form.telefono2} onChange={e => set('telefono2', e.target.value)} placeholder="2664654321" />
             </div>
 
-            <Input label="Dirección" value={form.direccion} onChange={e => set('direccion', e.target.value)} placeholder="Av. San Martín 456" />
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Banco" value={form.banco} onChange={e => set('banco', e.target.value)} placeholder="Banco Nación" />
-              <Input label="CBU" value={form.cbu} onChange={e => set('cbu', e.target.value)} placeholder="0000000000000000000000" />
+              <Input label="Dirección" value={form.direccion} onChange={e => set('direccion', e.target.value)} placeholder="Av. San Martín 456" />
+              <Input label="Ocupación" value={form.ocupacion} onChange={e => set('ocupacion', e.target.value)} placeholder="Empleado, comerciante..." />
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Garante (opcional)</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Nombre" value={form.nombreGarante} onChange={e => set('nombreGarante', e.target.value)} />
+                <Input label="Teléfono" value={form.telefonoGarante} onChange={e => set('telefonoGarante', e.target.value)} />
+                <Input label="DNI" value={form.dniGarante} onChange={e => set('dniGarante', e.target.value)} />
+              </div>
             </div>
 
             <div>
@@ -199,7 +209,7 @@ export default function PropietarioForm({ propietario, onGuardado, onCerrar }: P
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Notificaciones automáticas por email</label>
               <p className="text-xs text-gray-400 mb-2">
-                Solo se envía lo que se agregue acá. Si no hay nada configurado, este propietario no recibe ningún email automático.
+                Solo se envía lo que se agregue acá. Si no hay nada configurado, este inquilino no recibe ningún email automático.
               </p>
 
               {Object.keys(form.notificaciones).length > 0 && (
@@ -270,7 +280,7 @@ export default function PropietarioForm({ propietario, onGuardado, onCerrar }: P
             >
               {guardando
                 ? <><Loader2 className="w-4 h-4 animate-spin" /> Guardando...</>
-                : propietario ? 'Guardar cambios' : 'Crear propietario'}
+                : inquilino ? 'Guardar cambios' : 'Crear inquilino'}
             </button>
           </div>
         </form>

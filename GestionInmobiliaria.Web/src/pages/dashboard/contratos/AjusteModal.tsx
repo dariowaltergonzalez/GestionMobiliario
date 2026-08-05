@@ -1,20 +1,16 @@
 import { useState } from 'react'
-import { TrendingUp, X, AlertTriangle } from 'lucide-react'
+import { TrendingUp, X, AlertTriangle, History, ChevronDown, ChevronUp } from 'lucide-react'
 import client from '../../../api/client'
 import type { ApiResponse } from '../../../types/api'
-import type { ContratoDto } from '../../../api/contratos'
-
-interface AjusteContratoDto {
-  id: number
-  montoPrevio: number
-  montoNuevo: number
-  porcentaje: number | null
-  tipoAjuste: string
-}
+import type { ContratoDto, AjusteContratoDto } from '../../../api/contratos'
 
 function formatMoneda(monto: number, moneda: string) {
   const fmt = monto.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   return moneda === 'ARS' ? `$${fmt}` : `U$S ${fmt}`
+}
+
+function formatFecha(iso: string) {
+  return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 export default function AjusteModal({ contrato, onConfirmado, onCerrar }: {
@@ -27,6 +23,9 @@ export default function AjusteModal({ contrato, onConfirmado, onCerrar }: {
   const [observaciones, setObservaciones] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
+  const [mostrarHistorial, setMostrarHistorial] = useState(false)
+
+  const historial = contrato.ajustes ?? []
 
   const valorNum = parseFloat(valor) || 0
   const montoActual = contrato.montoActual || contrato.montoBase
@@ -88,6 +87,45 @@ export default function AjusteModal({ contrato, onConfirmado, onCerrar }: {
             <p className="text-xl font-bold text-gray-800">{formatMoneda(montoActual, contrato.moneda)}</p>
             <p className="text-xs text-gray-400 mt-0.5">{cuotasPendientes} cuota(s) pendiente(s) a actualizar</p>
           </div>
+
+          {/* Historial de ajustes */}
+          {historial.length > 0 && (
+            <div className="border border-gray-100 rounded-xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setMostrarHistorial(v => !v)}
+                className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors"
+              >
+                <span className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                  <History className="w-4 h-4 text-gray-400" />
+                  Historial de ajustes ({historial.length})
+                </span>
+                {mostrarHistorial ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+              </button>
+              {mostrarHistorial && (
+                <div className="max-h-48 overflow-y-auto divide-y divide-gray-50">
+                  {historial.map(a => (
+                    <div key={a.id} className="px-4 py-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-gray-400">{formatFecha(a.fechaAplicacion)}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-50 text-blue-600">
+                          {a.tipoAjuste === 'Porcentaje' ? `${a.porcentaje}%` : 'Monto fijo'}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 mt-1">
+                        {formatMoneda(a.montoPrevio, contrato.moneda)}
+                        <span className="text-gray-400 mx-1.5">→</span>
+                        <span className="font-semibold">{formatMoneda(a.montoNuevo, contrato.moneda)}</span>
+                      </p>
+                      {a.observaciones && (
+                        <p className="text-xs text-gray-400 mt-0.5">{a.observaciones}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Tipo de ajuste */}
           <div className="grid grid-cols-2 gap-2">

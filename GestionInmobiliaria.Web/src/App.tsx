@@ -8,6 +8,7 @@ import PropiedadesPage from './pages/dashboard/propiedades/PropiedadesPage'
 import LogsPage from './pages/dashboard/logs/LogsPage'
 import AuditoriaPage from './pages/dashboard/auditoria/AuditoriaPage'
 import PropietariosPage from './pages/dashboard/propietarios/PropietariosPage'
+import InquilinosPage from './pages/dashboard/inquilinos/InquilinosPage'
 import ConfiguracionPage from './pages/dashboard/configuracion/ConfiguracionPage'
 import TasacionPage from './pages/public/TasacionPage'
 import LeadsPage from './pages/dashboard/leads/LeadsPage'
@@ -44,6 +45,7 @@ function AppRoutes() {
       <Route path="/dashboard/clausulas-contrato" element={<ProtectedRoute><ClausulasContratoPage /></ProtectedRoute>} />
       <Route path="/dashboard/pagos" element={<ProtectedRoute><PagosPage /></ProtectedRoute>} />
       <Route path="/dashboard/propietarios" element={<ProtectedRoute><PropietariosPage /></ProtectedRoute>} />
+      <Route path="/dashboard/inquilinos" element={<ProtectedRoute><InquilinosPage /></ProtectedRoute>} />
       <Route path="/dashboard/configuracion" element={<ProtectedRoute><ConfiguracionPage /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

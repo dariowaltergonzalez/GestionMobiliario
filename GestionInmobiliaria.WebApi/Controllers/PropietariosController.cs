@@ -1,3 +1,4 @@
+using System.Text.Json;
 using GestionInmobiliaria.Aplicacion.DTOs;
 using GestionInmobiliaria.Dominio.Common;
 using GestionInmobiliaria.Dominio.Entidades;
@@ -33,6 +34,10 @@ public class PropietariosController : ControllerBase
         };
         return Ok(ApiResponse<PagedResult<PropietarioDto>>.Ok(paginado));
     }
+
+    [HttpGet("temas-notificacion")]
+    public IActionResult GetTemasNotificacion()
+        => Ok(ApiResponse<IReadOnlyList<TemaNotificacionDto>>.Ok(TemasNotificacion.Propietario));
 
     [HttpGet("activos")]
     public async Task<IActionResult> GetActivos()
@@ -72,7 +77,8 @@ public class PropietariosController : ControllerBase
             Direccion = request.Direccion,
             Banco = request.Banco,
             CBU = request.CBU,
-            Notas = request.Notas
+            Notas = request.Notas,
+            Notificaciones = SerializarNotificaciones(request.Notificaciones),
         };
 
         var creado = await _repo.CreateAsync(entidad);
@@ -100,6 +106,7 @@ public class PropietariosController : ControllerBase
         existente.Banco = request.Banco;
         existente.CBU = request.CBU;
         existente.Notas = request.Notas;
+        existente.Notificaciones = SerializarNotificaciones(request.Notificaciones);
         existente.Activo = request.Activo;
 
         await _repo.UpdateAsync(existente);
@@ -128,8 +135,17 @@ public class PropietariosController : ControllerBase
         Banco = p.Banco,
         CBU = p.CBU,
         Notas = p.Notas,
+        Notificaciones = DeserializarNotificaciones(p.Notificaciones),
         Activo = p.Activo,
         FechaCreacion = p.FechaCreacion,
         CantidadPropiedades = p.Propiedades.Count
     };
+
+    private static string? SerializarNotificaciones(Dictionary<string, bool>? notificaciones) =>
+        notificaciones is null or { Count: 0 } ? null : JsonSerializer.Serialize(notificaciones);
+
+    private static Dictionary<string, bool> DeserializarNotificaciones(string? json) =>
+        string.IsNullOrWhiteSpace(json)
+            ? new Dictionary<string, bool>()
+            : JsonSerializer.Deserialize<Dictionary<string, bool>>(json) ?? new Dictionary<string, bool>();
 }

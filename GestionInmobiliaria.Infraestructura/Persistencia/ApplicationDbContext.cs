@@ -94,6 +94,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.Property(p => p.Banco).HasMaxLength(100);
             e.Property(p => p.CBU).HasMaxLength(50);
             e.Property(p => p.Notas).HasMaxLength(1000);
+            e.Property(p => p.Notificaciones).HasMaxLength(2000);
         });
 
         builder.Entity<Inquilino>(e =>
@@ -112,6 +113,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.Property(i => i.TelefonoGarante).HasMaxLength(50);
             e.Property(i => i.DniGarante).HasMaxLength(20);
             e.Property(i => i.Notas).HasMaxLength(1000);
+            e.Property(i => i.Notificaciones).HasMaxLength(2000);
         });
 
         builder.Entity<Propiedad>(e =>
