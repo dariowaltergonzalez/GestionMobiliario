@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, FileDown, Plus, Trash2, AlertTriangle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, FileDown, Plus, Trash2, AlertTriangle, Search } from 'lucide-react'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
 import {
   getPagosConsolidados, getPagoMetricas, updatePagoConsolidado, descargarReciboPago,
@@ -404,6 +404,7 @@ export default function PagosPage() {
   const [cargando, setCargando] = useState(false)
   const [pagoModal, setPagoModal] = useState<PagoListDto | null>(null)
   const [descargando, setDescargando] = useState<number | null>(null)
+  const [buscarInput, setBuscarInput] = useState('')
 
   const cargarMetricas = useCallback(async () => {
     try {
@@ -463,6 +464,24 @@ export default function PagosPage() {
       {/* Filtros */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mb-4 px-5 py-4">
         <div className="flex flex-wrap gap-3 items-center">
+          <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-3 bg-white">
+            <Search className="w-4 h-4 text-gray-400 shrink-0" />
+            <input
+              type="text"
+              placeholder="Código de contrato o locatario..."
+              value={buscarInput}
+              onChange={e => setBuscarInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && setFiltros(f => ({ ...f, pagina: 1, buscar: buscarInput || undefined }))}
+              className="py-2 text-sm outline-none w-56 text-gray-700 placeholder-gray-400"
+            />
+          </div>
+          <button
+            onClick={() => setFiltros(f => ({ ...f, pagina: 1, buscar: buscarInput || undefined }))}
+            className="bg-blue-900 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-800 transition-colors"
+          >
+            Buscar
+          </button>
+
           <select
             value={filtros.mes ?? ''}
             onChange={e => setFiltros(f => ({ ...f, pagina: 1, mes: e.target.value ? Number(e.target.value) : undefined }))}

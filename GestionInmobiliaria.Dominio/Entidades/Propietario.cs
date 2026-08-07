@@ -1,6 +1,6 @@
 namespace GestionInmobiliaria.Dominio.Entidades;
 
-public class Propietario : IAuditable
+public class Propietario : IAuditable, INotificable
 {
     public int Id { get; set; }
     public string Nombre { get; set; } = string.Empty;

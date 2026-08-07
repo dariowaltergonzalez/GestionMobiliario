@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, ChevronUp, Banknote, FileDown, Paperclip, TrendingUp } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, ChevronUp, Banknote, FileDown, Paperclip, TrendingUp, Eye } from 'lucide-react'
 import DocumentosModal from './DocumentosModal'
 import AjusteModal from './AjusteModal'
+import DetalleContratoModal from './DetalleContratoModal'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
 import {
   getContratos, getContrato, createContrato, updateContrato, deleteContrato, transicionEstado,
@@ -572,6 +573,7 @@ export default function ContratosPage() {
   const [transicionMotivo, setTransicionMotivo] = useState('')
   const [transicionando, setTransicionando] = useState(false)
   const [ajusteContrato, setAjusteContrato] = useState<ContratoDto | null>(null)
+  const [detalleContrato, setDetalleContrato] = useState<ContratoDto | null>(null)
 
   const cargar = useCallback(async () => {
     setLoading(true); setError('')
@@ -599,6 +601,11 @@ export default function ContratosPage() {
   const handleVerCuotas = async (c: ContratoDto) => {
     const res = await getContrato(c.id)
     if (res.success) setCuotasContrato(res.data)
+  }
+
+  const handleVerDetalle = async (c: ContratoDto) => {
+    const res = await getContrato(c.id)
+    if (res.success) setDetalleContrato(res.data)
   }
 
   const handleAbrirAjuste = async (c: ContratoDto) => {
@@ -734,6 +741,9 @@ export default function ContratosPage() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center justify-center gap-2">
+                          <button onClick={() => handleVerDetalle(c)} className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" title="Ver detalle">
+                            <Eye className="w-4 h-4" />
+                          </button>
                           <button onClick={() => handleDescargarPdf(c)} className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" title="Descargar contrato PDF">
                             <FileDown className="w-4 h-4" />
                           </button>
@@ -801,6 +811,10 @@ export default function ContratosPage() {
 
       {cuotasContrato && (
         <CuotasModal contrato={cuotasContrato} onCerrar={() => setCuotasContrato(null)} />
+      )}
+
+      {detalleContrato && (
+        <DetalleContratoModal contrato={detalleContrato} onCerrar={() => setDetalleContrato(null)} />
       )}
 
       {documentosContrato && (

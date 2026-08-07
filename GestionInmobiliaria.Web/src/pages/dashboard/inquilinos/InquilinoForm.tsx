@@ -8,6 +8,8 @@ import {
 
 interface Props {
   inquilino: InquilinoDto | null
+  /** Solo se usa cuando inquilino es null: precarga el alta (ej: al convertir un Lead). */
+  datosIniciales?: Partial<InquilinoFormData>
   onGuardado: () => void
   onCerrar: () => void
 }
@@ -49,7 +51,7 @@ const CuitInput = ({ value, onChange }: { value: string; onChange: (val: string)
   )
 }
 
-export default function InquilinoForm({ inquilino, onGuardado, onCerrar }: Props) {
+export default function InquilinoForm({ inquilino, datosIniciales, onGuardado, onCerrar }: Props) {
   const [form, setForm] = useState<InquilinoFormData>(inquilinoFormVacio)
   const [activo, setActivo] = useState(true)
   const [guardando, setGuardando] = useState(false)
@@ -81,7 +83,7 @@ export default function InquilinoForm({ inquilino, onGuardado, onCerrar }: Props
       })
       setActivo(inquilino.activo)
     } else {
-      setForm(inquilinoFormVacio)
+      setForm({ ...inquilinoFormVacio, ...datosIniciales })
       setActivo(true)
     }
   }, [inquilino])

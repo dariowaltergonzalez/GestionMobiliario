@@ -108,6 +108,10 @@ public class LeadsController : ControllerBase
         var lead = await _repo.GetByIdAsync(id);
         if (lead is null) return NotFound(ApiResponse<LeadDto>.Fail("Lead no encontrado."));
 
+        if (lead.Estado == EstadoLead.Convertido)
+            return BadRequest(ApiResponse<LeadDto>.Fail(
+                "Este lead ya fue convertido a inquilino. Para modificar sus datos, hacelo desde la ficha del inquilino."));
+
         lead.Nombre = request.Nombre;
         lead.Apellido = request.Apellido;
         lead.Email = request.Email;

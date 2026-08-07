@@ -18,7 +18,7 @@ public interface IPagoRepository
     Task<IEnumerable<Pago>> GetByContratoAsync(int contratoId);
     Task<Pago?> GetByIdAsync(int id);
     Task<Pago?> GetByIdConContratoAsync(int id);
-    Task<PagedResult<Pago>> GetPagedAsync(PaginationParams paginacion, int? contratoId = null, EstadoPago? estado = null, int? mes = null, int? anio = null);
+    Task<PagedResult<Pago>> GetPagedAsync(PaginationParams paginacion, int? contratoId = null, EstadoPago? estado = null, int? mes = null, int? anio = null, string? buscar = null);
     Task<Pago> UpdateAsync(Pago pago);
     Task<Pago> UpdateWithDetallesAsync(Pago pago, IEnumerable<PagoDetalle> detalles);
 }

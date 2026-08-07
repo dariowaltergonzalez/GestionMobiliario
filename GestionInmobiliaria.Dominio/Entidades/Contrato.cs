@@ -209,3 +209,37 @@ public class PagoDetalle : IAuditable
     public DateTime FechaActualizacion { get; set; }
     public int TenantId { get; set; }
 }
+
+public enum EstadoLiquidacion
+{
+    Pendiente = 1,
+    Liquidado = 2,
+}
+
+/// <summary>
+/// Lo que le corresponde transferir al propietario por un Pago cobrado, descontando la
+/// comisión de administración del contrato (Contrato.ComisionLocadorPorcentaje/Monto).
+/// Se genera automáticamente al marcar un Pago como Pagado — ver PagosController.
+/// </summary>
+public class Liquidacion : IAuditable
+{
+    public int Id { get; set; }
+
+    public int PagoId { get; set; }
+    public Pago Pago { get; set; } = null!;
+
+    public decimal MontoCobrado { get; set; }
+    public decimal? ComisionPorcentaje { get; set; }
+    public decimal? ComisionMonto { get; set; }
+    public decimal MontoComision { get; set; }
+    public decimal MontoALiquidar { get; set; }
+
+    public EstadoLiquidacion Estado { get; set; } = EstadoLiquidacion.Pendiente;
+    public DateTime? FechaLiquidacion { get; set; }
+    public string? Observaciones { get; set; }
+
+    public bool Activo { get; set; } = true;
+    public DateTime FechaCreacion { get; set; }
+    public DateTime FechaActualizacion { get; set; }
+    public int TenantId { get; set; }
+}

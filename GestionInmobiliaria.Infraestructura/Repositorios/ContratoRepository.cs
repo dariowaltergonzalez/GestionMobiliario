@@ -269,7 +269,8 @@ public class PagoRepository : IPagoRepository
         int? contratoId = null,
         EstadoPago? estado = null,
         int? mes = null,
-        int? anio = null)
+        int? anio = null,
+        string? buscar = null)
     {
         var query = _context.Pagos
             .Include(p => p.Detalles)
@@ -288,6 +289,12 @@ public class PagoRepository : IPagoRepository
 
         if (anio.HasValue)
             query = query.Where(p => p.Periodo.Year == anio.Value);
+
+        if (!string.IsNullOrWhiteSpace(buscar))
+            query = query.Where(p =>
+                p.Contrato.Codigo.Contains(buscar) ||
+                p.Contrato.LocatarioNombre.Contains(buscar) ||
+                p.Contrato.LocatarioApellido.Contains(buscar));
 
         query = query.OrderBy(p => p.Periodo).ThenBy(p => p.ContratoId).ThenBy(p => p.NumeroCuota);
 

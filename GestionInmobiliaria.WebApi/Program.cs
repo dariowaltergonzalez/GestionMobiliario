@@ -79,12 +79,14 @@ builder.Services.AddScoped<ISolicitudTasacionRepository, SolicitudTasacionReposi
 builder.Services.AddScoped<IReservaRepository, ReservaRepository>();
 builder.Services.AddScoped<IContratoRepository, ContratoRepository>();
 builder.Services.AddScoped<IPagoRepository, PagoRepository>();
+builder.Services.AddScoped<ILiquidacionRepository, LiquidacionRepository>();
 builder.Services.AddScoped<IClausulaContratoRepository, ClausulaContratoRepository>();
 builder.Services.AddScoped<IAppLogRepository, AppLogRepository>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 builder.Services.AddScoped<IStorageService, LocalStorageService>();
 builder.Services.AddScoped<IPdfReportService, QuestPdfReportService>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+builder.Services.AddScoped<INotificacionService, NotificacionService>();
 builder.Services.AddScoped<ITenantService, TenantService>();
 
 builder.Services.AddHttpContextAccessor();
