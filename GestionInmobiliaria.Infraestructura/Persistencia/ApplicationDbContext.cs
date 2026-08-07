@@ -38,6 +38,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<Pago> Pagos => Set<Pago>();
     public DbSet<PagoDetalle> PagoDetalles => Set<PagoDetalle>();
     public DbSet<AjusteContrato> AjustesContrato => Set<AjusteContrato>();
+    public DbSet<Liquidacion> Liquidaciones => Set<Liquidacion>();
     public DbSet<DocumentoContrato> DocumentosContrato => Set<DocumentoContrato>();
     public DbSet<FotoSolicitud> FotosSolicitud => Set<FotoSolicitud>();
     public DbSet<FotoPropiedad> FotosPropiedad => Set<FotoPropiedad>();
@@ -66,6 +67,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         builder.Entity<Pago>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<PagoDetalle>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<AjusteContrato>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
+        builder.Entity<Liquidacion>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<DocumentoContrato>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<FotoSolicitud>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<FotoPropiedad>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
@@ -503,6 +505,22 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.HasOne(a => a.Contrato)
              .WithMany(c => c.Ajustes)
              .HasForeignKey(a => a.ContratoId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<Liquidacion>(e =>
+        {
+            e.HasKey(l => l.Id);
+            e.Property(l => l.MontoCobrado).HasColumnType("decimal(18,2)");
+            e.Property(l => l.ComisionPorcentaje).HasColumnType("decimal(5,2)");
+            e.Property(l => l.ComisionMonto).HasColumnType("decimal(18,2)");
+            e.Property(l => l.MontoComision).HasColumnType("decimal(18,2)");
+            e.Property(l => l.MontoALiquidar).HasColumnType("decimal(18,2)");
+            e.Property(l => l.Observaciones).HasMaxLength(1000);
+            e.HasIndex(l => l.PagoId).IsUnique();
+            e.HasOne(l => l.Pago)
+             .WithOne()
+             .HasForeignKey<Liquidacion>(l => l.PagoId)
              .OnDelete(DeleteBehavior.Cascade);
         });
 
