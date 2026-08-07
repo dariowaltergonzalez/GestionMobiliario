@@ -39,6 +39,7 @@ export interface FiltrosPagos {
   estado?: string
   mes?: number
   anio?: number
+  buscar?: string
   pagina: number
   tamano: number
 }
@@ -52,6 +53,7 @@ export const getPagosConsolidados = async (filtros: FiltrosPagos) => {
   if (filtros.estado) params.estado = filtros.estado
   if (filtros.mes) params.mes = String(filtros.mes)
   if (filtros.anio) params.anio = String(filtros.anio)
+  if (filtros.buscar) params.buscar = filtros.buscar
   const res = await client.get<ApiResponse<PagedResult<PagoListDto>>>('/api/pagos', { params })
   return res.data
 }

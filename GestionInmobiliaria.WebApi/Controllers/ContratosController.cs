@@ -1,10 +1,13 @@
 using GestionInmobiliaria.Aplicacion.DTOs;
+using GestionInmobiliaria.Aplicacion.Services;
 using GestionInmobiliaria.Dominio.Common;
 using GestionInmobiliaria.Dominio.Entidades;
 using GestionInmobiliaria.Dominio.Interfaces;
 using GestionInmobiliaria.Infraestructura.Persistencia;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace GestionInmobiliaria.WebApi.Controllers;
 
@@ -15,13 +18,31 @@ public class ContratosController : ControllerBase
 {
     private readonly IContratoRepository _repo;
     private readonly IPagoRepository _pagos;
+    private readonly IClausulaContratoRepository _clausulas;
+    private readonly IPdfReportService _pdf;
     private readonly ApplicationDbContext _context;
+    private readonly IWebHostEnvironment _env;
+    private readonly ILogger<ContratosController> _logger;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    public ContratosController(IContratoRepository repo, IPagoRepository pagos, ApplicationDbContext context)
+    public ContratosController(
+        IContratoRepository repo,
+        IPagoRepository pagos,
+        IClausulaContratoRepository clausulas,
+        IPdfReportService pdf,
+        ApplicationDbContext context,
+        IWebHostEnvironment env,
+        ILogger<ContratosController> logger,
+        IServiceScopeFactory scopeFactory)
     {
         _repo = repo;
         _pagos = pagos;
+        _clausulas = clausulas;
+        _pdf = pdf;
         _context = context;
+        _env = env;
+        _logger = logger;
+        _scopeFactory = scopeFactory;
     }
 
     [HttpGet]
@@ -64,7 +85,11 @@ public class ContratosController : ControllerBase
         var contrato = MapFromRequest(request);
         var creado = await _repo.CreateAsync(contrato);
         var resultado = await _repo.GetByIdAsync(creado.Id);
-        return Ok(ApiResponse<ContratoDto>.Ok(MapToDto(resultado!), "Contrato creado correctamente."));
+
+        if (resultado!.Estado == EstadoContrato.Vigente)
+            await NotificarNuevoContratoAsync(MapToDto(resultado), resultado.TenantId);
+
+        return Ok(ApiResponse<ContratoDto>.Ok(MapToDto(resultado), "Contrato creado correctamente."));
     }
 
     [HttpPut("{id}")]
@@ -142,6 +167,13 @@ public class ContratosController : ControllerBase
         if (!ok) return BadRequest(ApiResponse<ContratoDto>.Fail(error!));
 
         var resultado = await _repo.GetByIdAsync(contrato!.Id);
+
+        if (nuevoEstado == EstadoContrato.Vigente)
+            await NotificarNuevoContratoAsync(MapToDto(resultado!), resultado!.TenantId);
+
+        if (nuevoEstado is EstadoContrato.Finalizado or EstadoContrato.Rescindido or EstadoContrato.Anulado)
+            await NotificarCambioEstadoAsync(MapToDto(resultado!), resultado!.TenantId, nuevoEstado, request.Motivo);
+
         return Ok(ApiResponse<ContratoDto>.Ok(MapToDto(resultado!), $"Contrato pasado a estado '{nuevoEstado}' correctamente."));
     }
 
@@ -204,6 +236,8 @@ public class ContratosController : ControllerBase
 
         await _context.SaveChangesAsync();
 
+        await NotificarAvisoAumentoAsync(MapToDto(contrato), contrato.TenantId, montoAnterior, montoNuevo, ajuste.Observaciones);
+
         var dto = new AjusteContratoDto
         {
             Id              = ajuste.Id,
@@ -245,33 +279,345 @@ public class ContratosController : ControllerBase
         return Ok(ApiResponse<IEnumerable<PagoDto>>.Ok(pagos.Select(MapPagoToDto)));
     }
 
-    [HttpPut("{contratoId}/pagos/{pagoId}")]
-    [Authorize(Roles = "Admin,Operador")]
-    public async Task<IActionResult> UpdatePago(int contratoId, int pagoId, [FromBody] UpdatePagoRequest request)
+    private async Task NotificarNuevoContratoAsync(ContratoDto contratoDto, int tenantId)
     {
-        var pago = await _pagos.GetByIdAsync(pagoId);
-        if (pago is null || pago.ContratoId != contratoId)
-            return NotFound(ApiResponse<PagoDto>.Fail("Pago no encontrado."));
+        var userId   = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var userName = User.FindFirst("nombre") is { } n && User.FindFirst("apellido") is { } a
+            ? $"{n.Value} {a.Value}"
+            : User.Identity?.Name;
 
-        pago.Estado = (EstadoPago)request.Estado;
-        pago.FechaPago = request.FechaPago;
-        pago.Observaciones = request.Observaciones;
-        pago.MontoPagado = request.Detalles.Any() ? request.Detalles.Sum(d => d.Monto) : null;
+        // Cláusulas y config de empresa se leen acá (en el scope del request, con el tenant activo
+        // ya resuelto) porque en el Task.Run de abajo no hay HttpContext para resolverlo.
+        var clausulas = (await _clausulas.GetActivasAsync())
+            .Select(c => new ClausulaContratoDto
+            {
+                Id = c.Id, Orden = c.Orden, Numero = c.Numero,
+                Titulo = c.Titulo, Texto = c.Texto, Activo = c.Activo,
+            })
+            .ToList();
+        var pdfConfig = await BuildConfig();
 
-        var detalles = request.Detalles.Select(d => new PagoDetalle
+        var propietarioRefId = contratoDto.PropietarioRefId;
+        var inquilinoRefId   = contratoDto.InquilinoRefId;
+
+        _ = Task.Run(async () =>
         {
-            Medio = (MedioPago)d.Medio,
-            Monto = d.Monto,
-            Referencia = d.Referencia,
-            ChequeBanco = d.ChequeBanco,
-            ChequeNumero = d.ChequeNumero,
-            ChequeFechaVencimiento = string.IsNullOrWhiteSpace(d.ChequeFechaVencimiento)
-                ? null : DateTime.Parse(d.ChequeFechaVencimiento),
-            Activo = true,
-        });
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var ctx          = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var pdfSvc       = scope.ServiceProvider.GetRequiredService<IPdfReportService>();
+            var notificacion = scope.ServiceProvider.GetRequiredService<INotificacionService>();
 
-        var actualizado = await _pagos.UpdateWithDetallesAsync(pago, detalles);
-        return Ok(ApiResponse<PagoDto>.Ok(MapPagoToDto(actualizado), "Pago actualizado correctamente."));
+            try
+            {
+                var contratoPdf = pdfSvc.GenerarContrato(contratoDto, pdfConfig, clausulas);
+                var fileName    = $"Contrato_{contratoDto.Codigo}.pdf";
+                var adjuntos    = new List<EmailAdjunto> { new() { NombreArchivo = fileName, Contenido = contratoPdf } };
+                var asunto      = $"Nuevo contrato — {contratoDto.PropiedadDireccion} — {contratoDto.Codigo}";
+                var contexto    = new NotificacionContexto
+                {
+                    TenantId = tenantId,
+                    UserId = userId,
+                    UserName = userName,
+                    EntidadRelacionada = "EmailNuevoContrato",
+                    EntidadRelacionadaId = contratoDto.Id.ToString(),
+                    DatosAdicionales = new { contrato = contratoDto.Codigo },
+                };
+
+                // Tenant filtrado a mano: ver comentario equivalente en PagosController.
+                if (propietarioRefId.HasValue)
+                {
+                    var propietario = await ctx.Propietarios.IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(p => p.Id == propietarioRefId.Value && p.TenantId == tenantId);
+                    if (propietario is not null)
+                    {
+                        var cuerpo = BuildNuevoContratoEmailBody(pdfConfig.NombreEmpresa, contratoDto, paraLocatario: false);
+                        await notificacion.NotificarAsync(propietario, "NuevoContrato", asunto, cuerpo, contexto, adjuntos);
+                    }
+                }
+
+                if (inquilinoRefId.HasValue)
+                {
+                    var inquilino = await ctx.Inquilinos.IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(i => i.Id == inquilinoRefId.Value && i.TenantId == tenantId);
+                    if (inquilino is not null)
+                    {
+                        var cuerpo = BuildNuevoContratoEmailBody(pdfConfig.NombreEmpresa, contratoDto, paraLocatario: true);
+                        await notificacion.NotificarAsync(inquilino, "NuevoContrato", asunto, cuerpo, contexto, adjuntos);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al preparar la notificación de nuevo contrato. ContratoId={ContratoId}", contratoDto.Id);
+            }
+        });
+    }
+
+    private async Task NotificarCambioEstadoAsync(ContratoDto contratoDto, int tenantId, EstadoContrato nuevoEstado, string? motivo)
+    {
+        var userId   = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var userName = User.FindFirst("nombre") is { } n && User.FindFirst("apellido") is { } a
+            ? $"{n.Value} {a.Value}"
+            : User.Identity?.Name;
+
+        var pdfConfig = await BuildConfig();
+        var propietarioRefId = contratoDto.PropietarioRefId;
+        var inquilinoRefId   = contratoDto.InquilinoRefId;
+
+        _ = Task.Run(async () =>
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var ctx          = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var notificacion = scope.ServiceProvider.GetRequiredService<INotificacionService>();
+
+            try
+            {
+                var asunto   = $"{EstadoLabel(nuevoEstado)} de contrato — {contratoDto.PropiedadDireccion} — {contratoDto.Codigo}";
+                var contexto = new NotificacionContexto
+                {
+                    TenantId = tenantId,
+                    UserId = userId,
+                    UserName = userName,
+                    EntidadRelacionada = "EmailCambioEstadoContrato",
+                    EntidadRelacionadaId = contratoDto.Id.ToString(),
+                    DatosAdicionales = new { contrato = contratoDto.Codigo, estado = nuevoEstado.ToString(), motivo },
+                };
+
+                // Tenant filtrado a mano: ver comentario equivalente en PagosController.
+                if (propietarioRefId.HasValue)
+                {
+                    var propietario = await ctx.Propietarios.IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(p => p.Id == propietarioRefId.Value && p.TenantId == tenantId);
+                    if (propietario is not null)
+                    {
+                        var cuerpo = BuildCambioEstadoEmailBody(pdfConfig.NombreEmpresa, contratoDto, nuevoEstado, motivo, paraLocatario: false);
+                        await notificacion.NotificarAsync(propietario, "CambioEstadoContrato", asunto, cuerpo, contexto);
+                    }
+                }
+
+                if (inquilinoRefId.HasValue)
+                {
+                    var inquilino = await ctx.Inquilinos.IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(i => i.Id == inquilinoRefId.Value && i.TenantId == tenantId);
+                    if (inquilino is not null)
+                    {
+                        var cuerpo = BuildCambioEstadoEmailBody(pdfConfig.NombreEmpresa, contratoDto, nuevoEstado, motivo, paraLocatario: true);
+                        await notificacion.NotificarAsync(inquilino, "CambioEstadoContrato", asunto, cuerpo, contexto);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al preparar la notificación de cambio de estado. ContratoId={ContratoId}", contratoDto.Id);
+            }
+        });
+    }
+
+    private static string EstadoLabel(EstadoContrato estado) => estado switch
+    {
+        EstadoContrato.Finalizado => "Finalización",
+        EstadoContrato.Rescindido => "Rescisión",
+        EstadoContrato.Anulado    => "Anulación",
+        _                         => "Cambio de estado",
+    };
+
+    private static string BuildCambioEstadoEmailBody(string empresa, ContratoDto c, EstadoContrato nuevoEstado, string? motivo, bool paraLocatario)
+    {
+        var titulo        = $"{EstadoLabel(nuevoEstado)} de contrato";
+        var nombreDestino = paraLocatario ? $"{c.LocatarioNombre} {c.LocatarioApellido}" : $"{c.LocadorNombre} {c.LocadorApellido}";
+        var textoIntro    = paraLocatario
+            ? $"Te informamos que tu contrato cambió de estado a <strong>{nuevoEstado}</strong>."
+            : $"Le informamos que el contrato sobre su propiedad cambió de estado a <strong>{nuevoEstado}</strong>.";
+
+        return $"""
+            <!DOCTYPE html><html><head><meta charset="utf-8"></head>
+            <body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;padding:0;">
+              <div style="background:#1e3a5f;padding:20px 24px;border-radius:8px 8px 0 0;">
+                <h1 style="color:white;margin:0;font-size:17px;">{empresa}</h1>
+              </div>
+              <div style="background:#f8f9fa;padding:24px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 8px 8px;">
+                <h2 style="color:#1e3a5f;margin:0 0 8px 0;">{titulo}</h2>
+                <p>Estimado/a <strong>{nombreDestino}</strong>,</p>
+                <p>{textoIntro}</p>
+                <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
+                  <tr style="background:#e8f0fe;"><td style="padding:10px;font-weight:bold;width:40%;">Código</td><td style="padding:10px;">{c.Codigo}</td></tr>
+                  <tr><td style="padding:10px;font-weight:bold;">Propiedad</td><td style="padding:10px;">{c.PropiedadDireccion}</td></tr>
+                  {(!string.IsNullOrWhiteSpace(motivo) ? $"""<tr style="background:#e8f0fe;"><td style="padding:10px;font-weight:bold;">Motivo</td><td style="padding:10px;">{motivo}</td></tr>""" : "")}
+                </table>
+                <p>Ante cualquier duda, comunicate con nosotros.</p>
+                <hr style="border:none;border-top:1px solid #e0e0e0;margin:20px 0;">
+                <p style="color:#666;font-size:12px;">Este mensaje fue enviado automáticamente por {empresa}.</p>
+              </div>
+            </body></html>
+            """;
+    }
+
+    private async Task NotificarAvisoAumentoAsync(ContratoDto contratoDto, int tenantId, decimal montoAnterior, decimal montoNuevo, string? observaciones)
+    {
+        var userId   = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var userName = User.FindFirst("nombre") is { } n && User.FindFirst("apellido") is { } a
+            ? $"{n.Value} {a.Value}"
+            : User.Identity?.Name;
+
+        var pdfConfig = await BuildConfig();
+        var propietarioRefId = contratoDto.PropietarioRefId;
+        var inquilinoRefId   = contratoDto.InquilinoRefId;
+
+        _ = Task.Run(async () =>
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var ctx          = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var notificacion = scope.ServiceProvider.GetRequiredService<INotificacionService>();
+
+            try
+            {
+                var asunto   = $"Aviso de aumento — {contratoDto.PropiedadDireccion} — {contratoDto.Codigo}";
+                var contexto = new NotificacionContexto
+                {
+                    TenantId = tenantId,
+                    UserId = userId,
+                    UserName = userName,
+                    EntidadRelacionada = "EmailAvisoAumento",
+                    EntidadRelacionadaId = contratoDto.Id.ToString(),
+                    DatosAdicionales = new { contrato = contratoDto.Codigo, montoAnterior, montoNuevo },
+                };
+
+                // Tenant filtrado a mano: ver comentario equivalente en PagosController.
+                if (propietarioRefId.HasValue)
+                {
+                    var propietario = await ctx.Propietarios.IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(p => p.Id == propietarioRefId.Value && p.TenantId == tenantId);
+                    if (propietario is not null)
+                    {
+                        var cuerpo = BuildAvisoAumentoEmailBody(pdfConfig.NombreEmpresa, contratoDto, montoAnterior, montoNuevo, observaciones, paraLocatario: false);
+                        await notificacion.NotificarAsync(propietario, "AvisoAumento", asunto, cuerpo, contexto);
+                    }
+                }
+
+                if (inquilinoRefId.HasValue)
+                {
+                    var inquilino = await ctx.Inquilinos.IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(i => i.Id == inquilinoRefId.Value && i.TenantId == tenantId);
+                    if (inquilino is not null)
+                    {
+                        var cuerpo = BuildAvisoAumentoEmailBody(pdfConfig.NombreEmpresa, contratoDto, montoAnterior, montoNuevo, observaciones, paraLocatario: true);
+                        await notificacion.NotificarAsync(inquilino, "AvisoAumento", asunto, cuerpo, contexto);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al preparar el aviso de aumento. ContratoId={ContratoId}", contratoDto.Id);
+            }
+        });
+    }
+
+    private static string BuildAvisoAumentoEmailBody(string empresa, ContratoDto c, decimal montoAnterior, decimal montoNuevo, string? observaciones, bool paraLocatario)
+    {
+        var nombreDestino = paraLocatario ? $"{c.LocatarioNombre} {c.LocatarioApellido}" : $"{c.LocadorNombre} {c.LocadorApellido}";
+        var textoIntro    = paraLocatario
+            ? "Te informamos que se aplicó un ajuste al monto de tu cuota:"
+            : "Le informamos que se aplicó un ajuste al monto de la cuota de su propiedad:";
+        var monedaSimbolo = c.Moneda == "USD" ? "U$S" : "$";
+        var diferencia    = montoNuevo - montoAnterior;
+        var esAumento     = diferencia > 0;
+
+        return $"""
+            <!DOCTYPE html><html><head><meta charset="utf-8"></head>
+            <body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;padding:0;">
+              <div style="background:#1e3a5f;padding:20px 24px;border-radius:8px 8px 0 0;">
+                <h1 style="color:white;margin:0;font-size:17px;">{empresa}</h1>
+              </div>
+              <div style="background:#f8f9fa;padding:24px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 8px 8px;">
+                <h2 style="color:#1e3a5f;margin:0 0 8px 0;">Aviso de aumento de cuota</h2>
+                <p>Estimado/a <strong>{nombreDestino}</strong>,</p>
+                <p>{textoIntro}</p>
+                <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
+                  <tr style="background:#e8f0fe;"><td style="padding:10px;font-weight:bold;width:40%;">Código</td><td style="padding:10px;">{c.Codigo}</td></tr>
+                  <tr><td style="padding:10px;font-weight:bold;">Propiedad</td><td style="padding:10px;">{c.PropiedadDireccion}</td></tr>
+                  <tr style="background:#e8f0fe;"><td style="padding:10px;font-weight:bold;">Monto anterior</td><td style="padding:10px;">{monedaSimbolo} {montoAnterior:N0}</td></tr>
+                  <tr><td style="padding:10px;font-weight:bold;">Monto nuevo</td><td style="padding:10px;color:{(esAumento ? "#2e7d32" : "#e65100")};font-weight:bold;font-size:16px;">{monedaSimbolo} {montoNuevo:N0}</td></tr>
+                  {(!string.IsNullOrWhiteSpace(observaciones) ? $"""<tr style="background:#e8f0fe;"><td style="padding:10px;font-weight:bold;">Observaciones</td><td style="padding:10px;">{observaciones}</td></tr>""" : "")}
+                </table>
+                <p>Este nuevo monto aplica a partir de la próxima cuota pendiente.</p>
+                <hr style="border:none;border-top:1px solid #e0e0e0;margin:20px 0;">
+                <p style="color:#666;font-size:12px;">Este mensaje fue enviado automáticamente por {empresa}.</p>
+              </div>
+            </body></html>
+            """;
+    }
+
+    private Task<PdfReportConfig> BuildConfig()
+    {
+        return BuildConfigInterno(_context, _env);
+    }
+
+    private static async Task<PdfReportConfig> BuildConfigInterno(ApplicationDbContext ctx, IWebHostEnvironment env)
+    {
+        var empresa = await ctx.ConfiguracionEmpresa.FirstOrDefaultAsync();
+        var partes = new List<string>();
+        if (!string.IsNullOrWhiteSpace(empresa?.Cuit))     partes.Add($"CUIT: {empresa.Cuit}");
+        if (!string.IsNullOrWhiteSpace(empresa?.Telefono)) partes.Add($"Tel: {empresa.Telefono}");
+        if (!string.IsNullOrWhiteSpace(empresa?.Email))    partes.Add(empresa.Email);
+        if (!string.IsNullOrWhiteSpace(empresa?.Ciudad))   partes.Add(empresa.Ciudad);
+
+        byte[]? logoBytes = null;
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(empresa?.LogoUrl))
+            {
+                var fileName = Path.GetFileName(empresa.LogoUrl.TrimEnd('/'));
+                var logoPath = Path.Combine(env.ContentRootPath, "Logos", fileName);
+                if (System.IO.File.Exists(logoPath))
+                    logoBytes = await System.IO.File.ReadAllBytesAsync(logoPath);
+            }
+        }
+        catch { }
+
+        return new PdfReportConfig
+        {
+            Titulo          = "Contrato de Locación",
+            NombreEmpresa   = empresa?.NombreComercial ?? "GestionInmobiliaria",
+            Slogan          = empresa?.Slogan,
+            InfoEmpresa     = partes.Count > 0 ? string.Join("  |  ", partes) : null,
+            LogoBytes       = logoBytes,
+            FechaGeneracion = DateTime.Now,
+        };
+    }
+
+    private static string BuildNuevoContratoEmailBody(string empresa, ContratoDto c, bool paraLocatario)
+    {
+        var titulo       = "Nuevo contrato vigente";
+        var nombreDestino = paraLocatario ? $"{c.LocatarioNombre} {c.LocatarioApellido}" : $"{c.LocadorNombre} {c.LocadorApellido}";
+        var textoIntro    = paraLocatario
+            ? "Te confirmamos que tu contrato quedó vigente, con los siguientes datos:"
+            : "Le confirmamos que el contrato sobre su propiedad quedó vigente, con los siguientes datos:";
+        var monedaSimbolo = c.Moneda == "USD" ? "U$S" : "$";
+        var fechaFin      = c.FechaFin.HasValue ? c.FechaFin.Value.ToString("dd/MM/yyyy") : "—";
+
+        return $"""
+            <!DOCTYPE html><html><head><meta charset="utf-8"></head>
+            <body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;padding:0;">
+              <div style="background:#1e3a5f;padding:20px 24px;border-radius:8px 8px 0 0;">
+                <h1 style="color:white;margin:0;font-size:17px;">{empresa}</h1>
+              </div>
+              <div style="background:#f8f9fa;padding:24px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 8px 8px;">
+                <h2 style="color:#1e3a5f;margin:0 0 8px 0;">{titulo}</h2>
+                <p>Estimado/a <strong>{nombreDestino}</strong>,</p>
+                <p>{textoIntro}</p>
+                <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
+                  <tr style="background:#e8f0fe;"><td style="padding:10px;font-weight:bold;width:40%;">Código</td><td style="padding:10px;">{c.Codigo}</td></tr>
+                  <tr><td style="padding:10px;font-weight:bold;">Propiedad</td><td style="padding:10px;">{c.PropiedadDireccion}</td></tr>
+                  <tr style="background:#e8f0fe;"><td style="padding:10px;font-weight:bold;">Monto</td><td style="padding:10px;color:#2e7d32;font-weight:bold;font-size:16px;">{monedaSimbolo} {c.MontoBase:N0}</td></tr>
+                  <tr><td style="padding:10px;font-weight:bold;">Fecha de inicio</td><td style="padding:10px;">{c.FechaInicio:dd/MM/yyyy}</td></tr>
+                  <tr style="background:#e8f0fe;"><td style="padding:10px;font-weight:bold;">Fecha de fin</td><td style="padding:10px;">{fechaFin}</td></tr>
+                </table>
+                <p>Se adjunta el contrato completo en formato PDF.</p>
+                <hr style="border:none;border-top:1px solid #e0e0e0;margin:20px 0;">
+                <p style="color:#666;font-size:12px;">Este mensaje fue enviado automáticamente por {empresa}.</p>
+              </div>
+            </body></html>
+            """;
     }
 
     private static ApiResponse<ContratoDto>? Validar(CreateContratoRequest r)

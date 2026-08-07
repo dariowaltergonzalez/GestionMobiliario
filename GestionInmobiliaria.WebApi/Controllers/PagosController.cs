@@ -18,7 +18,7 @@ public class PagosController : ControllerBase
 {
     private readonly IPagoRepository _pagos;
     private readonly IPdfReportService _pdf;
-    private readonly IEmailService _email;
+    private readonly ILiquidacionRepository _liquidaciones;
     private readonly ApplicationDbContext _context;
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<PagosController> _logger;
@@ -27,7 +27,7 @@ public class PagosController : ControllerBase
     public PagosController(
         IPagoRepository pagos,
         IPdfReportService pdf,
-        IEmailService email,
+        ILiquidacionRepository liquidaciones,
         ApplicationDbContext context,
         IWebHostEnvironment env,
         ILogger<PagosController> logger,
@@ -35,7 +35,7 @@ public class PagosController : ControllerBase
     {
         _pagos = pagos;
         _pdf = pdf;
-        _email = email;
+        _liquidaciones = liquidaciones;
         _context = context;
         _env = env;
         _logger = logger;
@@ -48,9 +48,10 @@ public class PagosController : ControllerBase
         [FromQuery] int? contratoId,
         [FromQuery] EstadoPago? estado,
         [FromQuery] int? mes,
-        [FromQuery] int? anio)
+        [FromQuery] int? anio,
+        [FromQuery] string? buscar)
     {
-        var resultado = await _pagos.GetPagedAsync(paginacion, contratoId, estado, mes, anio);
+        var resultado = await _pagos.GetPagedAsync(paginacion, contratoId, estado, mes, anio, buscar);
         var paginado = new PagedResult<PagoListDto>
         {
             Items = resultado.Items.Select(MapToListDto).ToList(),
@@ -121,8 +122,10 @@ public class PagosController : ControllerBase
 
         var actualizado = await _pagos.UpdateWithDetallesAsync(pago, detalles);
 
-        if (pago.Estado == EstadoPago.Pagado && !string.IsNullOrWhiteSpace(pago.Contrato?.LocadorEmail))
+        if (pago.Estado == EstadoPago.Pagado)
         {
+            await GenerarLiquidacionSiCorrespondeAsync(pago);
+
             var userId   = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             var userName = User.FindFirst("nombre") is { } n && User.FindFirst("apellido") is { } a
                 ? $"{n.Value} {a.Value}"
@@ -130,78 +133,96 @@ public class PagosController : ControllerBase
             var tenantId = pago.TenantId;
 
             // Capturar todo lo necesario antes del Task.Run (scope del request, tenant activo)
-            var contratoDto     = MapContratoDto(pago.Contrato!);
-            var pagoDto         = MapPagoDto(actualizado);
-            var locadorEmail    = pago.Contrato!.LocadorEmail!;
-            var locadorNombre   = $"{pago.Contrato.LocadorNombre} {pago.Contrato.LocadorApellido}";
-            var asuntoDireccion = pago.Contrato.Propiedad.Direccion;
-            var contratoCodigo  = pago.Contrato.Codigo;
-            var periodo         = pago.Periodo.ToString("MMMM yyyy", new System.Globalization.CultureInfo("es-AR")).ToUpper();
-            var monto           = $"$ {(pago.MontoPagado ?? pago.MontoEsperado):N0}";
-            var detallesSnap    = detalles.ToList();
+            var contratoDto      = MapContratoDto(pago.Contrato!);
+            var pagoDto          = MapPagoDto(actualizado);
+            var propietarioRefId = pago.Contrato!.PropietarioRefId;
+            var inquilinoRefId   = pago.Contrato.InquilinoRefId;
+            var asuntoDireccion  = pago.Contrato.Propiedad.Direccion;
+            var contratoCodigo   = pago.Contrato.Codigo;
+            var periodo          = pago.Periodo.ToString("MMMM yyyy", new System.Globalization.CultureInfo("es-AR")).ToUpper();
+            var monto            = $"$ {(pago.MontoPagado ?? pago.MontoEsperado):N0}";
+            var detallesSnap     = detalles.ToList();
             // La config de empresa se carga aquí donde el tenant está disponible
-            var pdfConfig       = await BuildConfig();
+            var pdfConfig        = await BuildConfig();
 
             _ = Task.Run(async () =>
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
-                var ctx      = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var emailSvc = scope.ServiceProvider.GetRequiredService<IEmailService>();
-                var pdfSvc   = scope.ServiceProvider.GetRequiredService<IPdfReportService>();
-                try
+                var ctx          = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var pdfSvc       = scope.ServiceProvider.GetRequiredService<IPdfReportService>();
+                var notificacion = scope.ServiceProvider.GetRequiredService<INotificacionService>();
+
+                var reciboPdf = pdfSvc.GenerarReciboPago(pagoDto, contratoDto, pdfConfig);
+                var fileName  = $"Recibo_{contratoCodigo}_{periodo.Replace(" ", "_")}.pdf";
+                var adjuntos  = new List<EmailAdjunto> { new() { NombreArchivo = fileName, Contenido = reciboPdf } };
+                var asunto    = $"Recibo de pago — {asuntoDireccion} — {periodo}";
+                var contexto  = new NotificacionContexto
                 {
-                    var reciboPdf = pdfSvc.GenerarReciboPago(pagoDto, contratoDto, pdfConfig);
-                    var cuerpo    = BuildEmailBody(pdfConfig.NombreEmpresa, contratoDto, pagoDto, detallesSnap, periodo, monto);
-                    var fileName  = $"Recibo_{contratoCodigo}_{periodo.Replace(" ", "_")}.pdf";
+                    TenantId = tenantId,
+                    UserId = userId,
+                    UserName = userName,
+                    EntidadRelacionada = "EmailRecibo",
+                    EntidadRelacionadaId = pagoId.ToString(),
+                    DatosAdicionales = new { contrato = contratoCodigo, periodo },
+                };
 
-                    await emailSvc.EnviarAsync(new EmailMessage
-                    {
-                        Destinatario       = locadorEmail,
-                        NombreDestinatario = locadorNombre,
-                        Asunto             = $"Cobro registrado — {asuntoDireccion} — {periodo}",
-                        Cuerpo             = cuerpo,
-                        Adjuntos           = [new EmailAdjunto { NombreArchivo = fileName, Contenido = reciboPdf }]
-                    });
-
-                    _logger.LogInformation("Recibo enviado. PagoId={PagoId} Destinatario={Email}", pagoId, locadorEmail);
-
-                    ctx.AuditLogs.Add(new AuditLog
-                    {
-                        EntityName = "EmailRecibo",
-                        Action     = "ENVIADO",
-                        EntityId   = pagoId.ToString(),
-                        UserId     = userId,
-                        UserName   = userName,
-                        NewValues  = System.Text.Json.JsonSerializer.Serialize(new { destinatario = locadorEmail, contrato = contratoCodigo, periodo }),
-                        Timestamp  = DateTime.UtcNow,
-                        TenantId   = tenantId,
-                    });
-                    await ctx.SaveChangesAsync();
-                }
-                catch (Exception ex)
+                // Tenant filtrado a mano: este Task.Run corre sin HttpContext, así que
+                // ITenantService no puede resolver el tenant activo (ver NotificacionService).
+                if (propietarioRefId.HasValue)
                 {
-                    _logger.LogError(ex, "Error al enviar email de recibo. PagoId={PagoId} Destinatario={Email}", pagoId, locadorEmail);
-                    try
+                    var propietario = await ctx.Propietarios.IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(p => p.Id == propietarioRefId.Value && p.TenantId == tenantId);
+                    if (propietario is not null)
                     {
-                        ctx.AuditLogs.Add(new AuditLog
-                        {
-                            EntityName = "EmailRecibo",
-                            Action     = "ERROR",
-                            EntityId   = pagoId.ToString(),
-                            UserId     = userId,
-                            UserName   = userName,
-                            NewValues  = System.Text.Json.JsonSerializer.Serialize(new { destinatario = locadorEmail, error = ex.Message, tipo = ex.GetType().Name, origen = ex.StackTrace?.Split('\n').Take(3).ToArray() }),
-                            Timestamp  = DateTime.UtcNow,
-                            TenantId   = tenantId,
-                        });
-                        await ctx.SaveChangesAsync();
+                        var cuerpo = BuildEmailBody(pdfConfig.NombreEmpresa, contratoDto, pagoDto, detallesSnap, periodo, monto, paraLocatario: false);
+                        await notificacion.NotificarAsync(propietario, "AvisoCobro", asunto, cuerpo, contexto, adjuntos);
                     }
-                    catch { }
+                }
+
+                if (inquilinoRefId.HasValue)
+                {
+                    var inquilino = await ctx.Inquilinos.IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(i => i.Id == inquilinoRefId.Value && i.TenantId == tenantId);
+                    if (inquilino is not null)
+                    {
+                        var cuerpo = BuildEmailBody(pdfConfig.NombreEmpresa, contratoDto, pagoDto, detallesSnap, periodo, monto, paraLocatario: true);
+                        await notificacion.NotificarAsync(inquilino, "ReciboPago", asunto, cuerpo, contexto, adjuntos);
+                    }
                 }
             });
         }
 
         return Ok(ApiResponse<PagoDto>.Ok(MapPagoDto(actualizado), "Pago actualizado correctamente."));
+    }
+
+    private async Task GenerarLiquidacionSiCorrespondeAsync(Pago pago)
+    {
+        var contrato = pago.Contrato!;
+        if (!contrato.AdministracionCobros) return;
+        if (contrato.ComisionLocadorPorcentaje is null && contrato.ComisionLocadorMonto is null) return;
+
+        if (await _liquidaciones.GetByPagoIdAsync(pago.Id) is not null) return;
+
+        var montoCobrado = pago.MontoPagado ?? pago.MontoEsperado;
+        var montoComision = contrato.ComisionLocadorMonto
+            ?? Math.Round(montoCobrado * (contrato.ComisionLocadorPorcentaje!.Value / 100), 2);
+        var montoALiquidar = montoCobrado - montoComision;
+
+        await _liquidaciones.CreateAsync(new Liquidacion
+        {
+            PagoId = pago.Id,
+            MontoCobrado = montoCobrado,
+            ComisionPorcentaje = contrato.ComisionLocadorPorcentaje,
+            ComisionMonto = contrato.ComisionLocadorMonto,
+            MontoComision = montoComision,
+            MontoALiquidar = montoALiquidar,
+            Estado = EstadoLiquidacion.Pendiente,
+            TenantId = pago.TenantId,
+        });
+
+        _logger.LogInformation(
+            "Liquidación generada. PagoId={PagoId} Contrato={Contrato} MontoCobrado={MontoCobrado} Comision={Comision} MontoALiquidar={MontoALiquidar}",
+            pago.Id, contrato.Codigo, montoCobrado, montoComision, montoALiquidar);
     }
 
     [HttpGet("{contratoId}/pagos/{pagoId}/recibo")]
@@ -262,8 +283,12 @@ public class PagosController : ControllerBase
         };
     }
 
-    private static string BuildEmailBody(string empresa, ContratoDto c, PagoDto p, IEnumerable<PagoDetalle> detalles, string periodo, string monto)
+    private static string BuildEmailBody(string empresa, ContratoDto c, PagoDto p, IEnumerable<PagoDetalle> detalles, string periodo, string monto, bool paraLocatario)
     {
+        var titulo        = paraLocatario ? "Recibo de pago registrado" : "Cobro de alquiler registrado";
+        var nombreDestino  = paraLocatario ? $"{c.LocatarioNombre} {c.LocatarioApellido}" : $"{c.LocadorNombre} {c.LocadorApellido}";
+        var textoIntro     = paraLocatario ? "Te confirmamos que se registró tu pago correspondiente a:" : "Le informamos que se registró el cobro correspondiente a:";
+
         var fechaPago = p.FechaPago.HasValue
             ? p.FechaPago.Value.ToLocalTime().ToString("dd/MM/yyyy")
             : DateTime.Now.ToString("dd/MM/yyyy");
@@ -294,9 +319,9 @@ public class PagosController : ControllerBase
                 <h1 style="color:white;margin:0;font-size:17px;">{empresa}</h1>
               </div>
               <div style="background:#f8f9fa;padding:24px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 8px 8px;">
-                <h2 style="color:#1e3a5f;margin:0 0 8px 0;">Cobro de alquiler registrado</h2>
-                <p>Estimado/a <strong>{c.LocadorNombre} {c.LocadorApellido}</strong>,</p>
-                <p>Le informamos que se registró el cobro correspondiente a:</p>
+                <h2 style="color:#1e3a5f;margin:0 0 8px 0;">{titulo}</h2>
+                <p>Estimado/a <strong>{nombreDestino}</strong>,</p>
+                <p>{textoIntro}</p>
                 <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
                   <tr style="background:#e8f0fe;"><td style="padding:10px;font-weight:bold;width:40%;">Propiedad</td><td style="padding:10px;">{c.PropiedadDireccion}</td></tr>
                   <tr><td style="padding:10px;font-weight:bold;">Inquilino/a</td><td style="padding:10px;">{c.LocatarioNombre} {c.LocatarioApellido}</td></tr>
