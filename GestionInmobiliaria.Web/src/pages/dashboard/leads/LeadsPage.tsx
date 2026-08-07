@@ -8,6 +8,8 @@ import {
 } from '../../../api/leads'
 import client from '../../../api/client'
 import type { ApiResponse } from '../../../types/api'
+import InquilinoForm from '../inquilinos/InquilinoForm'
+import type { InquilinoFormData } from '../../../api/inquilinos'
 
 interface AgenteCombo { id: number; nombreCompleto: string }
 
@@ -55,7 +57,7 @@ function OrigenBadge({ origen }: { origen: string }) {
 interface LeadFormProps {
   lead: LeadDto | null
   agentes: AgenteCombo[]
-  onGuardado: () => void
+  onGuardado: (lead: LeadDto, convertidoAhora: boolean) => void
   onCerrar: () => void
 }
 
@@ -95,11 +97,14 @@ function LeadForm({ lead, agentes, onGuardado, onCerrar }: LeadFormProps) {
         propiedadId: lead?.propiedadId ?? null,
       }
       if (lead) {
-        await updateLead(lead.id, { ...payload, estado: Number(form.estado) } as UpdateLeadRequest)
+        const eraConvertido = estadoNumero(lead.estado) === 4
+        const esConvertido = Number(form.estado) === 4
+        const res = await updateLead(lead.id, { ...payload, estado: Number(form.estado) } as UpdateLeadRequest)
+        if (res.success) onGuardado(res.data, esConvertido && !eraConvertido)
       } else {
-        await createLead(payload as CreateLeadRequest)
+        const res = await createLead(payload as CreateLeadRequest)
+        if (res.success) onGuardado(res.data, false)
       }
-      onGuardado()
     } catch {
       setError('No se pudo guardar el lead.')
     } finally {
@@ -227,6 +232,7 @@ export default function LeadsPage() {
   const [leadEditar, setLeadEditar] = useState<LeadDto | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<LeadDto | null>(null)
   const [deletando, setDeletando] = useState(false)
+  const [inquilinoDesdeLead, setInquilinoDesdeLead] = useState<Partial<InquilinoFormData> | null>(null)
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -256,7 +262,19 @@ export default function LeadsPage() {
   const handleBuscar = () => setFiltros(f => ({ ...f, buscar: buscarInput, pagina: 1 }))
   const handleNuevo = () => { setLeadEditar(null); setModalAbierto(true) }
   const handleEditar = (l: LeadDto) => { setLeadEditar(l); setModalAbierto(true) }
-  const handleGuardado = () => { setModalAbierto(false); cargar() }
+  const handleGuardado = (lead: LeadDto, convertidoAhora: boolean) => {
+    setModalAbierto(false)
+    cargar()
+    if (convertidoAhora) {
+      setInquilinoDesdeLead({
+        nombre: lead.nombre,
+        apellido: lead.apellido,
+        email: lead.email ?? '',
+        telefono: lead.telefono ?? '',
+        notas: lead.notas ? `Convertido desde Lead — ${lead.notas}` : 'Convertido desde Lead',
+      })
+    }
+  }
 
   const handleConfirmarDelete = async () => {
     if (!confirmDelete) return
@@ -383,13 +401,15 @@ export default function LeadsPage() {
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => handleEditar(l)}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Editar"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
+                        {l.estado !== 'Convertido' && (
+                          <button
+                            onClick={() => handleEditar(l)}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Editar"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => setConfirmDelete(l)}
                           className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
@@ -438,6 +458,16 @@ export default function LeadsPage() {
           agentes={agentes}
           onGuardado={handleGuardado}
           onCerrar={() => setModalAbierto(false)}
+        />
+      )}
+
+      {/* ALTA DE INQUILINO PRECARGADA (lead convertido) */}
+      {inquilinoDesdeLead && (
+        <InquilinoForm
+          inquilino={null}
+          datosIniciales={inquilinoDesdeLead}
+          onGuardado={() => setInquilinoDesdeLead(null)}
+          onCerrar={() => setInquilinoDesdeLead(null)}
         />
       )}
 
