@@ -10,5 +10,9 @@ public interface ILiquidacionRepository
     Task<Liquidacion?> GetByIdAsync(int id);
     Task<Liquidacion?> GetByPagoIdAsync(int pagoId);
     Task<Liquidacion> CreateAsync(Liquidacion liquidacion);
-    Task<Liquidacion?> MarcarLiquidadaAsync(int id, DateTime fecha, string? observaciones);
+    Task<bool> EliminarAsync(int id);
+
+    Task<Liquidacion?> AgregarAbonoAsync(int liquidacionId, LiquidacionAbono abono);
+    Task<Liquidacion?> ActualizarAbonoAsync(int liquidacionId, int abonoId, LiquidacionAbono datos);
+    Task<Liquidacion?> EliminarAbonoAsync(int liquidacionId, int abonoId);
 }

@@ -36,7 +36,7 @@ export const ESTADOS_PAGO: Record<EstadoPago, { label: string; color: string }> 
 
 export const MEDIOS_PAGO: Record<MedioPago, string> = {
   1: 'Efectivo',
-  2: 'Débito',
+  2: 'Transferencia / Débito',
   3: 'Crédito',
   4: 'Cheque',
 }
@@ -223,6 +223,9 @@ export const estadoContratoNumero = (s: string): number =>
 
 export const estadoPagoNumero = (s: string): number =>
   ({ Pendiente: 1, Pagado: 2, Atrasado: 3, Anulado: 4 } as Record<string, number>)[s] ?? 1
+
+export const medioPagoNumero = (s: string): number =>
+  ({ Efectivo: 1, Debito: 2, Credito: 3, Cheque: 4 } as Record<string, number>)[s] ?? 2
 
 export const getContratos = async (filtros: FiltrosContratos) => {
   const params: Record<string, string> = {

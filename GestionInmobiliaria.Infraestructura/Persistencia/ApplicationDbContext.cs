@@ -39,6 +39,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<PagoDetalle> PagoDetalles => Set<PagoDetalle>();
     public DbSet<AjusteContrato> AjustesContrato => Set<AjusteContrato>();
     public DbSet<Liquidacion> Liquidaciones => Set<Liquidacion>();
+    public DbSet<LiquidacionAbono> LiquidacionAbonos => Set<LiquidacionAbono>();
     public DbSet<DocumentoContrato> DocumentosContrato => Set<DocumentoContrato>();
     public DbSet<FotoSolicitud> FotosSolicitud => Set<FotoSolicitud>();
     public DbSet<FotoPropiedad> FotosPropiedad => Set<FotoPropiedad>();
@@ -68,6 +69,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         builder.Entity<PagoDetalle>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<AjusteContrato>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<Liquidacion>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
+        builder.Entity<LiquidacionAbono>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<DocumentoContrato>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<FotoSolicitud>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<FotoPropiedad>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
@@ -521,6 +523,20 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.HasOne(l => l.Pago)
              .WithOne()
              .HasForeignKey<Liquidacion>(l => l.PagoId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<LiquidacionAbono>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.Property(a => a.Monto).HasColumnType("decimal(18,2)");
+            e.Property(a => a.CbuCvuDestino).HasMaxLength(50);
+            e.Property(a => a.EntidadDestino).HasMaxLength(200);
+            e.Property(a => a.NumeroOperacion).HasMaxLength(100);
+            e.Property(a => a.Observaciones).HasMaxLength(1000);
+            e.HasOne(a => a.Liquidacion)
+             .WithMany(l => l.Abonos)
+             .HasForeignKey(a => a.LiquidacionId)
              .OnDelete(DeleteBehavior.Cascade);
         });
 
