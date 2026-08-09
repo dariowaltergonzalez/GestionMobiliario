@@ -1,4 +1,5 @@
 using GestionInmobiliaria.Aplicacion.DTOs;
+using GestionInmobiliaria.Aplicacion.Services;
 using GestionInmobiliaria.Dominio.Common;
 using GestionInmobiliaria.Dominio.Entidades;
 using GestionInmobiliaria.Dominio.Interfaces;
@@ -6,6 +7,7 @@ using GestionInmobiliaria.Infraestructura.Persistencia;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace GestionInmobiliaria.WebApi.Controllers;
 
@@ -16,11 +18,19 @@ public class LiquidacionesController : ControllerBase
 {
     private readonly ILiquidacionRepository _repo;
     private readonly ApplicationDbContext _context;
+    private readonly ILogger<LiquidacionesController> _logger;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    public LiquidacionesController(ILiquidacionRepository repo, ApplicationDbContext context)
+    public LiquidacionesController(
+        ILiquidacionRepository repo,
+        ApplicationDbContext context,
+        ILogger<LiquidacionesController> logger,
+        IServiceScopeFactory scopeFactory)
     {
         _repo = repo;
         _context = context;
+        _logger = logger;
+        _scopeFactory = scopeFactory;
     }
 
     [HttpGet]
@@ -47,10 +57,12 @@ public class LiquidacionesController : ControllerBase
     {
         var ahora = DateTime.UtcNow;
 
-        var pendientesCount = await _context.Liquidaciones.CountAsync(l => l.Estado == EstadoLiquidacion.Pendiente);
-        var montoPendienteTotal = await _context.Liquidaciones
-            .Where(l => l.Estado == EstadoLiquidacion.Pendiente)
-            .SumAsync(l => (decimal?)l.MontoALiquidar) ?? 0;
+        var pendientesQuery = _context.Liquidaciones.Where(l => l.Estado != EstadoLiquidacion.Liquidado);
+        var pendientesCount = await pendientesQuery.CountAsync();
+        var montoPendienteTotal = await pendientesQuery
+            .Select(l => l.MontoALiquidar - l.Abonos.Where(a => a.Activo).Sum(a => (decimal?)a.Monto ?? 0))
+            .SumAsync();
+
         var liquidadasMesCount = await _context.Liquidaciones.CountAsync(l =>
             l.Estado == EstadoLiquidacion.Liquidado &&
             l.FechaLiquidacion.HasValue &&
@@ -80,42 +92,244 @@ public class LiquidacionesController : ControllerBase
         return Ok(ApiResponse<LiquidacionDto>.Ok(MapToDto(liquidacion)));
     }
 
-    [HttpPut("{id}/liquidar")]
+    [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Operador")]
-    public async Task<IActionResult> Liquidar(int id, [FromBody] MarcarLiquidadaRequest request)
+    public async Task<IActionResult> Eliminar(int id)
     {
-        var existente = await _repo.GetByIdAsync(id);
-        if (existente is null) return NotFound(ApiResponse<LiquidacionDto>.Fail("Liquidación no encontrada."));
+        var liquidacion = await _repo.GetByIdAsync(id);
+        if (liquidacion is null) return NotFound(ApiResponse<string>.Fail("Liquidación no encontrada."));
 
-        if (existente.Estado == EstadoLiquidacion.Liquidado)
-            return BadRequest(ApiResponse<LiquidacionDto>.Fail("Esta liquidación ya fue marcada como liquidada."));
+        var eliminada = await _repo.EliminarAsync(id);
+        if (!eliminada)
+            return BadRequest(ApiResponse<string>.Fail(
+                "No se puede eliminar: tiene abonos cargados. Eliminá los abonos primero."));
 
-        var actualizada = await _repo.MarcarLiquidadaAsync(id, request.Fecha ?? DateTime.UtcNow, request.Observaciones?.Trim());
-        var resultado = await _repo.GetByIdAsync(actualizada!.Id);
-        return Ok(ApiResponse<LiquidacionDto>.Ok(MapToDto(resultado!), "Liquidación marcada como liquidada."));
+        return Ok(ApiResponse<string>.Ok("Liquidación eliminada."));
     }
 
-    private static LiquidacionDto MapToDto(Liquidacion l) => new()
+    [HttpPost("{id}/abonos")]
+    [Authorize(Roles = "Admin,Operador")]
+    public async Task<IActionResult> AgregarAbono(int id, [FromBody] AbonoLiquidacionRequest request)
     {
-        Id = l.Id,
-        PagoId = l.PagoId,
-        ContratoId = l.Pago.ContratoId,
-        ContratoCodigo = l.Pago.Contrato.Codigo,
-        PropiedadDireccion = l.Pago.Contrato.Propiedad.Direccion,
-        PropietarioRefId = l.Pago.Contrato.PropietarioRefId,
-        PropietarioNombre = l.Pago.Contrato.LocadorNombre,
-        PropietarioApellido = l.Pago.Contrato.LocadorApellido,
-        NumeroCuota = l.Pago.NumeroCuota,
-        Periodo = l.Pago.Periodo,
-        Moneda = l.Pago.Contrato.Moneda.ToString(),
-        MontoCobrado = l.MontoCobrado,
-        ComisionPorcentaje = l.ComisionPorcentaje,
-        ComisionMonto = l.ComisionMonto,
-        MontoComision = l.MontoComision,
-        MontoALiquidar = l.MontoALiquidar,
-        Estado = l.Estado.ToString(),
-        FechaLiquidacion = l.FechaLiquidacion,
-        Observaciones = l.Observaciones,
-        FechaCreacion = l.FechaCreacion,
-    };
+        var liquidacion = await _repo.GetByIdAsync(id);
+        if (liquidacion is null) return NotFound(ApiResponse<LiquidacionDto>.Fail("Liquidación no encontrada."));
+
+        var error = ValidarAbono(liquidacion, request, abonoIdAEditar: null);
+        if (error is not null) return BadRequest(ApiResponse<LiquidacionDto>.Fail(error));
+
+        var abono = new LiquidacionAbono
+        {
+            Monto = request.Monto,
+            Fecha = request.Fecha ?? DateTime.UtcNow,
+            Medio = (MedioPago)request.Medio,
+            CbuCvuDestino = request.CbuCvuDestino?.Trim(),
+            EntidadDestino = request.EntidadDestino?.Trim(),
+            NumeroOperacion = request.NumeroOperacion?.Trim(),
+            Observaciones = request.Observaciones?.Trim(),
+        };
+
+        var actualizada = await _repo.AgregarAbonoAsync(id, abono);
+
+        await NotificarAvisoLiquidacionAsync(liquidacion, abono, liquidacion.TenantId);
+
+        return Ok(ApiResponse<LiquidacionDto>.Ok(MapToDto(actualizada!), "Abono registrado."));
+    }
+
+    [HttpPut("{id}/abonos/{abonoId}")]
+    [Authorize(Roles = "Admin,Operador")]
+    public async Task<IActionResult> EditarAbono(int id, int abonoId, [FromBody] AbonoLiquidacionRequest request)
+    {
+        var liquidacion = await _repo.GetByIdAsync(id);
+        if (liquidacion is null) return NotFound(ApiResponse<LiquidacionDto>.Fail("Liquidación no encontrada."));
+
+        var error = ValidarAbono(liquidacion, request, abonoIdAEditar: abonoId);
+        if (error is not null) return BadRequest(ApiResponse<LiquidacionDto>.Fail(error));
+
+        var datos = new LiquidacionAbono
+        {
+            Monto = request.Monto,
+            Fecha = request.Fecha ?? DateTime.UtcNow,
+            Medio = (MedioPago)request.Medio,
+            CbuCvuDestino = request.CbuCvuDestino?.Trim(),
+            EntidadDestino = request.EntidadDestino?.Trim(),
+            NumeroOperacion = request.NumeroOperacion?.Trim(),
+            Observaciones = request.Observaciones?.Trim(),
+        };
+
+        var actualizada = await _repo.ActualizarAbonoAsync(id, abonoId, datos);
+        if (actualizada is null) return NotFound(ApiResponse<LiquidacionDto>.Fail("Abono no encontrado."));
+        return Ok(ApiResponse<LiquidacionDto>.Ok(MapToDto(actualizada), "Abono actualizado."));
+    }
+
+    [HttpDelete("{id}/abonos/{abonoId}")]
+    [Authorize(Roles = "Admin,Operador")]
+    public async Task<IActionResult> EliminarAbono(int id, int abonoId)
+    {
+        var actualizada = await _repo.EliminarAbonoAsync(id, abonoId);
+        if (actualizada is null) return NotFound(ApiResponse<LiquidacionDto>.Fail("Abono no encontrado."));
+        return Ok(ApiResponse<LiquidacionDto>.Ok(MapToDto(actualizada), "Abono eliminado."));
+    }
+
+    private async Task NotificarAvisoLiquidacionAsync(Liquidacion liquidacion, LiquidacionAbono abono, int tenantId)
+    {
+        var propietarioRefId = liquidacion.Pago.Contrato.PropietarioRefId;
+        if (!propietarioRefId.HasValue) return;
+
+        var userId   = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var userName = User.FindFirst("nombre") is { } n && User.FindFirst("apellido") is { } a
+            ? $"{n.Value} {a.Value}"
+            : User.Identity?.Name;
+
+        // Se lee acá (scope del request, tenant activo ya resuelto) porque en el Task.Run de abajo
+        // no hay HttpContext para que ITenantService funcione.
+        var empresa = await _context.ConfiguracionEmpresa.FirstOrDefaultAsync();
+        var nombreEmpresa = empresa?.NombreComercial ?? "GestionInmobiliaria";
+
+        var contratoCodigo = liquidacion.Pago.Contrato.Codigo;
+        var propiedadDireccion = liquidacion.Pago.Contrato.Propiedad.Direccion;
+        var moneda = liquidacion.Pago.Contrato.Moneda.ToString();
+        var propietarioNombre = $"{liquidacion.Pago.Contrato.LocadorNombre} {liquidacion.Pago.Contrato.LocadorApellido}";
+        var periodo = liquidacion.Pago.Periodo;
+        var numeroCuota = liquidacion.Pago.NumeroCuota;
+        var liquidacionId = liquidacion.Id;
+
+        _ = Task.Run(async () =>
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var ctx          = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var notificacion = scope.ServiceProvider.GetRequiredService<INotificacionService>();
+
+            try
+            {
+                var propietario = await ctx.Propietarios.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(p => p.Id == propietarioRefId.Value && p.TenantId == tenantId);
+                if (propietario is null) return;
+
+                var periodoTexto = periodo.ToString("MMMM yyyy", new System.Globalization.CultureInfo("es-AR")).ToUpper();
+                var asunto = $"Transferencia realizada — {contratoCodigo} — {periodoTexto}";
+                var cuerpo = BuildAvisoLiquidacionEmailBody(
+                    nombreEmpresa, propietarioNombre, contratoCodigo, propiedadDireccion, moneda,
+                    periodoTexto, numeroCuota, abono);
+                var contexto = new NotificacionContexto
+                {
+                    TenantId = tenantId,
+                    UserId = userId,
+                    UserName = userName,
+                    EntidadRelacionada = "EmailAvisoLiquidacion",
+                    EntidadRelacionadaId = liquidacionId.ToString(),
+                    DatosAdicionales = new { contrato = contratoCodigo, montoAbono = abono.Monto },
+                };
+
+                await notificacion.NotificarAsync(propietario, "AvisoLiquidacion", asunto, cuerpo, contexto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al preparar el aviso de liquidación. LiquidacionId={LiquidacionId}", liquidacionId);
+            }
+        });
+    }
+
+    private static string BuildAvisoLiquidacionEmailBody(
+        string empresa, string propietarioNombre, string contratoCodigo, string propiedadDireccion,
+        string moneda, string periodoTexto, int numeroCuota, LiquidacionAbono abono)
+    {
+        var monedaSimbolo = moneda == "USD" ? "U$S" : "$";
+        var medioTexto = abono.Medio switch
+        {
+            MedioPago.Efectivo => "Efectivo",
+            MedioPago.Debito   => "Transferencia / Débito",
+            MedioPago.Credito  => "Tarjeta de crédito",
+            MedioPago.Cheque   => "Cheque",
+            _                  => abono.Medio.ToString(),
+        };
+
+        return $"""
+            <!DOCTYPE html><html><head><meta charset="utf-8"></head>
+            <body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;padding:0;">
+              <div style="background:#1e3a5f;padding:20px 24px;border-radius:8px 8px 0 0;">
+                <h1 style="color:white;margin:0;font-size:17px;">{empresa}</h1>
+              </div>
+              <div style="background:#f8f9fa;padding:24px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 8px 8px;">
+                <h2 style="color:#1e3a5f;margin:0 0 8px 0;">Transferencia realizada</h2>
+                <p>Estimado/a <strong>{propietarioNombre}</strong>,</p>
+                <p>Le informamos que se realizó una transferencia correspondiente a la liquidación de su
+                propiedad. Este servicio corresponde a:</p>
+                <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
+                  <tr style="background:#e8f0fe;"><td style="padding:10px;font-weight:bold;width:40%;">Propiedad</td><td style="padding:10px;">{propiedadDireccion}</td></tr>
+                  <tr><td style="padding:10px;font-weight:bold;">Contrato</td><td style="padding:10px;">{contratoCodigo}</td></tr>
+                  <tr style="background:#e8f0fe;"><td style="padding:10px;font-weight:bold;">Período</td><td style="padding:10px;">{periodoTexto}</td></tr>
+                  <tr><td style="padding:10px;font-weight:bold;">Cuota N°</td><td style="padding:10px;">{numeroCuota}</td></tr>
+                  <tr style="background:#e8f0fe;"><td style="padding:10px;font-weight:bold;">Monto transferido</td><td style="padding:10px;color:#2e7d32;font-weight:bold;font-size:16px;">{monedaSimbolo} {abono.Monto:N2}</td></tr>
+                  <tr><td style="padding:10px;font-weight:bold;">Fecha</td><td style="padding:10px;">{abono.Fecha:dd/MM/yyyy}</td></tr>
+                  <tr style="background:#e8f0fe;"><td style="padding:10px;font-weight:bold;">Medio</td><td style="padding:10px;">{medioTexto}</td></tr>
+                  {(!string.IsNullOrWhiteSpace(abono.EntidadDestino) ? $"""<tr><td style="padding:10px;font-weight:bold;">Entidad destino</td><td style="padding:10px;">{abono.EntidadDestino}</td></tr>""" : "")}
+                  {(!string.IsNullOrWhiteSpace(abono.CbuCvuDestino) ? $"""<tr style="background:#e8f0fe;"><td style="padding:10px;font-weight:bold;">CBU/CVU destino</td><td style="padding:10px;">{abono.CbuCvuDestino}</td></tr>""" : "")}
+                  {(!string.IsNullOrWhiteSpace(abono.NumeroOperacion) ? $"""<tr><td style="padding:10px;font-weight:bold;">N° de operación</td><td style="padding:10px;">{abono.NumeroOperacion}</td></tr>""" : "")}
+                  {(!string.IsNullOrWhiteSpace(abono.Observaciones) ? $"""<tr style="background:#e8f0fe;"><td style="padding:10px;font-weight:bold;">Observaciones</td><td style="padding:10px;">{abono.Observaciones}</td></tr>""" : "")}
+                </table>
+                <hr style="border:none;border-top:1px solid #e0e0e0;margin:20px 0;">
+                <p style="color:#666;font-size:12px;">Este mensaje fue enviado automáticamente por {empresa}.</p>
+              </div>
+            </body></html>
+            """;
+    }
+
+    private static string? ValidarAbono(Liquidacion liquidacion, AbonoLiquidacionRequest request, int? abonoIdAEditar)
+    {
+        if (request.Monto <= 0)
+            return "El monto del abono debe ser mayor a cero.";
+
+        var sumaOtrosAbonos = liquidacion.Abonos
+            .Where(a => a.Activo && a.Id != abonoIdAEditar)
+            .Sum(a => a.Monto);
+        var restante = liquidacion.MontoALiquidar - sumaOtrosAbonos;
+
+        if (request.Monto > restante)
+            return $"El monto supera lo que falta liquidar (quedan {restante:N2}).";
+
+        return null;
+    }
+
+    private static LiquidacionDto MapToDto(Liquidacion l)
+    {
+        var abonosActivos = l.Abonos.Where(a => a.Activo).ToList();
+        var montoAbonado = abonosActivos.Sum(a => a.Monto);
+
+        return new LiquidacionDto
+        {
+            Id = l.Id,
+            PagoId = l.PagoId,
+            ContratoId = l.Pago.ContratoId,
+            ContratoCodigo = l.Pago.Contrato.Codigo,
+            PropiedadDireccion = l.Pago.Contrato.Propiedad.Direccion,
+            PropietarioRefId = l.Pago.Contrato.PropietarioRefId,
+            PropietarioNombre = l.Pago.Contrato.LocadorNombre,
+            PropietarioApellido = l.Pago.Contrato.LocadorApellido,
+            NumeroCuota = l.Pago.NumeroCuota,
+            Periodo = l.Pago.Periodo,
+            Moneda = l.Pago.Contrato.Moneda.ToString(),
+            MontoCobrado = l.MontoCobrado,
+            ComisionPorcentaje = l.ComisionPorcentaje,
+            ComisionMonto = l.ComisionMonto,
+            MontoComision = l.MontoComision,
+            MontoALiquidar = l.MontoALiquidar,
+            MontoAbonado = montoAbonado,
+            MontoRestante = l.MontoALiquidar - montoAbonado,
+            Estado = l.Estado.ToString(),
+            FechaLiquidacion = l.FechaLiquidacion,
+            Observaciones = l.Observaciones,
+            FechaCreacion = l.FechaCreacion,
+            Abonos = abonosActivos.Select(a => new LiquidacionAbonoDto
+            {
+                Id = a.Id,
+                Monto = a.Monto,
+                Fecha = a.Fecha,
+                Medio = a.Medio.ToString(),
+                CbuCvuDestino = a.CbuCvuDestino,
+                EntidadDestino = a.EntidadDestino,
+                NumeroOperacion = a.NumeroOperacion,
+                Observaciones = a.Observaciones,
+            }).OrderByDescending(a => a.Fecha).ToList(),
+        };
+    }
 }

@@ -87,6 +87,7 @@ builder.Services.AddScoped<IStorageService, LocalStorageService>();
 builder.Services.AddScoped<IPdfReportService, QuestPdfReportService>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<INotificacionService, NotificacionService>();
+builder.Services.AddHostedService<RecordatorioVencimientoService>();
 builder.Services.AddScoped<ITenantService, TenantService>();
 
 builder.Services.AddHttpContextAccessor();

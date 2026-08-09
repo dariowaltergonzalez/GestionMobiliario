@@ -165,6 +165,12 @@ public class Pago : IAuditable
     public EstadoPago Estado { get; set; } = EstadoPago.Pendiente;
     public string? Observaciones { get; set; }
 
+    // Control de recordatorios de vencimiento (RecordatorioVencimientoService) — evita reenviar el
+    // mismo aviso si el chequeo diario corre más de una vez, y evita perderlo si el server estuvo
+    // caído justo el día exacto.
+    public bool AvisoVencimiento7DiasEnviado { get; set; }
+    public bool AvisoVencimiento1DiaEnviado { get; set; }
+
     public bool Activo { get; set; } = true;
     public DateTime FechaCreacion { get; set; }
     public DateTime FechaActualizacion { get; set; }
@@ -214,12 +220,15 @@ public enum EstadoLiquidacion
 {
     Pendiente = 1,
     Liquidado = 2,
+    Parcial = 3,
 }
 
 /// <summary>
 /// Lo que le corresponde transferir al propietario por un Pago cobrado, descontando la
 /// comisión de administración del contrato (Contrato.ComisionLocadorPorcentaje/Monto).
-/// Se genera automáticamente al marcar un Pago como Pagado — ver PagosController.
+/// Se genera automáticamente al marcar un Pago como Pagado — ver PagosController. El Estado y
+/// FechaLiquidacion se recalculan a partir de la suma de los Abonos (ver LiquidacionAbono) —
+/// no se setean a mano.
 /// </summary>
 public class Liquidacion : IAuditable
 {
@@ -236,6 +245,33 @@ public class Liquidacion : IAuditable
 
     public EstadoLiquidacion Estado { get; set; } = EstadoLiquidacion.Pendiente;
     public DateTime? FechaLiquidacion { get; set; }
+    public string? Observaciones { get; set; }
+
+    public bool Activo { get; set; } = true;
+    public DateTime FechaCreacion { get; set; }
+    public DateTime FechaActualizacion { get; set; }
+    public int TenantId { get; set; }
+
+    public List<LiquidacionAbono> Abonos { get; set; } = [];
+}
+
+/// <summary>
+/// Una transferencia parcial (o total) contra una Liquidacion. Puede haber varias por Liquidacion
+/// para cubrir el caso de pagarle al propietario en partes.
+/// </summary>
+public class LiquidacionAbono : IAuditable
+{
+    public int Id { get; set; }
+
+    public int LiquidacionId { get; set; }
+    public Liquidacion Liquidacion { get; set; } = null!;
+
+    public decimal Monto { get; set; }
+    public DateTime Fecha { get; set; }
+    public MedioPago Medio { get; set; }
+    public string? CbuCvuDestino { get; set; }
+    public string? EntidadDestino { get; set; }
+    public string? NumeroOperacion { get; set; }
     public string? Observaciones { get; set; }
 
     public bool Activo { get; set; } = true;

@@ -17,6 +17,7 @@ public class LiquidacionRepository : ILiquidacionRepository
         .Include(l => l.Pago)
             .ThenInclude(p => p.Contrato)
                 .ThenInclude(c => c.Propiedad)
+        .Include(l => l.Abonos.Where(a => a.Activo).OrderByDescending(a => a.Fecha))
         .AsQueryable();
 
     public async Task<PagedResult<Liquidacion>> GetPagedAsync(
@@ -57,17 +58,110 @@ public class LiquidacionRepository : ILiquidacionRepository
         return liquidacion;
     }
 
-    public async Task<Liquidacion?> MarcarLiquidadaAsync(int id, DateTime fecha, string? observaciones)
+    public async Task<bool> EliminarAsync(int id)
     {
         var liquidacion = await _context.Liquidaciones.FirstOrDefaultAsync(l => l.Id == id);
+        if (liquidacion is null) return false;
+
+        var tieneAbonos = await _context.LiquidacionAbonos.AnyAsync(a => a.LiquidacionId == id && a.Activo);
+        if (tieneAbonos) return false;
+
+        liquidacion.Activo = false;
+        liquidacion.FechaActualizacion = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<Liquidacion?> AgregarAbonoAsync(int liquidacionId, LiquidacionAbono abono)
+    {
+        var liquidacion = await _context.Liquidaciones.FirstOrDefaultAsync(l => l.Id == liquidacionId);
         if (liquidacion is null) return null;
 
-        liquidacion.Estado = EstadoLiquidacion.Liquidado;
-        liquidacion.FechaLiquidacion = fecha;
-        liquidacion.Observaciones = observaciones;
-        liquidacion.FechaActualizacion = DateTime.UtcNow;
+        abono.LiquidacionId = liquidacionId;
+        abono.FechaCreacion = DateTime.UtcNow;
+        abono.FechaActualizacion = DateTime.UtcNow;
+        abono.TenantId = liquidacion.TenantId;
+        _context.LiquidacionAbonos.Add(abono);
 
+        await AplicarEstadoAsync(liquidacion, liquidacionId, excluirAbonoId: null, montoIncluido: abono.Monto, fechaIncluida: abono.Fecha);
         await _context.SaveChangesAsync();
-        return liquidacion;
+        return await GetByIdAsync(liquidacionId);
+    }
+
+    public async Task<Liquidacion?> ActualizarAbonoAsync(int liquidacionId, int abonoId, LiquidacionAbono datos)
+    {
+        var liquidacion = await _context.Liquidaciones.FirstOrDefaultAsync(l => l.Id == liquidacionId);
+        var abono = await _context.LiquidacionAbonos
+            .FirstOrDefaultAsync(a => a.Id == abonoId && a.LiquidacionId == liquidacionId && a.Activo);
+        if (liquidacion is null || abono is null) return null;
+
+        abono.Monto = datos.Monto;
+        abono.Fecha = datos.Fecha;
+        abono.Medio = datos.Medio;
+        abono.CbuCvuDestino = datos.CbuCvuDestino;
+        abono.EntidadDestino = datos.EntidadDestino;
+        abono.NumeroOperacion = datos.NumeroOperacion;
+        abono.Observaciones = datos.Observaciones;
+        abono.FechaActualizacion = DateTime.UtcNow;
+
+        await AplicarEstadoAsync(liquidacion, liquidacionId, excluirAbonoId: abonoId, montoIncluido: datos.Monto, fechaIncluida: datos.Fecha);
+        await _context.SaveChangesAsync();
+        return await GetByIdAsync(liquidacionId);
+    }
+
+    public async Task<Liquidacion?> EliminarAbonoAsync(int liquidacionId, int abonoId)
+    {
+        var liquidacion = await _context.Liquidaciones.FirstOrDefaultAsync(l => l.Id == liquidacionId);
+        var abono = await _context.LiquidacionAbonos
+            .FirstOrDefaultAsync(a => a.Id == abonoId && a.LiquidacionId == liquidacionId && a.Activo);
+        if (liquidacion is null || abono is null) return null;
+
+        abono.Activo = false;
+        abono.FechaActualizacion = DateTime.UtcNow;
+
+        await AplicarEstadoAsync(liquidacion, liquidacionId, excluirAbonoId: abonoId, montoIncluido: 0, fechaIncluida: null);
+        await _context.SaveChangesAsync();
+        return await GetByIdAsync(liquidacionId);
+    }
+
+    /// <summary>
+    /// Recalcula Estado/FechaLiquidacion consultando directo contra LiquidacionAbonos (no contra una
+    /// colección ya cargada por Include), para no depender de que el filtro global de "solo activos"
+    /// se propague correctamente a través de la navegación. <paramref name="excluirAbonoId"/> saca de
+    /// la suma al abono que se está por agregar/editar/borrar; <paramref name="montoIncluido"/> y
+    /// <paramref name="fechaIncluida"/> son su valor nuevo (0/null si se está eliminando).
+    /// </summary>
+    private async Task AplicarEstadoAsync(
+        Liquidacion liquidacion, int liquidacionId, int? excluirAbonoId, decimal montoIncluido, DateTime? fechaIncluida)
+    {
+        var otros = _context.LiquidacionAbonos.Where(a => a.LiquidacionId == liquidacionId && a.Activo);
+        if (excluirAbonoId.HasValue)
+            otros = otros.Where(a => a.Id != excluirAbonoId.Value);
+
+        var sumaOtros = await otros.SumAsync(a => (decimal?)a.Monto) ?? 0;
+        var fechaMaxOtros = await otros.MaxAsync(a => (DateTime?)a.Fecha);
+
+        var sumaTotal = sumaOtros + montoIncluido;
+        var fechaMax = fechaIncluida.HasValue && (!fechaMaxOtros.HasValue || fechaIncluida.Value > fechaMaxOtros.Value)
+            ? fechaIncluida.Value
+            : fechaMaxOtros;
+
+        if (sumaTotal <= 0)
+        {
+            liquidacion.Estado = EstadoLiquidacion.Pendiente;
+            liquidacion.FechaLiquidacion = null;
+        }
+        else if (sumaTotal >= liquidacion.MontoALiquidar)
+        {
+            liquidacion.Estado = EstadoLiquidacion.Liquidado;
+            liquidacion.FechaLiquidacion = fechaMax;
+        }
+        else
+        {
+            liquidacion.Estado = EstadoLiquidacion.Parcial;
+            liquidacion.FechaLiquidacion = null;
+        }
+
+        liquidacion.FechaActualizacion = DateTime.UtcNow;
     }
 }

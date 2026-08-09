@@ -1,6 +1,17 @@
 import client from './client'
 import type { ApiResponse, PagedResult } from '../types/api'
 
+export interface LiquidacionAbonoDto {
+  id: number
+  monto: number
+  fecha: string
+  medio: string
+  cbuCvuDestino: string | null
+  entidadDestino: string | null
+  numeroOperacion: string | null
+  observaciones: string | null
+}
+
 export interface LiquidacionDto {
   id: number
   pagoId: number
@@ -18,10 +29,13 @@ export interface LiquidacionDto {
   comisionMonto: number | null
   montoComision: number
   montoALiquidar: number
+  montoAbonado: number
+  montoRestante: number
   estado: string
   fechaLiquidacion: string | null
   observaciones: string | null
   fechaCreacion: string
+  abonos: LiquidacionAbonoDto[]
 }
 
 export interface LiquidacionMetricasDto {
@@ -56,10 +70,45 @@ export const getLiquidacionMetricas = async () => {
   return res.data
 }
 
-export const marcarLiquidada = async (id: number, observaciones?: string) => {
-  const res = await client.put<ApiResponse<LiquidacionDto>>(`/api/liquidaciones/${id}/liquidar`, {
-    fecha: new Date().toISOString(),
-    observaciones: observaciones || undefined,
-  })
+export const eliminarLiquidacion = async (id: number) => {
+  const res = await client.delete<ApiResponse<string>>(`/api/liquidaciones/${id}`)
+  return res.data
+}
+
+export interface AbonoFormData {
+  monto: number
+  fecha?: string
+  medio: number
+  cbuCvuDestino?: string
+  entidadDestino?: string
+  numeroOperacion?: string
+  observaciones?: string
+}
+
+const toAbonoPayload = (datos: AbonoFormData) => ({
+  monto: datos.monto,
+  fecha: datos.fecha || new Date().toISOString(),
+  medio: datos.medio,
+  cbuCvuDestino: datos.cbuCvuDestino || undefined,
+  entidadDestino: datos.entidadDestino || undefined,
+  numeroOperacion: datos.numeroOperacion || undefined,
+  observaciones: datos.observaciones || undefined,
+})
+
+export const agregarAbono = async (liquidacionId: number, datos: AbonoFormData) => {
+  const res = await client.post<ApiResponse<LiquidacionDto>>(
+    `/api/liquidaciones/${liquidacionId}/abonos`, toAbonoPayload(datos))
+  return res.data
+}
+
+export const editarAbono = async (liquidacionId: number, abonoId: number, datos: AbonoFormData) => {
+  const res = await client.put<ApiResponse<LiquidacionDto>>(
+    `/api/liquidaciones/${liquidacionId}/abonos/${abonoId}`, toAbonoPayload(datos))
+  return res.data
+}
+
+export const eliminarAbono = async (liquidacionId: number, abonoId: number) => {
+  const res = await client.delete<ApiResponse<LiquidacionDto>>(
+    `/api/liquidaciones/${liquidacionId}/abonos/${abonoId}`)
   return res.data
 }
