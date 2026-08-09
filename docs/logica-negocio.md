@@ -236,3 +236,32 @@ sacando a medida que se resuelve, como el resto del documento.
   con un servicio de IA externo (API key, costo por imagen), y el prompt de extracción. Depende de
   que existan los campos estructurados (`Medio`, `CbuCvuDestino`, `EntidadDestino`,
   `NumeroOperacion`) — ya están, así que esto queda listo para atacar cuando se priorice.
+
+### Ideas sacadas de investigar la competencia (Barreeo, 2026-08-09)
+
+Barreeo es un competidor enfocado 100% en administración de alquileres (no cubre venta, tasaciones,
+leads, agentes como nosotros). Se revisó su sitio para comparar funcionalidades. Prioridad acordada
+con el usuario:
+
+- [ ] **Portal de autoservicio para Inquilino y Propietario** (prioridad alta). Hoy el sistema es
+  100% panel interno (Admin/Operador/Agente) — no hay ninguna vista liviana pública/semi-pública
+  donde el inquilino vea su estado de cuenta (cuánto debe, histórico de pagos, próximo vencimiento)
+  o el propietario vea sus liquidaciones, sin loguearse al dashboard completo. Falta definir
+  mecanismo de acceso (¿link mágico por email? ¿usuario/contraseña liviano?).
+- [ ] **Punitorios automáticos por mora** (prioridad alta, diseño ya charlado). Campo nuevo en
+  `Contrato` (ej. `PunitorioPorcentaje`/`PunitorioMonto`, mismo patrón Porcentaje-o-Monto que ya usan
+  `ComisionLocador`/`ComisionLocatario`). Si está cargado y una cuota Pendiente pasa su fecha de
+  vencimiento, se calcula un recargo día a día. A definir: ¿el cálculo es en vivo (se computa al
+  mostrar/cobrar la cuota, sin guardar nada) o necesita un proceso diario tipo
+  `RecordatorioVencimientoService` que vaya actualizando un monto acumulado? ¿Interés simple
+  (lineal por día) o compuesto?
+- [ ] **Gestión de Gastos** (prioridad alta). No existe ninguna entidad `Gasto` hoy. Barreeo permite
+  cargar gastos mensuales o puntuales (reparaciones, impuestos, expensas), categorizarlos, y elegir
+  si se le muestran o no al inquilino. Se conecta directo con `Liquidacion` — hoy la Liquidación solo
+  descuenta la comisión de administración, no gastos reales de la propiedad.
+- [ ] Ajuste automático de cuotas contra un índice real (IPC/ICL) — hoy `TipoAjuste.IndiceICL` existe
+  como opción en el enum pero no está claro si hay algún cálculo real conectado (a verificar). Queda
+  para más adelante.
+- [ ] WhatsApp como canal de notificación (hoy solo email). Para más adelante.
+- [ ] Integración de facturación electrónica (ARCA/ex-AFIP). Para más adelante, alcance grande y
+  específico de Argentina.
