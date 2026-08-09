@@ -220,6 +220,12 @@ una cabecera con el total, varios "detalles" reales que se van cargando por sepa
 Lista única de lo que falta, para no depender de la memoria de sesión a sesión. Se va tachando o
 sacando a medida que se resuelve, como el resto del documento.
 
+- [ ] **Probar `AvisoVencimientoProximo` en la práctica** (implementado 2026-08-08, sin probar
+  todavía). Difícil de replicar rápido porque depende de fechas de vencimiento reales — el chequeo
+  corre una vez por día, así que verificar el circuito completo (7 días antes, 1 día antes, nada si
+  ya venció) lleva varios días de prueba real, no algo que se pueda apurar con un botón. Para
+  probarlo hace falta un contrato con `DiaVencimientoPago` cargado y una cuota Pendiente cuyo
+  vencimiento caiga justo en alguna de esas ventanas.
 - [ ] **Autocompletar los datos de la transferencia de una Liquidación a partir de una foto/captura
   del comprobante** (ej: comprobante de Mercado Pago o de un banco). No es viable con OCR tradicional
   porque cada entidad tiene un diseño de comprobante distinto — la vía realista es mandarle la imagen
