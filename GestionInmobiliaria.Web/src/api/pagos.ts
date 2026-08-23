@@ -22,6 +22,13 @@ export interface PagoListDto {
   detalles: PagoDetalleDto[]
   fechaCreacion: string
   fechaActualizacion: string
+  montoPunitorio: number
+  diasAtraso: number
+  tasaPunitorioUsada: string | null
+  montoPunitorioCobrado: number | null
+  diasAtrasoPunitorioCobrado: number | null
+  fechaVencimientoPunitorioCobrado: string | null
+  detallePunitorioCobrado: string | null
 }
 
 export type { UpdatePagoRequest }

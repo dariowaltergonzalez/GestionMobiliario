@@ -312,6 +312,7 @@ public class LiquidacionesController : ControllerBase
             ComisionPorcentaje = l.ComisionPorcentaje,
             ComisionMonto = l.ComisionMonto,
             MontoComision = l.MontoComision,
+            MontoGastos = l.MontoGastos,
             MontoALiquidar = l.MontoALiquidar,
             MontoAbonado = montoAbonado,
             MontoRestante = l.MontoALiquidar - montoAbonado,
@@ -330,6 +331,13 @@ public class LiquidacionesController : ControllerBase
                 NumeroOperacion = a.NumeroOperacion,
                 Observaciones = a.Observaciones,
             }).OrderByDescending(a => a.Fecha).ToList(),
+            Gastos = l.Gastos.Select(g => new LiquidacionGastoDto
+            {
+                Id = g.Id,
+                Categoria = g.Categoria.ToString(),
+                Descripcion = g.Descripcion,
+                Monto = g.Monto,
+            }).ToList(),
         };
     }
 }

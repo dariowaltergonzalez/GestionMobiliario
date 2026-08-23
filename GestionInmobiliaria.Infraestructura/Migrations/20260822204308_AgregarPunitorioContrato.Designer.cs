@@ -4,6 +4,7 @@ using GestionInmobiliaria.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GestionInmobiliaria.Infraestructura.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260822204308_AgregarPunitorioContrato")]
+    partial class AgregarPunitorioContrato
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -760,11 +763,6 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
 
                     b.Property<int?>("AgenteId")
                         .HasColumnType("int");
-
-                    b.Property<bool>("AplicaPunitorios")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
 
                     b.Property<string>("ArchivoUrl")
                         .HasMaxLength(500)
@@ -1525,13 +1523,6 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                     b.Property<int>("ContratoId")
                         .HasColumnType("int");
 
-                    b.Property<string>("DetallePunitorioCobrado")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int?>("DiasAtrasoPunitorioCobrado")
-                        .HasColumnType("int");
-
                     b.Property<int>("Estado")
                         .HasColumnType("int");
 
@@ -1544,16 +1535,10 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                     b.Property<DateTime?>("FechaPago")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime?>("FechaVencimientoPunitorioCobrado")
-                        .HasColumnType("datetime2");
-
                     b.Property<decimal>("MontoEsperado")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal?>("MontoPagado")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal?>("MontoPunitorioCobrado")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("NumeroCuota")

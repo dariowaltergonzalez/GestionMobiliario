@@ -80,6 +80,7 @@ builder.Services.AddScoped<IReservaRepository, ReservaRepository>();
 builder.Services.AddScoped<IContratoRepository, ContratoRepository>();
 builder.Services.AddScoped<IPagoRepository, PagoRepository>();
 builder.Services.AddScoped<ILiquidacionRepository, LiquidacionRepository>();
+builder.Services.AddScoped<IGastoRepository, GastoRepository>();
 builder.Services.AddScoped<IClausulaContratoRepository, ClausulaContratoRepository>();
 builder.Services.AddScoped<IAppLogRepository, AppLogRepository>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
@@ -89,6 +90,10 @@ builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<INotificacionService, NotificacionService>();
 builder.Services.AddHostedService<RecordatorioVencimientoService>();
 builder.Services.AddScoped<ITenantService, TenantService>();
+builder.Services.AddHttpClient("Bcra", c => c.BaseAddress = new Uri("https://api.bcra.gob.ar/"));
+builder.Services.AddScoped<ITasaMoratoriaService, TasaMoratoriaService>();
+builder.Services.AddHostedService<TasaMoratoriaSchedulerService>();
+builder.Services.AddScoped<IPunitorioService, PunitorioService>();
 
 builder.Services.AddHttpContextAccessor();
 

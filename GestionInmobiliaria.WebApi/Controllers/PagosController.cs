@@ -19,6 +19,7 @@ public class PagosController : ControllerBase
     private readonly IPagoRepository _pagos;
     private readonly IPdfReportService _pdf;
     private readonly ILiquidacionRepository _liquidaciones;
+    private readonly IPunitorioService _punitorio;
     private readonly ApplicationDbContext _context;
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<PagosController> _logger;
@@ -28,6 +29,7 @@ public class PagosController : ControllerBase
         IPagoRepository pagos,
         IPdfReportService pdf,
         ILiquidacionRepository liquidaciones,
+        IPunitorioService punitorio,
         ApplicationDbContext context,
         IWebHostEnvironment env,
         ILogger<PagosController> logger,
@@ -36,6 +38,7 @@ public class PagosController : ControllerBase
         _pagos = pagos;
         _pdf = pdf;
         _liquidaciones = liquidaciones;
+        _punitorio = punitorio;
         _context = context;
         _env = env;
         _logger = logger;
@@ -52,9 +55,19 @@ public class PagosController : ControllerBase
         [FromQuery] string? buscar)
     {
         var resultado = await _pagos.GetPagedAsync(paginacion, contratoId, estado, mes, anio, buscar);
+        var items = new List<PagoListDto>();
+        foreach (var pago in resultado.Items)
+        {
+            var dto = MapToListDto(pago);
+            var punitorio = await _punitorio.CalcularAsync(pago);
+            dto.MontoPunitorio = punitorio.Monto;
+            dto.DiasAtraso = punitorio.DiasAtraso;
+            dto.TasaPunitorioUsada = punitorio.TasaUsada;
+            items.Add(dto);
+        }
         var paginado = new PagedResult<PagoListDto>
         {
-            Items = resultado.Items.Select(MapToListDto).ToList(),
+            Items = items,
             Pagina = resultado.Pagina,
             Tamano = resultado.Tamano,
             TotalRegistros = resultado.TotalRegistros,
@@ -102,6 +115,21 @@ public class PagosController : ControllerBase
         var pago = await _pagos.GetByIdConContratoAsync(pagoId);
         if (pago is null || pago.ContratoId != contratoId)
             return NotFound(ApiResponse<PagoDto>.Fail("Pago no encontrado."));
+
+        // Se calcula ANTES de tocar pago.Estado: CalcularAsync solo da un resultado > 0 si la cuota
+        // todavía está Pendiente/Atrasado (ver PunitorioService). Se recalcula acá server-side en vez
+        // de confiar en un monto que mande el cliente — es plata, nunca se toma un número de afuera.
+        if (request.CobrarPunitorio && (EstadoPago)request.Estado == EstadoPago.Pagado)
+        {
+            var punitorio = await _punitorio.CalcularAsync(pago);
+            if (punitorio.Monto > 0)
+            {
+                pago.MontoPunitorioCobrado = punitorio.Monto;
+                pago.DiasAtrasoPunitorioCobrado = punitorio.DiasAtraso;
+                pago.FechaVencimientoPunitorioCobrado = VencimientoCalculator.Calcular(pago.Periodo, pago.Contrato!.DiaVencimientoPago);
+                pago.DetallePunitorioCobrado = punitorio.TasaUsada;
+            }
+        }
 
         pago.Estado        = (EstadoPago)request.Estado;
         pago.FechaPago     = request.FechaPago;
@@ -206,23 +234,47 @@ public class PagosController : ControllerBase
         var montoCobrado = pago.MontoPagado ?? pago.MontoEsperado;
         var montoComision = contrato.ComisionLocadorMonto
             ?? Math.Round(montoCobrado * (contrato.ComisionLocadorPorcentaje!.Value / 100), 2);
-        var montoALiquidar = montoCobrado - montoComision;
 
-        await _liquidaciones.CreateAsync(new Liquidacion
+        var gastosPendientes = await _context.Gastos
+            .Where(g => g.Activo
+                && g.PropiedadId == contrato.PropiedadId
+                && g.Responsable == ResponsableGasto.Propietario
+                && g.Estado == EstadoGasto.Pendiente)
+            .ToListAsync();
+        var montoGastos = gastosPendientes.Sum(g => g.Monto);
+
+        var montoALiquidar = montoCobrado - montoComision - montoGastos;
+
+        var liquidacion = new Liquidacion
         {
             PagoId = pago.Id,
             MontoCobrado = montoCobrado,
             ComisionPorcentaje = contrato.ComisionLocadorPorcentaje,
             ComisionMonto = contrato.ComisionLocadorMonto,
             MontoComision = montoComision,
+            MontoGastos = montoGastos,
             MontoALiquidar = montoALiquidar,
             Estado = EstadoLiquidacion.Pendiente,
             TenantId = pago.TenantId,
-        });
+        };
+        await _liquidaciones.CreateAsync(liquidacion);
+
+        if (gastosPendientes.Count > 0)
+        {
+            var ahora = DateTime.UtcNow;
+            foreach (var gasto in gastosPendientes)
+            {
+                gasto.Estado = EstadoGasto.Resuelto;
+                gasto.FechaResolucion = ahora;
+                gasto.LiquidacionId = liquidacion.Id;
+                gasto.FechaActualizacion = ahora;
+            }
+            await _context.SaveChangesAsync();
+        }
 
         _logger.LogInformation(
-            "Liquidación generada. PagoId={PagoId} Contrato={Contrato} MontoCobrado={MontoCobrado} Comision={Comision} MontoALiquidar={MontoALiquidar}",
-            pago.Id, contrato.Codigo, montoCobrado, montoComision, montoALiquidar);
+            "Liquidación generada. PagoId={PagoId} Contrato={Contrato} MontoCobrado={MontoCobrado} Comision={Comision} Gastos={Gastos} MontoALiquidar={MontoALiquidar}",
+            pago.Id, contrato.Codigo, montoCobrado, montoComision, montoGastos, montoALiquidar);
     }
 
     [HttpGet("{contratoId}/pagos/{pagoId}/recibo")]
@@ -327,6 +379,10 @@ public class PagosController : ControllerBase
                   <tr><td style="padding:10px;font-weight:bold;">Inquilino/a</td><td style="padding:10px;">{c.LocatarioNombre} {c.LocatarioApellido}</td></tr>
                   <tr style="background:#e8f0fe;"><td style="padding:10px;font-weight:bold;">Período</td><td style="padding:10px;">{periodo}</td></tr>
                   <tr><td style="padding:10px;font-weight:bold;">Cuota N°</td><td style="padding:10px;">{p.NumeroCuota}</td></tr>
+                  {(p.MontoPunitorioCobrado is { } montoPunitorio ? $"""
+                  <tr><td style="padding:10px;font-weight:bold;">Cuota</td><td style="padding:10px;">$ {p.MontoEsperado:N2}</td></tr>
+                  <tr style="background:#e8f0fe;"><td style="padding:10px;font-weight:bold;color:#c62828;">Punitorio ({p.DiasAtrasoPunitorioCobrado} días de atraso)</td><td style="padding:10px;color:#c62828;">$ {montoPunitorio:N2}</td></tr>
+                  """ : "")}
                   <tr style="background:#e8f0fe;"><td style="padding:10px;font-weight:bold;">Monto abonado</td><td style="padding:10px;color:#2e7d32;font-weight:bold;font-size:16px;">{monto}</td></tr>
                   <tr><td style="padding:10px;font-weight:bold;">Fecha de pago</td><td style="padding:10px;">{fechaPago}</td></tr>
                 </table>
@@ -384,6 +440,10 @@ public class PagosController : ControllerBase
         }).ToList(),
         FechaCreacion      = p.FechaCreacion,
         FechaActualizacion = p.FechaActualizacion,
+        MontoPunitorioCobrado = p.MontoPunitorioCobrado,
+        DiasAtrasoPunitorioCobrado = p.DiasAtrasoPunitorioCobrado,
+        FechaVencimientoPunitorioCobrado = p.FechaVencimientoPunitorioCobrado,
+        DetallePunitorioCobrado = p.DetallePunitorioCobrado,
     };
 
     private static PagoDto MapPagoDto(Pago p) => new()
@@ -409,6 +469,10 @@ public class PagosController : ControllerBase
         }).ToList(),
         FechaCreacion      = p.FechaCreacion,
         FechaActualizacion = p.FechaActualizacion,
+        MontoPunitorioCobrado = p.MontoPunitorioCobrado,
+        DiasAtrasoPunitorioCobrado = p.DiasAtrasoPunitorioCobrado,
+        FechaVencimientoPunitorioCobrado = p.FechaVencimientoPunitorioCobrado,
+        DetallePunitorioCobrado = p.DetallePunitorioCobrado,
     };
 
     private static ContratoDto MapContratoDto(Contrato c) => new()

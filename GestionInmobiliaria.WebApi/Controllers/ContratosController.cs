@@ -20,6 +20,7 @@ public class ContratosController : ControllerBase
     private readonly IPagoRepository _pagos;
     private readonly IClausulaContratoRepository _clausulas;
     private readonly IPdfReportService _pdf;
+    private readonly IPunitorioService _punitorio;
     private readonly ApplicationDbContext _context;
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<ContratosController> _logger;
@@ -30,6 +31,7 @@ public class ContratosController : ControllerBase
         IPagoRepository pagos,
         IClausulaContratoRepository clausulas,
         IPdfReportService pdf,
+        IPunitorioService punitorio,
         ApplicationDbContext context,
         IWebHostEnvironment env,
         ILogger<ContratosController> logger,
@@ -39,6 +41,7 @@ public class ContratosController : ControllerBase
         _pagos = pagos;
         _clausulas = clausulas;
         _pdf = pdf;
+        _punitorio = punitorio;
         _context = context;
         _env = env;
         _logger = logger;
@@ -81,6 +84,15 @@ public class ContratosController : ControllerBase
     {
         var validacion = Validar(request);
         if (validacion is not null) return BadRequest(validacion);
+
+        if ((EstadoContrato)request.Estado == EstadoContrato.Vigente)
+        {
+            var yaTieneVigente = await _context.Contratos.AnyAsync(c =>
+                c.PropiedadId == request.PropiedadId && c.Estado == EstadoContrato.Vigente);
+            if (yaTieneVigente)
+                return BadRequest(ApiResponse<ContratoDto>.Fail(
+                    "Esta propiedad ya tiene un contrato Vigente. Finalizá o rescindí el anterior antes de activar uno nuevo."));
+        }
 
         var contrato = MapFromRequest(request);
         var creado = await _repo.CreateAsync(contrato);
@@ -143,6 +155,8 @@ public class ContratosController : ControllerBase
         contrato.ComisionLocatarioPorcentaje = request.ComisionLocatarioPorcentaje;
         contrato.ComisionLocatarioMonto = request.ComisionLocatarioMonto;
         contrato.AdministracionCobros = request.AdministracionCobros;
+        contrato.AplicaPunitorios = request.AplicaPunitorios;
+        contrato.PunitorioPorcentaje = request.PunitorioPorcentaje;
         contrato.FechaInicio = request.FechaInicio;
         contrato.FechaFin = request.FechaFin;
         contrato.FechaEscrituracion = request.FechaEscrituracion;
@@ -254,6 +268,27 @@ public class ContratosController : ControllerBase
             $"Ajuste aplicado: {pagosPendientes.Count} cuota(s) actualizada(s) de {montoAnterior:N2} a {montoNuevo:N2}."));
     }
 
+    // Endpoint chico y separado del Update general: AplicaPunitorios/PunitorioPorcentaje son
+    // configuración administrativa, no una condición económica del contrato — tiene que poder
+    // tocarse en cualquier estado (Update general solo permite editar en Borrador). Mismo criterio
+    // que AplicarAjuste arriba.
+    [HttpPut("{id}/punitorios")]
+    [Authorize(Roles = "Admin,Operador")]
+    public async Task<IActionResult> ActualizarPunitorios(int id, [FromBody] ActualizarPunitoriosRequest request)
+    {
+        var contrato = await _repo.GetByIdAsync(id);
+        if (contrato is null)
+            return NotFound(ApiResponse<ContratoDto>.Fail("Contrato no encontrado."));
+
+        contrato.AplicaPunitorios = request.AplicaPunitorios;
+        contrato.PunitorioPorcentaje = request.AplicaPunitorios ? request.PunitorioPorcentaje : null;
+        contrato.FechaActualizacion = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return Ok(ApiResponse<ContratoDto>.Ok(MapToDto(contrato), "Configuración de punitorios actualizada."));
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)
@@ -275,8 +310,18 @@ public class ContratosController : ControllerBase
     [HttpGet("{id}/pagos")]
     public async Task<IActionResult> GetPagos(int id)
     {
-        var pagos = await _pagos.GetByContratoAsync(id);
-        return Ok(ApiResponse<IEnumerable<PagoDto>>.Ok(pagos.Select(MapPagoToDto)));
+        var pagos = (await _pagos.GetByContratoAsync(id)).ToList();
+        var dtos = new List<PagoDto>();
+        foreach (var pago in pagos)
+        {
+            var dto = MapPagoToDto(pago);
+            var punitorio = await _punitorio.CalcularAsync(pago);
+            dto.MontoPunitorio = punitorio.Monto;
+            dto.DiasAtraso = punitorio.DiasAtraso;
+            dto.TasaPunitorioUsada = punitorio.TasaUsada;
+            dtos.Add(dto);
+        }
+        return Ok(ApiResponse<IEnumerable<PagoDto>>.Ok(dtos));
     }
 
     private async Task NotificarNuevoContratoAsync(ContratoDto contratoDto, int tenantId)
@@ -672,6 +717,8 @@ public class ContratosController : ControllerBase
         ComisionLocatarioPorcentaje = r.ComisionLocatarioPorcentaje,
         ComisionLocatarioMonto = r.ComisionLocatarioMonto,
         AdministracionCobros = r.AdministracionCobros,
+        AplicaPunitorios = r.AplicaPunitorios,
+        PunitorioPorcentaje = r.PunitorioPorcentaje,
         PorcentajeAjuste = r.PorcentajeAjuste,
         FechaInicio = r.FechaInicio,
         FechaFin = r.FechaFin,
@@ -721,6 +768,8 @@ public class ContratosController : ControllerBase
         ComisionLocatarioPorcentaje = c.ComisionLocatarioPorcentaje,
         ComisionLocatarioMonto = c.ComisionLocatarioMonto,
         AdministracionCobros = c.AdministracionCobros,
+        AplicaPunitorios = c.AplicaPunitorios,
+        PunitorioPorcentaje = c.PunitorioPorcentaje,
         PorcentajeAjuste = c.PorcentajeAjuste,
         MontoActual = c.MontoActual,
         FechaUltimoAjuste = c.FechaUltimoAjuste,
@@ -772,5 +821,9 @@ public class ContratosController : ControllerBase
         }).ToList(),
         FechaCreacion      = p.FechaCreacion,
         FechaActualizacion = p.FechaActualizacion,
+        MontoPunitorioCobrado = p.MontoPunitorioCobrado,
+        DiasAtrasoPunitorioCobrado = p.DiasAtrasoPunitorioCobrado,
+        FechaVencimientoPunitorioCobrado = p.FechaVencimientoPunitorioCobrado,
+        DetallePunitorioCobrado = p.DetallePunitorioCobrado,
     };
 }

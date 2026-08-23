@@ -99,6 +99,14 @@ public class Contrato : IAuditable
 
     public bool AdministracionCobros { get; set; } = false;
 
+    // Punitorio por mora: % fijo diario simple. Si es null/0, el cálculo cae a la tasa TIM del BCRA
+    // (ver TasaMoratoria y docs/logica-negocio.md, sección PUNITORIOS). AplicaPunitorios es el
+    // interruptor general — si está en false, no se calcula ni se muestra nada para este contrato,
+    // sin importar PunitorioPorcentaje ni DiaVencimientoPago (ese campo lo sigue usando el aviso de
+    // vencimiento próximo aunque los punitorios estén apagados, son cosas independientes).
+    public bool AplicaPunitorios { get; set; } = true;
+    public decimal? PunitorioPorcentaje { get; set; }
+
     // Ajuste de cuotas
     public decimal? PorcentajeAjuste { get; set; }
     public decimal MontoActual { get; set; }
@@ -170,6 +178,14 @@ public class Pago : IAuditable
     // caído justo el día exacto.
     public bool AvisoVencimiento7DiasEnviado { get; set; }
     public bool AvisoVencimiento1DiaEnviado { get; set; }
+
+    // Punitorio por mora efectivamente cobrado junto con esta cuota, congelado al momento de cobrar
+    // (el cálculo "en vivo" que se ve en pantalla antes de cobrar cambia día a día, esto no — ver
+    // IPunitorioService / docs/logica-negocio.md sección PUNITORIOS).
+    public decimal? MontoPunitorioCobrado { get; set; }
+    public int? DiasAtrasoPunitorioCobrado { get; set; }
+    public DateTime? FechaVencimientoPunitorioCobrado { get; set; }
+    public string? DetallePunitorioCobrado { get; set; }
 
     public bool Activo { get; set; } = true;
     public DateTime FechaCreacion { get; set; }
@@ -243,6 +259,10 @@ public class Liquidacion : IAuditable
     public decimal MontoComision { get; set; }
     public decimal MontoALiquidar { get; set; }
 
+    // Total de Gastos a cargo del Propietario descontados automáticamente al generar esta
+    // Liquidacion (ver Gasto.LiquidacionId para el detalle de cada gasto descontado).
+    public decimal MontoGastos { get; set; }
+
     public EstadoLiquidacion Estado { get; set; } = EstadoLiquidacion.Pendiente;
     public DateTime? FechaLiquidacion { get; set; }
     public string? Observaciones { get; set; }
@@ -253,6 +273,7 @@ public class Liquidacion : IAuditable
     public int TenantId { get; set; }
 
     public List<LiquidacionAbono> Abonos { get; set; } = [];
+    public List<Gasto> Gastos { get; set; } = [];
 }
 
 /// <summary>

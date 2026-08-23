@@ -18,6 +18,7 @@ public class LiquidacionRepository : ILiquidacionRepository
             .ThenInclude(p => p.Contrato)
                 .ThenInclude(c => c.Propiedad)
         .Include(l => l.Abonos.Where(a => a.Activo).OrderByDescending(a => a.Fecha))
+        .Include(l => l.Gastos)
         .AsQueryable();
 
     public async Task<PagedResult<Liquidacion>> GetPagedAsync(

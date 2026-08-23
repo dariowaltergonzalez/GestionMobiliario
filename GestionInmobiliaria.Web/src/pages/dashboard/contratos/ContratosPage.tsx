@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, ChevronUp, Banknote, FileDown, Paperclip, TrendingUp, Eye } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, ChevronUp, Banknote, FileDown, Paperclip, TrendingUp, Eye, Percent } from 'lucide-react'
 import DocumentosModal from './DocumentosModal'
 import AjusteModal from './AjusteModal'
+import PunitoriosModal from './PunitoriosModal'
 import DetalleContratoModal from './DetalleContratoModal'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
 import {
@@ -100,10 +101,18 @@ function CuotasModal({ contrato, onCerrar }: {
                     <span className="text-xs text-gray-400 truncate">{p.detalles.map(d => d.medio).join(' + ')}</span>
                   )}
                 </div>
-                <span className="text-sm font-semibold shrink-0">
+                <span className="text-sm font-semibold shrink-0 text-right">
                   {p.montoPagado != null
                     ? <span className="text-green-700">{p.montoPagado.toLocaleString('es-AR')}</span>
                     : <span className="text-gray-700">{p.montoEsperado.toLocaleString('es-AR')}</span>}
+                  {p.montoPunitorio > 0 && (
+                    <div className="text-xs text-red-500 font-medium">+{p.montoPunitorio.toLocaleString('es-AR', { maximumFractionDigits: 2 })} ({p.diasAtraso}d)</div>
+                  )}
+                  {p.montoPunitorioCobrado != null && (
+                    <div className="text-xs text-red-500 font-medium" title={p.detallePunitorioCobrado ?? ''}>
+                      +{p.montoPunitorioCobrado.toLocaleString('es-AR', { maximumFractionDigits: 2 })} punitorio ({p.diasAtrasoPunitorioCobrado}d)
+                    </div>
+                  )}
                 </span>
               </div>
             ))
@@ -169,6 +178,8 @@ function ContratoForm({ contrato, onGuardado, onCerrar }: {
     comisionLocatarioPorcentaje: contrato?.comisionLocatarioPorcentaje != null ? String(contrato.comisionLocatarioPorcentaje) : '',
     comisionLocatarioMonto: contrato?.comisionLocatarioMonto != null ? String(contrato.comisionLocatarioMonto) : '',
     administracionCobros: contrato?.administracionCobros ?? false,
+    aplicaPunitorios: contrato?.aplicaPunitorios ?? true,
+    punitorioPorcentaje: contrato?.punitorioPorcentaje != null ? String(contrato.punitorioPorcentaje) : '',
     // Vigencia
     fechaInicio: contrato ? toDateInput(contrato.fechaInicio) : hoy,
     fechaFin: contrato?.fechaFin ? toDateInput(contrato.fechaFin) : en24m,
@@ -273,6 +284,8 @@ function ContratoForm({ contrato, onGuardado, onCerrar }: {
         comisionLocatarioPorcentaje: form.comisionLocatarioPorcentaje ? Number(form.comisionLocatarioPorcentaje) : undefined,
         comisionLocatarioMonto: form.comisionLocatarioMonto ? Number(form.comisionLocatarioMonto) : undefined,
         administracionCobros: form.administracionCobros,
+        aplicaPunitorios: form.aplicaPunitorios,
+        punitorioPorcentaje: form.punitorioPorcentaje ? Number(form.punitorioPorcentaje) : undefined,
         fechaInicio: new Date(form.fechaInicio).toISOString(),
         fechaFin: form.tipo === '1' && form.fechaFin ? new Date(form.fechaFin).toISOString() : undefined,
         fechaEscrituracion: form.tipo === '2' && form.fechaEscrituracion ? new Date(form.fechaEscrituracion).toISOString() : undefined,
@@ -281,8 +294,9 @@ function ContratoForm({ contrato, onGuardado, onCerrar }: {
       if (contrato) await updateContrato(contrato.id, payload as UpdateContratoRequest)
       else await createContrato(payload)
       onGuardado()
-    } catch {
-      setError('No se pudo guardar el contrato.')
+    } catch (err: unknown) {
+      const axErr = err as { response?: { data?: { errors?: string[]; message?: string } } }
+      setError(axErr.response?.data?.errors?.[0] ?? axErr.response?.data?.message ?? 'No se pudo guardar el contrato.')
     } finally { setGuardando(false) }
   }
 
@@ -297,12 +311,24 @@ function ContratoForm({ contrato, onGuardado, onCerrar }: {
           <button onClick={onCerrar} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={e => {
+            const target = e.target as HTMLElement
+            if (e.key === 'Enter' && target.tagName !== 'TEXTAREA' && target.tagName !== 'BUTTON') {
+              e.preventDefault()
+            }
+          }}
+          className="px-6 py-4 space-y-4"
+        >
+          <p className="text-xs text-gray-400 -mt-1">
+            <span className="text-red-500 font-medium">*</span> Campos obligatorios
+          </p>
 
           {/* Tipo y Estado */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Tipo *</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Tipo <span className="text-red-500">*</span></label>
               <select value={form.tipo} onChange={e => set('tipo', e.target.value)} className={inp}>
                 <option value="1">Locación</option>
                 <option value="2">Boleto de Compraventa</option>
@@ -323,7 +349,7 @@ function ContratoForm({ contrato, onGuardado, onCerrar }: {
           {/* Propiedad y Agente */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Propiedad *</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Propiedad <span className="text-red-500">*</span></label>
               <select value={form.propiedadId} onChange={e => handlePropiedadChange(e.target.value)} className={inp}>
                 <option value="">Seleccionar...</option>
                 {propiedades.map(p => (
@@ -345,11 +371,11 @@ function ContratoForm({ contrato, onGuardado, onCerrar }: {
             <p className={sec}>Locador / Vendedor</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Nombre *</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Nombre <span className="text-red-500">*</span></label>
                 <input value={form.locadorNombre} onChange={e => set('locadorNombre', e.target.value)} className={inp} />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Apellido *</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Apellido <span className="text-red-500">*</span></label>
                 <input value={form.locadorApellido} onChange={e => set('locadorApellido', e.target.value)} className={inp} />
               </div>
               <div>
@@ -396,11 +422,11 @@ function ContratoForm({ contrato, onGuardado, onCerrar }: {
               </div>
               <div />
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Nombre *</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Nombre <span className="text-red-500">*</span></label>
                 <input value={form.locatarioNombre} onChange={e => set('locatarioNombre', e.target.value)} className={inp} />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Apellido *</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Apellido <span className="text-red-500">*</span></label>
                 <input value={form.locatarioApellido} onChange={e => set('locatarioApellido', e.target.value)} className={inp} />
               </div>
               <div>
@@ -451,7 +477,7 @@ function ContratoForm({ contrato, onGuardado, onCerrar }: {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Monto base *</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Monto base <span className="text-red-500">*</span></label>
                 <input type="number" min={0} value={form.montoBase} onChange={e => set('montoBase', e.target.value)} className={inp} placeholder="0" />
               </div>
               <div>
@@ -497,11 +523,29 @@ function ContratoForm({ contrato, onGuardado, onCerrar }: {
             </div>
           </div>
 
+          {/* Punitorio por mora */}
+          <div>
+            <p className={sec}>Punitorio por mora</p>
+            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer mb-2">
+              <input type="checkbox" checked={form.aplicaPunitorios} onChange={e => set('aplicaPunitorios', e.target.checked)} />
+              Aplicar punitorios por mora a este contrato
+            </label>
+            {form.aplicaPunitorios && (
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">% diario fijo (opcional)</label>
+                <input type="number" min={0} step={0.0001} value={form.punitorioPorcentaje} onChange={e => set('punitorioPorcentaje', e.target.value)} className={inp} placeholder="0.0000" />
+                <p className="text-xs text-gray-400 mt-1">
+                  Si lo dejás vacío, el recargo por mora se calcula con la tasa TIM del BCRA en vez de un % fijo.
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* Vigencia */}
           <div>
             <p className={sec}>Vigencia</p>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="block text-xs font-medium text-gray-600 mb-1">Fecha inicio *</label>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Fecha inicio <span className="text-red-500">*</span></label>
                 <input type="date" value={form.fechaInicio} onChange={e => set('fechaInicio', e.target.value)} className={inp} /></div>
               {form.tipo === '1' && (
                 <div><label className="block text-xs font-medium text-gray-600 mb-1">Fecha fin</label>
@@ -573,6 +617,7 @@ export default function ContratosPage() {
   const [transicionMotivo, setTransicionMotivo] = useState('')
   const [transicionando, setTransicionando] = useState(false)
   const [ajusteContrato, setAjusteContrato] = useState<ContratoDto | null>(null)
+  const [punitoriosContrato, setPunitoriosContrato] = useState<ContratoDto | null>(null)
   const [detalleContrato, setDetalleContrato] = useState<ContratoDto | null>(null)
 
   const cargar = useCallback(async () => {
@@ -613,6 +658,11 @@ export default function ContratosPage() {
     if (res.success) setAjusteContrato(res.data)
   }
 
+  const handleAbrirPunitorios = async (c: ContratoDto) => {
+    const res = await getContrato(c.id)
+    if (res.success) setPunitoriosContrato(res.data)
+  }
+
   const handleDescargarPdf = async (c: ContratoDto) => {
     try { await exportarContratoPdf(c.id, c.codigo) }
     catch { setError('No se pudo generar el PDF del contrato.') }
@@ -622,11 +672,13 @@ export default function ContratosPage() {
     setTransicionContrato(c)
     setTransicionEstadoVal('')
     setTransicionMotivo('')
+    setError('')
   }
 
   const handleConfirmarTransicion = async () => {
     if (!transicionContrato || !transicionEstadoVal) return
     setTransicionando(true)
+    setError('')
     try {
       const necesitaMotivo = ['4', '5'].includes(transicionEstadoVal)
       await transicionEstado(transicionContrato.id, {
@@ -635,7 +687,10 @@ export default function ContratosPage() {
       })
       setTransicionContrato(null)
       cargar()
-    } catch { setError('No se pudo cambiar el estado del contrato.') }
+    } catch (err: unknown) {
+      const axErr = err as { response?: { data?: { errors?: string[]; message?: string } } }
+      setError(axErr.response?.data?.errors?.[0] ?? axErr.response?.data?.message ?? 'No se pudo cambiar el estado del contrato.')
+    }
     finally { setTransicionando(false) }
   }
 
@@ -767,6 +822,13 @@ export default function ContratosPage() {
                               <TrendingUp className="w-4 h-4" />
                             </button>
                           )}
+                          <button
+                            onClick={() => handleAbrirPunitorios(c)}
+                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${c.aplicaPunitorios ? 'text-red-600 hover:bg-red-50' : 'text-gray-300 hover:bg-gray-100'}`}
+                            title={c.aplicaPunitorios ? 'Punitorios por mora: activados' : 'Punitorios por mora: desactivados'}
+                          >
+                            <Percent className="w-4 h-4" />
+                          </button>
                           {c.administracionCobros && (
                             <button onClick={() => handleVerCuotas(c)} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors cursor-pointer" title="Ver cuotas">
                               <Banknote className="w-4 h-4" />
@@ -848,6 +910,14 @@ export default function ContratosPage() {
         </div>
       )}
 
+      {punitoriosContrato && (
+        <PunitoriosModal
+          contrato={punitoriosContrato}
+          onConfirmado={() => { setPunitoriosContrato(null); cargar() }}
+          onCerrar={() => setPunitoriosContrato(null)}
+        />
+      )}
+
       {ajusteContrato && (
         <AjusteModal
           contrato={ajusteContrato}
@@ -883,15 +953,16 @@ export default function ContratosPage() {
               </div>
               {['4', '5'].includes(transicionEstadoVal) && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Motivo *</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Motivo <span className="text-red-500">*</span></label>
                   <textarea value={transicionMotivo} onChange={e => setTransicionMotivo(e.target.value)}
                     rows={3} placeholder="Describí el motivo..."
                     className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full outline-none resize-none focus:border-purple-400" />
                 </div>
               )}
             </div>
+            {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-xl mb-4">{error}</p>}
             <div className="flex gap-3">
-              <button onClick={() => setTransicionContrato(null)}
+              <button onClick={() => { setTransicionContrato(null); setError('') }}
                 className="flex-1 border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
                 Cancelar
               </button>

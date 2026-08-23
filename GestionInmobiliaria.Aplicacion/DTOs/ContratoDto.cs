@@ -52,6 +52,9 @@ public class ContratoDto
 
     public bool AdministracionCobros { get; set; }
 
+    public bool AplicaPunitorios { get; set; }
+    public decimal? PunitorioPorcentaje { get; set; }
+
     public decimal? PorcentajeAjuste { get; set; }
     public decimal MontoActual { get; set; }
     public DateTime? FechaUltimoAjuste { get; set; }
@@ -110,6 +113,17 @@ public class PagoDto
     public List<PagoDetalleDto> Detalles { get; set; } = new();
     public DateTime FechaCreacion { get; set; }
     public DateTime FechaActualizacion { get; set; }
+
+    // Calculado en vivo, no se persiste (ver IPunitorioService / docs/logica-negocio.md sección PUNITORIOS)
+    public decimal MontoPunitorio { get; set; }
+    public int DiasAtraso { get; set; }
+    public string? TasaPunitorioUsada { get; set; }
+
+    // Congelado al momento de cobrar (solo tiene valor si se cobró el punitorio junto con la cuota)
+    public decimal? MontoPunitorioCobrado { get; set; }
+    public int? DiasAtrasoPunitorioCobrado { get; set; }
+    public DateTime? FechaVencimientoPunitorioCobrado { get; set; }
+    public string? DetallePunitorioCobrado { get; set; }
 }
 
 public class CreateContratoRequest
@@ -156,6 +170,9 @@ public class CreateContratoRequest
 
     public bool AdministracionCobros { get; set; } = false;
 
+    public bool AplicaPunitorios { get; set; } = true;
+    public decimal? PunitorioPorcentaje { get; set; }
+
     public decimal? PorcentajeAjuste { get; set; }
 
     public DateTime FechaInicio { get; set; }
@@ -180,6 +197,7 @@ public class UpdatePagoRequest
     public DateTime? FechaPago { get; set; }
     public string? Observaciones { get; set; }
     public List<PagoDetalleRequest> Detalles { get; set; } = new();
+    public bool CobrarPunitorio { get; set; }
 }
 
 public class PagoListDto : PagoDto
@@ -212,6 +230,12 @@ public class AplicarAjusteRequest
     // Positivo = aumento, negativo = baja
     public decimal Valor { get; set; }
     public string? Observaciones { get; set; }
+}
+
+public class ActualizarPunitoriosRequest
+{
+    public bool AplicaPunitorios { get; set; }
+    public decimal? PunitorioPorcentaje { get; set; }
 }
 
 public class AjusteContratoDto
