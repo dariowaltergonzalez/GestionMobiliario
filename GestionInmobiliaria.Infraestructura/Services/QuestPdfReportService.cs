@@ -868,6 +868,16 @@ public class QuestPdfReportService : IPdfReportService
 
             col.Item().PaddingTop(8).LineHorizontal(0.5f).LineColor(Colors.Grey.Lighten1);
 
+            // Desglose cuota + punitorio, si corresponde
+            if (pago.MontoPunitorioCobrado is { } montoPunitorio)
+            {
+                col.Item().PaddingTop(8).Column(datos =>
+                {
+                    FilaRecibo(datos, "Cuota", $"{moneda} {pago.MontoEsperado:N2}");
+                    FilaRecibo(datos, $"Punitorio ({pago.DiasAtrasoPunitorioCobrado} días de atraso)", $"{moneda} {montoPunitorio:N2}");
+                });
+            }
+
             // Monto destacado
             col.Item().PaddingTop(10).Background("#e8f0fe").Padding(10).Row(row =>
             {

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, Search, Wallet, Pencil, Trash2, Plus, X, AlertTriangle } from 'lucide-react'
+import { Fragment, useState, useEffect, useCallback } from 'react'
+import { ChevronLeft, ChevronRight, ChevronDown, Search, Wallet, Pencil, Trash2, Plus, X, AlertTriangle } from 'lucide-react'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
 import {
   getLiquidaciones, getLiquidacionMetricas, eliminarLiquidacion,
@@ -385,6 +385,7 @@ export default function LiquidacionesPage() {
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState('')
   const [detalle, setDetalle] = useState<LiquidacionDto | null>(null)
+  const [expandidoId, setExpandidoId] = useState<number | null>(null)
 
   const cargarMetricas = useCallback(async () => {
     try {
@@ -493,6 +494,7 @@ export default function LiquidacionesPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="w-8"></th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-600">Contrato</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-600">Propietario</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-600">Período</th>
@@ -506,15 +508,30 @@ export default function LiquidacionesPage() {
               {cargando ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-gray-50">
-                    {Array.from({ length: 7 }).map((_, j) => (
+                    {Array.from({ length: 8 }).map((_, j) => (
                       <td key={j} className="px-4 py-4"><div className="h-4 bg-gray-100 rounded animate-pulse" /></td>
                     ))}
                   </tr>
                 ))
               ) : items.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-16 text-gray-400">No se encontraron liquidaciones</td></tr>
-              ) : items.map(l => (
-                <tr key={l.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                <tr><td colSpan={8} className="text-center py-16 text-gray-400">No se encontraron liquidaciones</td></tr>
+              ) : items.map(l => {
+                const tieneDetalle = l.montoComision > 0 || l.montoGastos > 0
+                const expandido = expandidoId === l.id
+                return (
+                <Fragment key={l.id}>
+                <tr className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                  <td className="px-2 py-4">
+                    {tieneDetalle && (
+                      <button
+                        onClick={() => setExpandidoId(expandido ? null : l.id)}
+                        className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                        title="Ver desglose"
+                      >
+                        <ChevronDown className={`w-4 h-4 transition-transform ${expandido ? 'rotate-180' : ''}`} />
+                      </button>
+                    )}
+                  </td>
                   <td className="px-4 py-4">
                     <span className="font-mono text-blue-600">{l.contratoCodigo}</span>
                     <div className="text-xs text-gray-400">{l.propiedadDireccion}</div>
@@ -545,7 +562,45 @@ export default function LiquidacionesPage() {
                     </button>
                   </td>
                 </tr>
-              ))}
+                {expandido && (
+                  <tr className="border-b border-gray-50 bg-gray-50/60">
+                    <td></td>
+                    <td colSpan={7} className="px-4 py-3">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                        Cómo se llegó a {formatMoneda(l.montoALiquidar, l.moneda)}
+                      </p>
+                      <div className="text-sm space-y-1 max-w-md">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Cobrado</span>
+                          <span className="text-gray-700">{formatMoneda(l.montoCobrado, l.moneda)}</span>
+                        </div>
+                        {l.montoComision > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">
+                              Comisión inmobiliaria {l.comisionPorcentaje ? `(${l.comisionPorcentaje}%)` : ''}
+                            </span>
+                            <span className="text-red-500">− {formatMoneda(l.montoComision, l.moneda)}</span>
+                          </div>
+                        )}
+                        {l.gastos.map(g => (
+                          <div key={g.id} className="flex justify-between">
+                            <span className="text-gray-500">
+                              Gasto: {g.categoria}{g.descripcion ? ` — ${g.descripcion}` : ''}
+                            </span>
+                            <span className="text-red-500">− {formatMoneda(g.monto, l.moneda)}</span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between pt-1 border-t border-gray-200 font-semibold">
+                          <span className="text-gray-700">A liquidar</span>
+                          <span className="text-gray-800">{formatMoneda(l.montoALiquidar, l.moneda)}</span>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
+                )
+              })}
             </tbody>
           </table>
         </div>

@@ -1,4 +1,5 @@
 using GestionInmobiliaria.Aplicacion.Services;
+using GestionInmobiliaria.Dominio.Common;
 using GestionInmobiliaria.Dominio.Entidades;
 using GestionInmobiliaria.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
@@ -70,9 +71,7 @@ public class RecordatorioVencimientoService : BackgroundService
 
             foreach (var pago in pagos)
             {
-                var diasEnMes = DateTime.DaysInMonth(pago.Periodo.Year, pago.Periodo.Month);
-                var dia = Math.Min(pago.Contrato.DiaVencimientoPago!.Value, diasEnMes);
-                var fechaVencimiento = new DateTime(pago.Periodo.Year, pago.Periodo.Month, dia, 0, 0, 0, DateTimeKind.Utc);
+                var fechaVencimiento = VencimientoCalculator.Calcular(pago.Periodo, pago.Contrato.DiaVencimientoPago)!.Value;
                 var diasHastaVencimiento = (fechaVencimiento - hoy).Days;
 
                 if (diasHastaVencimiento < 0)

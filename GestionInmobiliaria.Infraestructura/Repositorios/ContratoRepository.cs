@@ -158,6 +158,14 @@ public class ContratoRepository : IContratoRepository
         if (!valida)
             return (false, $"Transición de '{contrato.Estado}' a '{nuevoEstado}' no permitida.", null);
 
+        if (nuevoEstado == EstadoContrato.Vigente)
+        {
+            var yaTieneVigente = await _context.Contratos.AnyAsync(c =>
+                c.PropiedadId == contrato.PropiedadId && c.Estado == EstadoContrato.Vigente && c.Id != contrato.Id);
+            if (yaTieneVigente)
+                return (false, "Esta propiedad ya tiene un contrato Vigente. Finalizá o rescindí el anterior antes de activar uno nuevo.", null);
+        }
+
         contrato.Estado = nuevoEstado;
         contrato.FechaActualizacion = DateTime.UtcNow;
 
@@ -243,6 +251,7 @@ public class PagoRepository : IPagoRepository
     {
         return await _context.Pagos
             .Include(p => p.Detalles)
+            .Include(p => p.Contrato)
             .Where(p => p.ContratoId == contratoId)
             .OrderBy(p => p.NumeroCuota)
             .ToListAsync();

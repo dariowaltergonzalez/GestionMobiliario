@@ -17,6 +17,7 @@ public class LiquidacionDto
     public decimal? ComisionPorcentaje { get; set; }
     public decimal? ComisionMonto { get; set; }
     public decimal MontoComision { get; set; }
+    public decimal MontoGastos { get; set; }
     public decimal MontoALiquidar { get; set; }
     public decimal MontoAbonado { get; set; }
     public decimal MontoRestante { get; set; }
@@ -25,6 +26,15 @@ public class LiquidacionDto
     public string? Observaciones { get; set; }
     public DateTime FechaCreacion { get; set; }
     public List<LiquidacionAbonoDto> Abonos { get; set; } = [];
+    public List<LiquidacionGastoDto> Gastos { get; set; } = [];
+}
+
+public class LiquidacionGastoDto
+{
+    public int Id { get; set; }
+    public string Categoria { get; set; } = string.Empty;
+    public string? Descripcion { get; set; }
+    public decimal Monto { get; set; }
 }
 
 public class LiquidacionAbonoDto

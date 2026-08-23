@@ -12,6 +12,13 @@ export interface LiquidacionAbonoDto {
   observaciones: string | null
 }
 
+export interface LiquidacionGastoDto {
+  id: number
+  categoria: string
+  descripcion: string | null
+  monto: number
+}
+
 export interface LiquidacionDto {
   id: number
   pagoId: number
@@ -28,6 +35,7 @@ export interface LiquidacionDto {
   comisionPorcentaje: number | null
   comisionMonto: number | null
   montoComision: number
+  montoGastos: number
   montoALiquidar: number
   montoAbonado: number
   montoRestante: number
@@ -36,6 +44,7 @@ export interface LiquidacionDto {
   observaciones: string | null
   fechaCreacion: string
   abonos: LiquidacionAbonoDto[]
+  gastos: LiquidacionGastoDto[]
 }
 
 export interface LiquidacionMetricasDto {

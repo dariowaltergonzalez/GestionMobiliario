@@ -80,6 +80,13 @@ export interface PagoDto {
   detalles: PagoDetalleDto[]
   fechaCreacion: string
   fechaActualizacion: string
+  montoPunitorio: number
+  diasAtraso: number
+  tasaPunitorioUsada: string | null
+  montoPunitorioCobrado: number | null
+  diasAtrasoPunitorioCobrado: number | null
+  fechaVencimientoPunitorioCobrado: string | null
+  detallePunitorioCobrado: string | null
 }
 
 export interface ContratoDto {
@@ -123,6 +130,8 @@ export interface ContratoDto {
   comisionLocatarioPorcentaje: number | null
   comisionLocatarioMonto: number | null
   administracionCobros: boolean
+  aplicaPunitorios: boolean
+  punitorioPorcentaje: number | null
   porcentajeAjuste: number | null
   montoActual: number
   fechaUltimoAjuste: string | null
@@ -188,6 +197,8 @@ export interface CreateContratoRequest {
   comisionLocatarioPorcentaje?: number
   comisionLocatarioMonto?: number
   administracionCobros: boolean
+  aplicaPunitorios: boolean
+  punitorioPorcentaje?: number
   porcentajeAjuste?: number
   fechaInicio: string
   fechaFin?: string
@@ -203,11 +214,17 @@ export interface TransicionEstadoRequest {
   fecha?: string
 }
 
+export interface ActualizarPunitoriosRequest {
+  aplicaPunitorios: boolean
+  punitorioPorcentaje?: number
+}
+
 export interface UpdatePagoRequest {
   estado: number
   fechaPago?: string
   observaciones?: string
   detalles: PagoDetalleRequest[]
+  cobrarPunitorio?: boolean
 }
 
 export interface FiltrosContratos {
@@ -251,6 +268,11 @@ export const createContrato = async (data: CreateContratoRequest) => {
 
 export const updateContrato = async (id: number, data: UpdateContratoRequest) => {
   const res = await client.put<ApiResponse<ContratoDto>>(`/api/contratos/${id}`, data)
+  return res.data
+}
+
+export const actualizarPunitorios = async (id: number, data: ActualizarPunitoriosRequest) => {
+  const res = await client.put<ApiResponse<ContratoDto>>(`/api/contratos/${id}/punitorios`, data)
   return res.data
 }
 

@@ -40,12 +40,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<AjusteContrato> AjustesContrato => Set<AjusteContrato>();
     public DbSet<Liquidacion> Liquidaciones => Set<Liquidacion>();
     public DbSet<LiquidacionAbono> LiquidacionAbonos => Set<LiquidacionAbono>();
+    public DbSet<Gasto> Gastos => Set<Gasto>();
     public DbSet<DocumentoContrato> DocumentosContrato => Set<DocumentoContrato>();
     public DbSet<FotoSolicitud> FotosSolicitud => Set<FotoSolicitud>();
     public DbSet<FotoPropiedad> FotosPropiedad => Set<FotoPropiedad>();
     public DbSet<ClausulaContrato> ClausulasContrato => Set<ClausulaContrato>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<AppLog> AppLogs => Set<AppLog>();
+    public DbSet<TasaMoratoria> TasasMoratorias => Set<TasaMoratoria>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -70,6 +72,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         builder.Entity<AjusteContrato>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<Liquidacion>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<LiquidacionAbono>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
+        builder.Entity<Gasto>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<DocumentoContrato>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<FotoSolicitud>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<FotoPropiedad>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
@@ -452,6 +455,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.Property(c => c.ComisionLocadorMonto).HasColumnType("decimal(18,2)");
             e.Property(c => c.ComisionLocatarioPorcentaje).HasColumnType("decimal(5,2)");
             e.Property(c => c.ComisionLocatarioMonto).HasColumnType("decimal(18,2)");
+            e.Property(c => c.AplicaPunitorios).HasDefaultValue(true);
+            e.Property(c => c.PunitorioPorcentaje).HasColumnType("decimal(7,4)");
             e.Property(c => c.MotivoRescision).HasMaxLength(1000);
             e.Property(c => c.MotivoAnulacion).HasMaxLength(1000);
             e.Property(c => c.Observaciones).HasMaxLength(2000);
@@ -477,6 +482,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.Property(p => p.MontoEsperado).HasColumnType("decimal(18,2)");
             e.Property(p => p.MontoPagado).HasColumnType("decimal(18,2)");
             e.Property(p => p.Observaciones).HasMaxLength(1000);
+            e.Property(p => p.MontoPunitorioCobrado).HasColumnType("decimal(18,2)");
+            e.Property(p => p.DetallePunitorioCobrado).HasMaxLength(500);
             e.HasOne(p => p.Contrato)
              .WithMany(c => c.Pagos)
              .HasForeignKey(p => p.ContratoId)
@@ -518,6 +525,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.Property(l => l.ComisionMonto).HasColumnType("decimal(18,2)");
             e.Property(l => l.MontoComision).HasColumnType("decimal(18,2)");
             e.Property(l => l.MontoALiquidar).HasColumnType("decimal(18,2)");
+            e.Property(l => l.MontoGastos).HasColumnType("decimal(18,2)");
             e.Property(l => l.Observaciones).HasMaxLength(1000);
             e.HasIndex(l => l.PagoId).IsUnique();
             e.HasOne(l => l.Pago)
@@ -552,6 +560,37 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
              .WithMany(c => c.Documentos)
              .HasForeignKey(d => d.ContratoId)
              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<Gasto>(e =>
+        {
+            e.HasKey(g => g.Id);
+            e.Property(g => g.Descripcion).HasMaxLength(500);
+            e.Property(g => g.Monto).HasColumnType("decimal(18,2)");
+            e.Property(g => g.ReferenciaCobro).HasMaxLength(200);
+            e.Property(g => g.ChequeBanco).HasMaxLength(100);
+            e.Property(g => g.ChequeNumero).HasMaxLength(50);
+            e.Property(g => g.ObservacionesResolucion).HasMaxLength(500);
+            e.HasOne(g => g.Propiedad)
+             .WithMany()
+             .HasForeignKey(g => g.PropiedadId)
+             .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(g => g.Contrato)
+             .WithMany()
+             .HasForeignKey(g => g.ContratoId)
+             .OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(g => g.Liquidacion)
+             .WithMany(l => l.Gastos)
+             .HasForeignKey(g => g.LiquidacionId)
+             .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        builder.Entity<TasaMoratoria>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Property(t => t.Valor).HasColumnType("decimal(18,8)");
+            e.Property(t => t.Origen).IsRequired().HasMaxLength(50);
+            e.HasIndex(t => t.Fecha).IsUnique();
         });
     }
 

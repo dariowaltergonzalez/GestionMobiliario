@@ -24,5 +24,6 @@ public static class TemasNotificacion
         new() { Codigo = "ReciboPago", Label = "Recibo de pago de cuota" },
         new() { Codigo = "CambioEstadoContrato", Label = "Aviso de finalización, rescisión o anulación del contrato" },
         new() { Codigo = "AvisoVencimientoProximo", Label = "Recordatorio de vencimiento próximo de cuota" },
+        new() { Codigo = "AvisoGastoPendiente", Label = "Aviso de gasto a cargo del inquilino" },
     };
 }

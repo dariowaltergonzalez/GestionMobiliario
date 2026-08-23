@@ -170,6 +170,7 @@ function RegistrarCobroModal({ pago, onGuardado, onCerrar }: ModalProps) {
   const [detalles, setDetalles] = useState<DetalleItem[]>([
     { _key: nextKey++, medio: 1, monto: pago.montoEsperado },
   ])
+  const [cobrarPunitorio, setCobrarPunitorio] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
@@ -179,6 +180,20 @@ function RegistrarCobroModal({ pago, onGuardado, onCerrar }: ModalProps) {
 
   const agregarDetalle = () => {
     setDetalles(prev => [...prev, { _key: nextKey++, medio: 1, monto: 0 }])
+  }
+
+  const handleToggleCobrarPunitorio = (checked: boolean) => {
+    setCobrarPunitorio(checked)
+    // Solo autosugiere si hay una única forma de pago y todavía tiene el monto "de fábrica" —
+    // si el usuario ya la editó a mano, no se la pisamos.
+    if (detalles.length !== 1) return
+    const conPunitorio = Math.round((pago.montoEsperado + pago.montoPunitorio) * 100) / 100
+    const actual = detalles[0].monto
+    if (checked && actual === pago.montoEsperado) {
+      actualizarDetalle(detalles[0]._key, { ...detalles[0], monto: conPunitorio })
+    } else if (!checked && actual === conPunitorio) {
+      actualizarDetalle(detalles[0]._key, { ...detalles[0], monto: pago.montoEsperado })
+    }
   }
 
   const actualizarDetalle = (key: number, updated: DetalleItem) => {
@@ -207,6 +222,7 @@ function RegistrarCobroModal({ pago, onGuardado, onCerrar }: ModalProps) {
           ...d,
           chequeFechaVencimiento: d.chequeFechaVencimiento || undefined,
         })),
+        cobrarPunitorio,
       })
       onGuardado()
     } catch {
@@ -263,12 +279,28 @@ function RegistrarCobroModal({ pago, onGuardado, onCerrar }: ModalProps) {
                   </div>
                 )
               })}
-              <div className="border-t border-gray-200 pt-2 flex justify-between text-sm font-bold">
+              {cobrarPunitorio && (
+                <div className="border-t border-gray-200 pt-2 space-y-1">
+                  <div className="flex justify-between text-sm text-gray-500">
+                    <span>Cuota</span>
+                    <span>$ {pago.montoEsperado.toLocaleString('es-AR')}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-red-600">
+                    <span>Punitorio por {pago.diasAtraso} día{pago.diasAtraso !== 1 ? 's' : ''} de atraso</span>
+                    <span>$ {pago.montoPunitorio.toLocaleString('es-AR', { maximumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+              )}
+              <div className={`${cobrarPunitorio ? '' : 'border-t border-gray-200 pt-2'} flex justify-between text-sm font-bold`}>
                 <span className="text-gray-700">Total cobrado</span>
-                <span className={diferencia !== 0 ? 'text-orange-600' : 'text-green-700'}>
-                  $ {total.toLocaleString('es-AR')}
-                  {diferencia !== 0 && ` (${diferencia > 0 ? '+' : ''}${diferencia.toLocaleString('es-AR')} vs esperado)`}
-                </span>
+                {cobrarPunitorio ? (
+                  <span className="text-blue-700">$ {total.toLocaleString('es-AR')}</span>
+                ) : (
+                  <span className={diferencia !== 0 ? 'text-orange-600' : 'text-green-700'}>
+                    $ {total.toLocaleString('es-AR')}
+                    {diferencia !== 0 && ` (${diferencia > 0 ? '+' : ''}${diferencia.toLocaleString('es-AR')} vs esperado)`}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -359,6 +391,18 @@ function RegistrarCobroModal({ pago, onGuardado, onCerrar }: ModalProps) {
                 Monto esperado: $ {pago.montoEsperado.toLocaleString('es-AR')}
                 {diferencia !== 0 && ` · Diferencia: ${diferencia > 0 ? '+' : ''}$ ${diferencia.toLocaleString('es-AR')}`}
               </div>
+              {pago.montoPunitorio > 0 && (
+                <label className="flex items-start gap-2 text-xs text-red-600 bg-red-50 rounded-xl px-3 py-2 cursor-pointer" title={pago.tasaPunitorioUsada ?? ''}>
+                  <input type="checkbox" checked={cobrarPunitorio} onChange={e => handleToggleCobrarPunitorio(e.target.checked)} className="mt-0.5" />
+                  <span>
+                    Cobrar también el punitorio por {pago.diasAtraso} día{pago.diasAtraso !== 1 ? 's' : ''} de atraso:
+                    {' '}<strong>$ {pago.montoPunitorio.toLocaleString('es-AR', { maximumFractionDigits: 2 })}</strong>
+                    <span className="block text-gray-400 font-normal mt-0.5">
+                      No se suma al total de arriba — queda registrado aparte, con el detalle de la tasa usada.
+                    </span>
+                  </span>
+                </label>
+              )}
 
               {error && <p className="text-sm text-red-600">{error}</p>}
             </div>
@@ -561,12 +605,24 @@ export default function PagosPage() {
                     </td>
                     <td className="px-4 py-3 text-right text-gray-700 whitespace-nowrap">
                       $ {p.montoEsperado.toLocaleString('es-AR')}
+                      {p.montoPunitorio > 0 && (
+                        <div className="text-xs text-red-500 font-medium" title={p.tasaPunitorioUsada ?? ''}>
+                          + $ {p.montoPunitorio.toLocaleString('es-AR', { maximumFractionDigits: 2 })} punitorio
+                          <span className="text-gray-400 font-normal"> ({p.diasAtraso}d)</span>
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       {p.montoPagado != null
                         ? <span className="text-green-700 font-semibold">$ {p.montoPagado.toLocaleString('es-AR')}</span>
                         : <span className="text-gray-300">—</span>
                       }
+                      {p.montoPunitorioCobrado != null && (
+                        <div className="text-xs text-red-500 font-medium" title={p.detallePunitorioCobrado ?? ''}>
+                          + $ {p.montoPunitorioCobrado.toLocaleString('es-AR', { maximumFractionDigits: 2 })} punitorio
+                          <span className="text-gray-400 font-normal"> ({p.diasAtrasoPunitorioCobrado}d)</span>
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 max-w-[160px]">
                       {p.detalles?.length > 0 ? (
