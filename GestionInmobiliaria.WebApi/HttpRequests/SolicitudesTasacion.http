@@ -5,7 +5,7 @@
 ### Endpoints de gestión: requieren Bearer token (Admin u Operador)
 
 @baseUrl = http://localhost:5005
-@tenant = garcia
+@tenant = inmobiliaria-del-sur
 @token = TU_TOKEN_AQUI
 
 ### 1. Solicitar tasación (público — desde el sitio web)

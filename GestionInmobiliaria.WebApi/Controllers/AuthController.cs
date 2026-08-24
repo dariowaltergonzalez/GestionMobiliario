@@ -67,6 +67,9 @@ public class AuthController : ControllerBase
     {
         // El middleware ya resolvió el tenant desde X-Tenant header
         // FindByEmailAsync respeta el filtro global de TenantId
+        if (ObtenerTenantIdDelContexto() == 0)
+            return BadRequest(new { message = "Tenant no identificado. Incluir header X-Tenant." });
+
         var user = await _userManager.FindByEmailAsync(request.Email);
         if (user is null || !user.Activo)
             return Unauthorized(new { message = "Credenciales inválidas." });

@@ -3,7 +3,7 @@
 ### ============================================
 
 @baseUrl = http://localhost:5005
-@tenant = garcia
+@tenant = inmobiliaria-del-sur
 @token = TU_TOKEN_AQUI
 
 ### 1. Registrar usuario Admin

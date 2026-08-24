@@ -116,6 +116,14 @@ public class PagosController : ControllerBase
         if (pago is null || pago.ContratoId != contratoId)
             return NotFound(ApiResponse<PagoDto>.Fail("Pago no encontrado."));
 
+        // Una cuota Pagada no se vuelve a tocar por acá — no hay "anular"/"recobrar" en el sistema
+        // (decisión de negocio, ver docs/logica-negocio.md sección PUNITORIOS/PENDIENTES GENERALES:
+        // cualquier corrección se resuelve hacia adelante, ej. ajuste en la próxima cuota, nunca
+        // reescribiendo un cobro ya asentado). Antes de esto la UI ya ocultaba el botón de cobro una
+        // vez Pagada, pero nada lo garantizaba del lado del servidor.
+        if (pago.Estado == EstadoPago.Pagado)
+            return BadRequest(ApiResponse<PagoDto>.Fail("Esta cuota ya está pagada, no se puede modificar."));
+
         // Se calcula ANTES de tocar pago.Estado: CalcularAsync solo da un resultado > 0 si la cuota
         // todavía está Pendiente/Atrasado (ver PunitorioService). Se recalcula acá server-side en vez
         // de confiar en un monto que mande el cliente — es plata, nunca se toma un número de afuera.
