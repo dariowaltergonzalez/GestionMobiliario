@@ -3,7 +3,7 @@ import type { ApiResponse, PagedResult } from '../types/api'
 
 export type TipoContrato = 1 | 2
 export type EstadoContrato = 1 | 2 | 3 | 4 | 5
-export type TipoAjuste = 1 | 2 | 3 | 4
+export type TipoAjuste = 1 | 2 | 3 | 4 | 5 | 6
 export type EstadoPago = 1 | 2 | 3 | 4
 export type MedioPago = 1 | 2 | 3 | 4
 
@@ -25,6 +25,8 @@ export const TIPOS_AJUSTE: Record<TipoAjuste, string> = {
   2: 'Índice ICL',
   3: 'Porcentaje',
   4: 'Otro',
+  5: 'Índice IPC',
+  6: 'Índice UVA',
 }
 
 export const ESTADOS_PAGO: Record<EstadoPago, { label: string; color: string }> = {
@@ -132,6 +134,7 @@ export interface ContratoDto {
   administracionCobros: boolean
   aplicaPunitorios: boolean
   punitorioPorcentaje: number | null
+  ajusteAutomatico: boolean
   porcentajeAjuste: number | null
   montoActual: number
   fechaUltimoAjuste: string | null
@@ -191,6 +194,7 @@ export interface CreateContratoRequest {
   moneda: number
   tipoAjuste: number
   periodicidadAjusteMeses?: number
+  ajusteAutomatico: boolean
   diaVencimientoPago?: number
   comisionLocadorPorcentaje?: number
   comisionLocadorMonto?: number
@@ -217,6 +221,13 @@ export interface TransicionEstadoRequest {
 export interface ActualizarPunitoriosRequest {
   aplicaPunitorios: boolean
   punitorioPorcentaje?: number
+}
+
+export interface ActualizarAjusteAutomaticoRequest {
+  ajusteAutomatico: boolean
+  tipoAjuste: number
+  periodicidadAjusteMeses?: number
+  porcentajeAjuste?: number
 }
 
 export interface UpdatePagoRequest {
@@ -273,6 +284,11 @@ export const updateContrato = async (id: number, data: UpdateContratoRequest) =>
 
 export const actualizarPunitorios = async (id: number, data: ActualizarPunitoriosRequest) => {
   const res = await client.put<ApiResponse<ContratoDto>>(`/api/contratos/${id}/punitorios`, data)
+  return res.data
+}
+
+export const actualizarAjusteAutomatico = async (id: number, data: ActualizarAjusteAutomaticoRequest) => {
+  const res = await client.put<ApiResponse<ContratoDto>>(`/api/contratos/${id}/ajuste-automatico`, data)
   return res.data
 }
 

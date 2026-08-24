@@ -47,6 +47,7 @@ public class LiquidacionAbonoDto
     public string? EntidadDestino { get; set; }
     public string? NumeroOperacion { get; set; }
     public string? Observaciones { get; set; }
+    public string? ComprobanteUrl { get; set; }
 }
 
 public class AbonoLiquidacionRequest
@@ -58,6 +59,22 @@ public class AbonoLiquidacionRequest
     public string? EntidadDestino { get; set; }
     public string? NumeroOperacion { get; set; }
     public string? Observaciones { get; set; }
+    public string? ComprobanteUrl { get; set; }
+}
+
+/// <summary>
+/// Respuesta de POST /api/liquidaciones/comprobantes/extraer — la imagen ya quedó guardada
+/// (comprobanteUrl siempre viene, salvo error subiendo el archivo en sí) aunque la extracción por IA
+/// no haya encontrado algún campo (quedan en null, el usuario los completa a mano).
+/// </summary>
+public class ExtraccionComprobanteDto
+{
+    public string ComprobanteUrl { get; set; } = string.Empty;
+    public decimal? Monto { get; set; }
+    public DateTime? Fecha { get; set; }
+    public string? CbuCvuDestino { get; set; }
+    public string? EntidadDestino { get; set; }
+    public string? NumeroOperacion { get; set; }
 }
 
 public class LiquidacionMetricasDto

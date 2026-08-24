@@ -124,6 +124,7 @@ export default function DetalleContratoModal({ contrato, onCerrar }: {
             <Dato label="Tipo de ajuste" value={contrato.tipoAjuste} />
             <Dato label="% de ajuste sugerido" value={contrato.porcentajeAjuste != null ? `${contrato.porcentajeAjuste}%` : null} />
             <Dato label="Periodicidad de ajuste" value={contrato.periodicidadAjusteMeses ? `Cada ${contrato.periodicidadAjusteMeses} meses` : null} />
+            <Dato label="Ajuste automático" value={contrato.ajusteAutomatico ? 'Activado' : 'Desactivado'} />
             <Dato label="Día de vencimiento" value={contrato.diaVencimientoPago ? `Día ${contrato.diaVencimientoPago}` : null} />
             <Dato label="Último ajuste aplicado" value={formatFecha(contrato.fechaUltimoAjuste)} />
           </Seccion>

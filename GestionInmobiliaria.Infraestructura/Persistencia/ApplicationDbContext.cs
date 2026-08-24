@@ -48,6 +48,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<AppLog> AppLogs => Set<AppLog>();
     public DbSet<TasaMoratoria> TasasMoratorias => Set<TasaMoratoria>();
+    public DbSet<IndiceIcl> IndicesIcl => Set<IndiceIcl>();
+    public DbSet<IndiceUva> IndicesUva => Set<IndiceUva>();
+    public DbSet<IndiceIpc> IndicesIpc => Set<IndiceIpc>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -102,6 +105,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.Property(p => p.CBU).HasMaxLength(50);
             e.Property(p => p.Notas).HasMaxLength(1000);
             e.Property(p => p.Notificaciones).HasMaxLength(2000);
+            e.Property(p => p.TokenPortal).HasMaxLength(300);
+            e.HasIndex(p => p.TokenPortal).IsUnique().HasFilter("[TokenPortal] IS NOT NULL");
         });
 
         builder.Entity<Inquilino>(e =>
@@ -121,6 +126,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.Property(i => i.DniGarante).HasMaxLength(20);
             e.Property(i => i.Notas).HasMaxLength(1000);
             e.Property(i => i.Notificaciones).HasMaxLength(2000);
+            e.Property(i => i.TokenPortal).HasMaxLength(300);
+            e.HasIndex(i => i.TokenPortal).IsUnique().HasFilter("[TokenPortal] IS NOT NULL");
         });
 
         builder.Entity<Propiedad>(e =>
@@ -511,6 +518,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.Property(a => a.Porcentaje).HasColumnType("decimal(5,2)");
             e.Property(a => a.TipoAjuste).IsRequired().HasMaxLength(50);
             e.Property(a => a.Observaciones).HasMaxLength(1000);
+            e.Property(a => a.DetalleIndiceUsado).HasMaxLength(500);
             e.HasOne(a => a.Contrato)
              .WithMany(c => c.Ajustes)
              .HasForeignKey(a => a.ContratoId)
@@ -542,6 +550,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.Property(a => a.EntidadDestino).HasMaxLength(200);
             e.Property(a => a.NumeroOperacion).HasMaxLength(100);
             e.Property(a => a.Observaciones).HasMaxLength(1000);
+            e.Property(a => a.ComprobanteUrl).HasMaxLength(500);
             e.HasOne(a => a.Liquidacion)
              .WithMany(l => l.Abonos)
              .HasForeignKey(a => a.LiquidacionId)
@@ -586,6 +595,30 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         });
 
         builder.Entity<TasaMoratoria>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Property(t => t.Valor).HasColumnType("decimal(18,8)");
+            e.Property(t => t.Origen).IsRequired().HasMaxLength(50);
+            e.HasIndex(t => t.Fecha).IsUnique();
+        });
+
+        builder.Entity<IndiceIcl>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Property(t => t.Valor).HasColumnType("decimal(18,8)");
+            e.Property(t => t.Origen).IsRequired().HasMaxLength(50);
+            e.HasIndex(t => t.Fecha).IsUnique();
+        });
+
+        builder.Entity<IndiceUva>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Property(t => t.Valor).HasColumnType("decimal(18,8)");
+            e.Property(t => t.Origen).IsRequired().HasMaxLength(50);
+            e.HasIndex(t => t.Fecha).IsUnique();
+        });
+
+        builder.Entity<IndiceIpc>(e =>
         {
             e.HasKey(t => t.Id);
             e.Property(t => t.Valor).HasColumnType("decimal(18,8)");

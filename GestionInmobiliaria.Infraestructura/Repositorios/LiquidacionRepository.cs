@@ -103,6 +103,7 @@ public class LiquidacionRepository : ILiquidacionRepository
         abono.EntidadDestino = datos.EntidadDestino;
         abono.NumeroOperacion = datos.NumeroOperacion;
         abono.Observaciones = datos.Observaciones;
+        abono.ComprobanteUrl = datos.ComprobanteUrl;
         abono.FechaActualizacion = DateTime.UtcNow;
 
         await AplicarEstadoAsync(liquidacion, liquidacionId, excluirAbonoId: abonoId, montoIncluido: datos.Monto, fechaIncluida: datos.Fecha);

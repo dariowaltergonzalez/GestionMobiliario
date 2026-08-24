@@ -55,6 +55,7 @@ public class ContratoDto
     public bool AplicaPunitorios { get; set; }
     public decimal? PunitorioPorcentaje { get; set; }
 
+    public bool AjusteAutomatico { get; set; }
     public decimal? PorcentajeAjuste { get; set; }
     public decimal MontoActual { get; set; }
     public DateTime? FechaUltimoAjuste { get; set; }
@@ -161,6 +162,7 @@ public class CreateContratoRequest
     public int Moneda { get; set; } = 1;
     public int TipoAjuste { get; set; } = 1;
     public int? PeriodicidadAjusteMeses { get; set; }
+    public bool AjusteAutomatico { get; set; } = false;
     public int? DiaVencimientoPago { get; set; }
 
     public decimal? ComisionLocadorPorcentaje { get; set; }
@@ -236,6 +238,14 @@ public class ActualizarPunitoriosRequest
 {
     public bool AplicaPunitorios { get; set; }
     public decimal? PunitorioPorcentaje { get; set; }
+}
+
+public class ActualizarAjusteAutomaticoRequest
+{
+    public bool AjusteAutomatico { get; set; }
+    public int TipoAjuste { get; set; }
+    public int? PeriodicidadAjusteMeses { get; set; }
+    public decimal? PorcentajeAjuste { get; set; }
 }
 
 public class AjusteContratoDto

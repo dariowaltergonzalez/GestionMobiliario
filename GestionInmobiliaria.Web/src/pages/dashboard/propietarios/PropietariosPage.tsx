@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle, Building2, FileDown } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle, Building2, FileDown, Link2, Check } from 'lucide-react'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
 import PropietarioForm from './PropietarioForm'
 import {
-  getPropietarios, deletePropietario,
+  getPropietarios, deletePropietario, generarTokenPortalPropietario,
   type PropietarioDto, type FiltrosPropietarios,
 } from '../../../api/propietarios'
 import { exportarPropietariosPdf } from '../../../api/reportes'
@@ -30,6 +30,7 @@ export default function PropietariosPage() {
   const [confirmDelete, setConfirmDelete] = useState<PropietarioDto | null>(null)
   const [deletando, setDeletando] = useState(false)
   const [exportando, setExportando] = useState(false)
+  const [copiadoId, setCopiadoId] = useState<number | null>(null)
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -54,6 +55,19 @@ export default function PropietariosPage() {
   const handleEditar = (p: PropietarioDto) => { setPropietarioEditar(p); setModalAbierto(true) }
   const handleNuevo = () => { setPropietarioEditar(null); setModalAbierto(true) }
   const handleGuardado = () => { setModalAbierto(false); cargar() }
+
+  const handleCopiarLinkPortal = async (p: PropietarioDto) => {
+    try {
+      const res = await generarTokenPortalPropietario(p.id)
+      if (!res.success) { setError(res.errors?.[0] ?? res.message ?? 'No se pudo generar el link.'); return }
+      const url = `${window.location.origin}/portal/propietario/${res.data.token}`
+      await navigator.clipboard.writeText(url)
+      setCopiadoId(p.id)
+      setTimeout(() => setCopiadoId(null), 2000)
+    } catch {
+      setError('No se pudo generar el link del portal.')
+    }
+  }
 
   const handleExportar = async () => {
     setExportando(true)
@@ -198,6 +212,13 @@ export default function PropietariosPage() {
                           title="Editar"
                         >
                           <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleCopiarLinkPortal(p)}
+                          className="p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                          title="Copiar link del portal de autoservicio"
+                        >
+                          {copiadoId === p.id ? <Check className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
                         </button>
                         {p.activo && (
                           <button

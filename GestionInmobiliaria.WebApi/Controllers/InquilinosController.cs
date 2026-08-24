@@ -3,8 +3,10 @@ using GestionInmobiliaria.Aplicacion.DTOs;
 using GestionInmobiliaria.Dominio.Common;
 using GestionInmobiliaria.Dominio.Entidades;
 using GestionInmobiliaria.Dominio.Interfaces;
+using GestionInmobiliaria.Infraestructura.Persistencia;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace GestionInmobiliaria.WebApi.Controllers;
 
@@ -14,8 +16,13 @@ namespace GestionInmobiliaria.WebApi.Controllers;
 public class InquilinosController : ControllerBase
 {
     private readonly IInquilinoRepository _repo;
+    private readonly ApplicationDbContext _context;
 
-    public InquilinosController(IInquilinoRepository repo) => _repo = repo;
+    public InquilinosController(IInquilinoRepository repo, ApplicationDbContext context)
+    {
+        _repo = repo;
+        _context = context;
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -140,6 +147,21 @@ public class InquilinosController : ControllerBase
         var ok = await _repo.DeleteAsync(id);
         if (!ok) return NotFound(ApiResponse<object>.Fail("Inquilino no encontrado."));
         return Ok(ApiResponse<object>.Ok(null, "Inquilino dado de baja correctamente."));
+    }
+
+    // Genera (o regenera, invalidando el anterior) el token del Portal de autoservicio — ver
+    // docs/logica-negocio.md sección PORTAL DE AUTOSERVICIO.
+    [HttpPost("{id}/token-portal")]
+    public async Task<IActionResult> GenerarTokenPortal(int id)
+    {
+        var inquilino = await _context.Inquilinos.FirstOrDefaultAsync(i => i.Id == id);
+        if (inquilino is null) return NotFound(ApiResponse<object>.Fail("Inquilino no encontrado."));
+
+        inquilino.TokenPortal = TokenPortal.Generar(inquilino.TenantId);
+        inquilino.FechaActualizacion = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return Ok(ApiResponse<object>.Ok(new { token = inquilino.TokenPortal }, "Link del portal generado."));
     }
 
     private static InquilinoDto MapToDto(Inquilino i) => new()

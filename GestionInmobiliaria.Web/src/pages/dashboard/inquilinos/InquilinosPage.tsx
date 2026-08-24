@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle, Link2, Check } from 'lucide-react'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
 import InquilinoForm from './InquilinoForm'
 import {
-  getInquilinos, deleteInquilino,
+  getInquilinos, deleteInquilino, generarTokenPortalInquilino,
   type InquilinoDto, type FiltrosInquilinos,
 } from '../../../api/inquilinos'
 
@@ -28,6 +28,7 @@ export default function InquilinosPage() {
   const [inquilinoEditar, setInquilinoEditar] = useState<InquilinoDto | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<InquilinoDto | null>(null)
   const [deletando, setDeletando] = useState(false)
+  const [copiadoId, setCopiadoId] = useState<number | null>(null)
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -52,6 +53,19 @@ export default function InquilinosPage() {
   const handleEditar = (i: InquilinoDto) => { setInquilinoEditar(i); setModalAbierto(true) }
   const handleNuevo = () => { setInquilinoEditar(null); setModalAbierto(true) }
   const handleGuardado = () => { setModalAbierto(false); cargar() }
+
+  const handleCopiarLinkPortal = async (i: InquilinoDto) => {
+    try {
+      const res = await generarTokenPortalInquilino(i.id)
+      if (!res.success) { setError(res.errors?.[0] ?? res.message ?? 'No se pudo generar el link.'); return }
+      const url = `${window.location.origin}/portal/inquilino/${res.data.token}`
+      await navigator.clipboard.writeText(url)
+      setCopiadoId(i.id)
+      setTimeout(() => setCopiadoId(null), 2000)
+    } catch {
+      setError('No se pudo generar el link del portal.')
+    }
+  }
 
   const handleConfirmarDelete = async () => {
     if (!confirmDelete) return
@@ -172,6 +186,13 @@ export default function InquilinosPage() {
                           title="Editar"
                         >
                           <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleCopiarLinkPortal(i)}
+                          className="p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                          title="Copiar link del portal de autoservicio"
+                        >
+                          {copiadoId === i.id ? <Check className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
                         </button>
                         {i.activo && (
                           <button

@@ -17,6 +17,11 @@ public class Inquilino : IAuditable, INotificable
     public string? DniGarante { get; set; }
     public string? Notas { get; set; }
     public string? Notificaciones { get; set; }
+
+    // Token del portal de autoservicio (sin login) — formato "{TenantId}.{secreto}", ver
+    // docs/logica-negocio.md sección PORTAL DE AUTOSERVICIO. Null hasta que se genera la primera vez.
+    public string? TokenPortal { get; set; }
+
     public bool Activo { get; set; } = true;
     public DateTime FechaCreacion { get; set; }
     public DateTime FechaActualizacion { get; set; }

@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, ChevronUp, Banknote, FileDown, Paperclip, TrendingUp, Eye, Percent } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, ChevronUp, Banknote, FileDown, Paperclip, TrendingUp, Eye, Percent, RefreshCw } from 'lucide-react'
 import DocumentosModal from './DocumentosModal'
 import AjusteModal from './AjusteModal'
 import PunitoriosModal from './PunitoriosModal'
+import AjusteAutomaticoModal from './AjusteAutomaticoModal'
 import DetalleContratoModal from './DetalleContratoModal'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
 import {
@@ -169,9 +170,10 @@ function ContratoForm({ contrato, onGuardado, onCerrar }: {
     // Económico
     montoBase: contrato ? String(contrato.montoBase) : '',
     moneda: contrato ? (contrato.moneda === 'ARS' ? '1' : '2') : '1',
-    tipoAjuste: contrato ? String(['Fijo','IndiceICL','Porcentaje','Otro'].indexOf(contrato.tipoAjuste) + 1) : '1',
+    tipoAjuste: contrato ? String(['Fijo','IndiceICL','Porcentaje','Otro','IndiceIPC','IndiceUVA'].indexOf(contrato.tipoAjuste) + 1) : '1',
     porcentajeAjuste: contrato?.porcentajeAjuste != null ? String(contrato.porcentajeAjuste) : '',
     periodicidadAjusteMeses: contrato?.periodicidadAjusteMeses ? String(contrato.periodicidadAjusteMeses) : '',
+    ajusteAutomatico: contrato?.ajusteAutomatico ?? false,
     diaVencimientoPago: contrato?.diaVencimientoPago ? String(contrato.diaVencimientoPago) : '',
     comisionLocadorPorcentaje: contrato?.comisionLocadorPorcentaje != null ? String(contrato.comisionLocadorPorcentaje) : '',
     comisionLocadorMonto: contrato?.comisionLocadorMonto != null ? String(contrato.comisionLocadorMonto) : '',
@@ -278,6 +280,7 @@ function ContratoForm({ contrato, onGuardado, onCerrar }: {
         tipoAjuste: Number(form.tipoAjuste),
         porcentajeAjuste: form.porcentajeAjuste ? Number(form.porcentajeAjuste) : undefined,
         periodicidadAjusteMeses: form.periodicidadAjusteMeses ? Number(form.periodicidadAjusteMeses) : undefined,
+        ajusteAutomatico: form.ajusteAutomatico,
         diaVencimientoPago: form.diaVencimientoPago ? Number(form.diaVencimientoPago) : undefined,
         comisionLocadorPorcentaje: form.comisionLocadorPorcentaje ? Number(form.comisionLocadorPorcentaje) : undefined,
         comisionLocadorMonto: form.comisionLocadorMonto ? Number(form.comisionLocadorMonto) : undefined,
@@ -487,6 +490,8 @@ function ContratoForm({ contrato, onGuardado, onCerrar }: {
                   <option value="2">Índice ICL</option>
                   <option value="3">Porcentaje</option>
                   <option value="4">Otro</option>
+                  <option value="5">Índice IPC</option>
+                  <option value="6">Índice UVA</option>
                 </select>
               </div>
               {form.tipoAjuste === '3' && (
@@ -498,6 +503,15 @@ function ContratoForm({ contrato, onGuardado, onCerrar }: {
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Periodicidad ajuste (meses)</label>
                 <input type="number" min={1} value={form.periodicidadAjusteMeses} onChange={e => set('periodicidadAjusteMeses', e.target.value)} className={inp} placeholder="Ej: 6" />
+              </div>
+              <div className="col-span-2">
+                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                  <input type="checkbox" checked={form.ajusteAutomatico} onChange={e => set('ajusteAutomatico', e.target.checked)} />
+                  Aplicar el ajuste periódico automáticamente, sin confirmación manual
+                </label>
+                <p className="text-xs text-gray-400 mt-1">
+                  Requiere periodicidad configurada. Al vencer cada período, ajusta el monto y las cuotas pendientes solas y avisa por email.
+                </p>
               </div>
               {form.tipo === '1' && (
                 <div>
@@ -618,6 +632,7 @@ export default function ContratosPage() {
   const [transicionando, setTransicionando] = useState(false)
   const [ajusteContrato, setAjusteContrato] = useState<ContratoDto | null>(null)
   const [punitoriosContrato, setPunitoriosContrato] = useState<ContratoDto | null>(null)
+  const [ajusteAutoContrato, setAjusteAutoContrato] = useState<ContratoDto | null>(null)
   const [detalleContrato, setDetalleContrato] = useState<ContratoDto | null>(null)
 
   const cargar = useCallback(async () => {
@@ -661,6 +676,11 @@ export default function ContratosPage() {
   const handleAbrirPunitorios = async (c: ContratoDto) => {
     const res = await getContrato(c.id)
     if (res.success) setPunitoriosContrato(res.data)
+  }
+
+  const handleAbrirAjusteAutomatico = async (c: ContratoDto) => {
+    const res = await getContrato(c.id)
+    if (res.success) setAjusteAutoContrato(res.data)
   }
 
   const handleDescargarPdf = async (c: ContratoDto) => {
@@ -829,6 +849,13 @@ export default function ContratosPage() {
                           >
                             <Percent className="w-4 h-4" />
                           </button>
+                          <button
+                            onClick={() => handleAbrirAjusteAutomatico(c)}
+                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${c.ajusteAutomatico ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-300 hover:bg-gray-100'}`}
+                            title={c.ajusteAutomatico ? 'Ajuste automático: activado' : 'Ajuste automático: desactivado'}
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                          </button>
                           {c.administracionCobros && (
                             <button onClick={() => handleVerCuotas(c)} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors cursor-pointer" title="Ver cuotas">
                               <Banknote className="w-4 h-4" />
@@ -915,6 +942,14 @@ export default function ContratosPage() {
           contrato={punitoriosContrato}
           onConfirmado={() => { setPunitoriosContrato(null); cargar() }}
           onCerrar={() => setPunitoriosContrato(null)}
+        />
+      )}
+
+      {ajusteAutoContrato && (
+        <AjusteAutomaticoModal
+          contrato={ajusteAutoContrato}
+          onConfirmado={() => { setAjusteAutoContrato(null); cargar() }}
+          onCerrar={() => setAjusteAutoContrato(null)}
         />
       )}
 

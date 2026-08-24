@@ -91,9 +91,19 @@ builder.Services.AddScoped<INotificacionService, NotificacionService>();
 builder.Services.AddHostedService<RecordatorioVencimientoService>();
 builder.Services.AddScoped<ITenantService, TenantService>();
 builder.Services.AddHttpClient("Bcra", c => c.BaseAddress = new Uri("https://api.bcra.gob.ar/"));
+builder.Services.AddHttpClient("Indec", c => c.BaseAddress = new Uri("https://apis.datos.gob.ar/"));
+builder.Services.AddHttpClient("Gemini", c => c.BaseAddress = new Uri("https://generativelanguage.googleapis.com/"));
+builder.Services.AddScoped<IReciboIaService, GeminiReciboIaService>();
 builder.Services.AddScoped<ITasaMoratoriaService, TasaMoratoriaService>();
 builder.Services.AddHostedService<TasaMoratoriaSchedulerService>();
 builder.Services.AddScoped<IPunitorioService, PunitorioService>();
+builder.Services.AddScoped<IIndiceIclService, IndiceIclService>();
+builder.Services.AddHostedService<IndiceIclSchedulerService>();
+builder.Services.AddScoped<IIndiceUvaService, IndiceUvaService>();
+builder.Services.AddHostedService<IndiceUvaSchedulerService>();
+builder.Services.AddScoped<IIndiceIpcService, IndiceIpcService>();
+builder.Services.AddHostedService<IndiceIpcSchedulerService>();
+builder.Services.AddHostedService<AjusteAutomaticoService>();
 
 builder.Services.AddHttpContextAccessor();
 

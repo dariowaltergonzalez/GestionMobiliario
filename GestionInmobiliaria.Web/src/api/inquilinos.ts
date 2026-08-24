@@ -113,3 +113,8 @@ export const deleteInquilino = async (id: number) => {
   const res = await client.delete<ApiResponse<null>>(`/api/inquilinos/${id}`)
   return res.data
 }
+
+export const generarTokenPortalInquilino = async (id: number) => {
+  const res = await client.post<ApiResponse<{ token: string }>>(`/api/inquilinos/${id}/token-portal`)
+  return res.data
+}

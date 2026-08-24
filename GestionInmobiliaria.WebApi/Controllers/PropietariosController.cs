@@ -3,8 +3,10 @@ using GestionInmobiliaria.Aplicacion.DTOs;
 using GestionInmobiliaria.Dominio.Common;
 using GestionInmobiliaria.Dominio.Entidades;
 using GestionInmobiliaria.Dominio.Interfaces;
+using GestionInmobiliaria.Infraestructura.Persistencia;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace GestionInmobiliaria.WebApi.Controllers;
 
@@ -14,8 +16,13 @@ namespace GestionInmobiliaria.WebApi.Controllers;
 public class PropietariosController : ControllerBase
 {
     private readonly IPropietarioRepository _repo;
+    private readonly ApplicationDbContext _context;
 
-    public PropietariosController(IPropietarioRepository repo) => _repo = repo;
+    public PropietariosController(IPropietarioRepository repo, ApplicationDbContext context)
+    {
+        _repo = repo;
+        _context = context;
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -119,6 +126,21 @@ public class PropietariosController : ControllerBase
         var ok = await _repo.DeleteAsync(id);
         if (!ok) return NotFound(ApiResponse<object>.Fail("Propietario no encontrado."));
         return Ok(ApiResponse<object>.Ok(null, "Propietario dado de baja correctamente."));
+    }
+
+    // Genera (o regenera, invalidando el anterior) el token del Portal de autoservicio — ver
+    // docs/logica-negocio.md sección PORTAL DE AUTOSERVICIO.
+    [HttpPost("{id}/token-portal")]
+    public async Task<IActionResult> GenerarTokenPortal(int id)
+    {
+        var propietario = await _context.Propietarios.FirstOrDefaultAsync(p => p.Id == id);
+        if (propietario is null) return NotFound(ApiResponse<object>.Fail("Propietario no encontrado."));
+
+        propietario.TokenPortal = TokenPortal.Generar(propietario.TenantId);
+        propietario.FechaActualizacion = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return Ok(ApiResponse<object>.Ok(new { token = propietario.TokenPortal }, "Link del portal generado."));
     }
 
     private static PropietarioDto MapToDto(Propietario p) => new()

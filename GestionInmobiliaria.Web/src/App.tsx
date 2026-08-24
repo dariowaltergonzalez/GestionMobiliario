@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import LandingPage from './pages/public/LandingPage'
 import PropiedadDetallePage from './pages/public/PropiedadDetallePage'
+import PortalInquilinoPage from './pages/public/PortalInquilinoPage'
+import PortalPropietarioPage from './pages/public/PortalPropietarioPage'
 import LoginPage from './pages/auth/LoginPage'
 import DashboardPage from './pages/dashboard/DashboardPage'
 import PropiedadesPage from './pages/dashboard/propiedades/PropiedadesPage'
@@ -33,6 +35,8 @@ function AppRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/propiedades/:id" element={<PropiedadDetallePage />} />
       <Route path="/tasacion" element={<TasacionPage />} />
+      <Route path="/portal/inquilino/:token" element={<PortalInquilinoPage />} />
+      <Route path="/portal/propietario/:token" element={<PortalPropietarioPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
       <Route path="/dashboard/propiedades" element={<ProtectedRoute><PropiedadesPage /></ProtectedRoute>} />

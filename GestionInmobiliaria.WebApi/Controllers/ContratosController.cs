@@ -148,6 +148,7 @@ public class ContratosController : ControllerBase
         contrato.Moneda = (Moneda)request.Moneda;
         contrato.TipoAjuste = (TipoAjuste)request.TipoAjuste;
         contrato.PeriodicidadAjusteMeses = request.PeriodicidadAjusteMeses;
+        contrato.AjusteAutomatico = request.AjusteAutomatico;
         contrato.PorcentajeAjuste = request.PorcentajeAjuste;
         contrato.DiaVencimientoPago = request.DiaVencimientoPago;
         contrato.ComisionLocadorPorcentaje = request.ComisionLocadorPorcentaje;
@@ -287,6 +288,27 @@ public class ContratosController : ControllerBase
         await _context.SaveChangesAsync();
 
         return Ok(ApiResponse<ContratoDto>.Ok(MapToDto(contrato), "Configuración de punitorios actualizada."));
+    }
+
+    // Mismo criterio que ActualizarPunitorios: configuración administrativa, no una condición
+    // económica congelada — se puede tocar en cualquier estado del contrato.
+    [HttpPut("{id}/ajuste-automatico")]
+    [Authorize(Roles = "Admin,Operador")]
+    public async Task<IActionResult> ActualizarAjusteAutomatico(int id, [FromBody] ActualizarAjusteAutomaticoRequest request)
+    {
+        var contrato = await _repo.GetByIdAsync(id);
+        if (contrato is null)
+            return NotFound(ApiResponse<ContratoDto>.Fail("Contrato no encontrado."));
+
+        contrato.AjusteAutomatico = request.AjusteAutomatico;
+        contrato.TipoAjuste = (TipoAjuste)request.TipoAjuste;
+        contrato.PeriodicidadAjusteMeses = request.PeriodicidadAjusteMeses;
+        contrato.PorcentajeAjuste = request.PorcentajeAjuste;
+        contrato.FechaActualizacion = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return Ok(ApiResponse<ContratoDto>.Ok(MapToDto(contrato), "Configuración de ajuste automático actualizada."));
     }
 
     [HttpDelete("{id}")]
@@ -711,6 +733,7 @@ public class ContratosController : ControllerBase
         Moneda = (Moneda)r.Moneda,
         TipoAjuste = (TipoAjuste)r.TipoAjuste,
         PeriodicidadAjusteMeses = r.PeriodicidadAjusteMeses,
+        AjusteAutomatico = r.AjusteAutomatico,
         DiaVencimientoPago = r.DiaVencimientoPago,
         ComisionLocadorPorcentaje = r.ComisionLocadorPorcentaje,
         ComisionLocadorMonto = r.ComisionLocadorMonto,
@@ -770,6 +793,7 @@ public class ContratosController : ControllerBase
         AdministracionCobros = c.AdministracionCobros,
         AplicaPunitorios = c.AplicaPunitorios,
         PunitorioPorcentaje = c.PunitorioPorcentaje,
+        AjusteAutomatico = c.AjusteAutomatico,
         PorcentajeAjuste = c.PorcentajeAjuste,
         MontoActual = c.MontoActual,
         FechaUltimoAjuste = c.FechaUltimoAjuste,

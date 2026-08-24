@@ -109,3 +109,8 @@ export const deletePropietario = async (id: number) => {
   const res = await client.delete<ApiResponse<null>>(`/api/propietarios/${id}`)
   return res.data
 }
+
+export const generarTokenPortalPropietario = async (id: number) => {
+  const res = await client.post<ApiResponse<{ token: string }>>(`/api/propietarios/${id}/token-portal`)
+  return res.data
+}

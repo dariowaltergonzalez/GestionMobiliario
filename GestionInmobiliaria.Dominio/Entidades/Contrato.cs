@@ -20,7 +20,9 @@ public enum TipoAjuste
     Fijo = 1,
     IndiceICL = 2,
     Porcentaje = 3,
-    Otro = 4
+    Otro = 4,
+    IndiceIPC = 5,
+    IndiceUVA = 6
 }
 
 public enum EstadoPago
@@ -111,6 +113,11 @@ public class Contrato : IAuditable
     public decimal? PorcentajeAjuste { get; set; }
     public decimal MontoActual { get; set; }
     public DateTime? FechaUltimoAjuste { get; set; }
+
+    // Interruptor del ajuste automático (ICL/IPC/Porcentaje según TipoAjuste) — default false a
+    // propósito (a diferencia de AplicaPunitorios que es true): cada contrato negoció una cláusula
+    // de ajuste específica, activarlo para todos de golpe aplicaría aumentos no acordados.
+    public bool AjusteAutomatico { get; set; } = false;
 
     // Vigencia
     public DateTime FechaInicio { get; set; }
@@ -209,6 +216,14 @@ public class AjusteContrato : IAuditable
     public string TipoAjuste { get; set; } = string.Empty;
     public string? Observaciones { get; set; }
 
+    // Solo tiene valor cuando el ajuste se calculó con un índice (ICL/IPC) — texto libre con los
+    // valores exactos usados en cada fecha, mismo criterio que Pago.DetallePunitorioCobrado (así
+    // queda trazable sin necesitar columnas separadas por índice).
+    public string? DetalleIndiceUsado { get; set; }
+
+    // true si lo disparó el proceso automático, false si lo aplicó un Admin/Operador a mano.
+    public bool Automatico { get; set; }
+
     public bool Activo { get; set; } = true;
     public DateTime FechaCreacion { get; set; }
     public DateTime FechaActualizacion { get; set; }
@@ -294,6 +309,10 @@ public class LiquidacionAbono : IAuditable
     public string? EntidadDestino { get; set; }
     public string? NumeroOperacion { get; set; }
     public string? Observaciones { get; set; }
+
+    // Imagen del comprobante subida por el admin (guardada siempre que se sube, aunque la
+    // extracción por IA falle o el usuario corrija los datos a mano). Ver IReciboIaService.
+    public string? ComprobanteUrl { get; set; }
 
     public bool Activo { get; set; } = true;
     public DateTime FechaCreacion { get; set; }

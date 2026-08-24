@@ -20,13 +20,25 @@ public class LiquidacionesController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly ILogger<LiquidacionesController> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IStorageService _storage;
+    private readonly IReciboIaService _reciboIa;
+    private readonly ITenantService _tenantService;
+
+    private static readonly string[] ExtensionesComprobantePermitidas = [".jpg", ".jpeg", ".png", ".webp", ".heic"];
+    private const long TamanoMaximoComprobanteBytes = 10 * 1024 * 1024; // 10 MB
 
     public LiquidacionesController(
         ILiquidacionRepository repo,
         ApplicationDbContext context,
         ILogger<LiquidacionesController> logger,
-        IServiceScopeFactory scopeFactory)
+        IServiceScopeFactory scopeFactory,
+        IStorageService storage,
+        IReciboIaService reciboIa,
+        ITenantService tenantService)
     {
+        _storage = storage;
+        _reciboIa = reciboIa;
+        _tenantService = tenantService;
         _repo = repo;
         _context = context;
         _logger = logger;
@@ -107,6 +119,46 @@ public class LiquidacionesController : ControllerBase
         return Ok(ApiResponse<string>.Ok("Liquidación eliminada."));
     }
 
+    // Sube la foto del comprobante y le pide a la IA que extraiga los datos — no depende de una
+    // Liquidacion puntual (se usa antes de saber a cuál abono va a terminar asociada). La imagen
+    // queda guardada siempre que la subida en sí funcione, aunque la IA no encuentre nada o falle
+    // (ver GeminiReciboIaService.ExtraerDatosAsync, que nunca tira excepción hacia afuera).
+    [HttpPost("comprobantes/extraer")]
+    [Authorize(Roles = "Admin,Operador")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> ExtraerComprobante(IFormFile archivo)
+    {
+        if (archivo is null || archivo.Length == 0)
+            return BadRequest(ApiResponse<object>.Fail("No se recibió ningún archivo."));
+
+        if (archivo.Length > TamanoMaximoComprobanteBytes)
+            return BadRequest(ApiResponse<object>.Fail("El archivo supera el tamaño máximo de 10 MB."));
+
+        var extension = Path.GetExtension(archivo.FileName).ToLowerInvariant();
+        if (!ExtensionesComprobantePermitidas.Contains(extension))
+            return BadRequest(ApiResponse<object>.Fail("Formato no soportado. Usá JPG, PNG, WEBP o HEIC."));
+
+        var tenantId = _tenantService.TenantId ?? 0;
+
+        string comprobanteUrl;
+        using (var streamParaGuardar = archivo.OpenReadStream())
+            comprobanteUrl = await _storage.GuardarArchivoAsync(streamParaGuardar, archivo.FileName, $"{tenantId}/comprobantes");
+
+        DatosComprobante datos;
+        using (var streamParaIa = archivo.OpenReadStream())
+            datos = await _reciboIa.ExtraerDatosAsync(streamParaIa, archivo.ContentType);
+
+        return Ok(ApiResponse<ExtraccionComprobanteDto>.Ok(new ExtraccionComprobanteDto
+        {
+            ComprobanteUrl = comprobanteUrl,
+            Monto = datos.Monto,
+            Fecha = datos.Fecha,
+            CbuCvuDestino = datos.CbuCvuDestino,
+            EntidadDestino = datos.EntidadDestino,
+            NumeroOperacion = datos.NumeroOperacion,
+        }, "Comprobante subido."));
+    }
+
     [HttpPost("{id}/abonos")]
     [Authorize(Roles = "Admin,Operador")]
     public async Task<IActionResult> AgregarAbono(int id, [FromBody] AbonoLiquidacionRequest request)
@@ -126,6 +178,7 @@ public class LiquidacionesController : ControllerBase
             EntidadDestino = request.EntidadDestino?.Trim(),
             NumeroOperacion = request.NumeroOperacion?.Trim(),
             Observaciones = request.Observaciones?.Trim(),
+            ComprobanteUrl = request.ComprobanteUrl?.Trim(),
         };
 
         var actualizada = await _repo.AgregarAbonoAsync(id, abono);
@@ -154,6 +207,7 @@ public class LiquidacionesController : ControllerBase
             EntidadDestino = request.EntidadDestino?.Trim(),
             NumeroOperacion = request.NumeroOperacion?.Trim(),
             Observaciones = request.Observaciones?.Trim(),
+            ComprobanteUrl = request.ComprobanteUrl?.Trim(),
         };
 
         var actualizada = await _repo.ActualizarAbonoAsync(id, abonoId, datos);
@@ -330,6 +384,7 @@ public class LiquidacionesController : ControllerBase
                 EntidadDestino = a.EntidadDestino,
                 NumeroOperacion = a.NumeroOperacion,
                 Observaciones = a.Observaciones,
+                ComprobanteUrl = a.ComprobanteUrl,
             }).OrderByDescending(a => a.Fecha).ToList(),
             Gastos = l.Gastos.Select(g => new LiquidacionGastoDto
             {

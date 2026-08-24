@@ -10,6 +10,7 @@ export interface LiquidacionAbonoDto {
   entidadDestino: string | null
   numeroOperacion: string | null
   observaciones: string | null
+  comprobanteUrl: string | null
 }
 
 export interface LiquidacionGastoDto {
@@ -92,6 +93,7 @@ export interface AbonoFormData {
   entidadDestino?: string
   numeroOperacion?: string
   observaciones?: string
+  comprobanteUrl?: string
 }
 
 const toAbonoPayload = (datos: AbonoFormData) => ({
@@ -102,7 +104,27 @@ const toAbonoPayload = (datos: AbonoFormData) => ({
   entidadDestino: datos.entidadDestino || undefined,
   numeroOperacion: datos.numeroOperacion || undefined,
   observaciones: datos.observaciones || undefined,
+  comprobanteUrl: datos.comprobanteUrl || undefined,
 })
+
+export interface ExtraccionComprobanteDto {
+  comprobanteUrl: string
+  monto: number | null
+  fecha: string | null
+  cbuCvuDestino: string | null
+  entidadDestino: string | null
+  numeroOperacion: string | null
+}
+
+export const extraerComprobante = async (archivo: File) => {
+  const formData = new FormData()
+  formData.append('archivo', archivo)
+  const res = await client.post<ApiResponse<ExtraccionComprobanteDto>>(
+    '/api/liquidaciones/comprobantes/extraer', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  return res.data
+}
 
 export const agregarAbono = async (liquidacionId: number, datos: AbonoFormData) => {
   const res = await client.post<ApiResponse<LiquidacionDto>>(

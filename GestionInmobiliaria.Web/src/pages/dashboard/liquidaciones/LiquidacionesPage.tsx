@@ -1,14 +1,16 @@
-import { Fragment, useState, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, ChevronDown, Search, Wallet, Pencil, Trash2, Plus, X, AlertTriangle } from 'lucide-react'
+import { Fragment, useState, useEffect, useCallback, useRef } from 'react'
+import { ChevronLeft, ChevronRight, ChevronDown, Search, Wallet, Pencil, Trash2, Plus, X, AlertTriangle, Paperclip, Sparkles, FileImage } from 'lucide-react'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
 import {
   getLiquidaciones, getLiquidacionMetricas, eliminarLiquidacion,
-  agregarAbono, editarAbono, eliminarAbono,
+  agregarAbono, editarAbono, eliminarAbono, extraerComprobante,
   type LiquidacionDto, type LiquidacionAbonoDto, type LiquidacionMetricasDto,
   type FiltrosLiquidaciones, type AbonoFormData,
 } from '../../../api/liquidaciones'
 import { getPropietariosActivos, type PropietarioComboDto } from '../../../api/propietarios'
 import { MEDIOS_PAGO, medioPagoNumero } from '../../../api/contratos'
+
+const API_URL = 'http://localhost:5005'
 
 function mesAnio(iso: string) {
   return new Date(iso).toLocaleDateString('es-AR', { month: 'short', year: 'numeric' })
@@ -75,6 +77,7 @@ const abonoVacio = (montoSugerido: number): AbonoFormData => ({
   entidadDestino: '',
   numeroOperacion: '',
   observaciones: '',
+  comprobanteUrl: '',
 })
 
 // ─── Modal de detalle / abonos ──────────────────────────────────────────────
@@ -92,6 +95,9 @@ function DetalleLiquidacionModal({ liquidacion, moneda, onCambio, onEliminada, o
   const [error, setError] = useState('')
   const [confirmEliminarAbono, setConfirmEliminarAbono] = useState<LiquidacionAbonoDto | null>(null)
   const [confirmEliminarLiquidacion, setConfirmEliminarLiquidacion] = useState(false)
+  const [subiendoComprobante, setSubiendoComprobante] = useState(false)
+  const [errorComprobante, setErrorComprobante] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const set = <K extends keyof AbonoFormData>(campo: K, valor: AbonoFormData[K]) =>
     setForm(f => ({ ...f, [campo]: valor }))
@@ -106,14 +112,45 @@ function DetalleLiquidacionModal({ liquidacion, moneda, onCambio, onEliminada, o
       entidadDestino: abono.entidadDestino ?? '',
       numeroOperacion: abono.numeroOperacion ?? '',
       observaciones: abono.observaciones ?? '',
+      comprobanteUrl: abono.comprobanteUrl ?? '',
     })
     setError('')
+    setErrorComprobante('')
+  }
+
+  const handleSubirComprobante = async (archivo: File) => {
+    setSubiendoComprobante(true)
+    setErrorComprobante('')
+    try {
+      const res = await extraerComprobante(archivo)
+      if (res.success) {
+        const d = res.data
+        setForm(f => ({
+          ...f,
+          comprobanteUrl: d.comprobanteUrl,
+          monto: d.monto ?? f.monto,
+          fecha: d.fecha ? d.fecha.slice(0, 10) : f.fecha,
+          cbuCvuDestino: d.cbuCvuDestino ?? f.cbuCvuDestino,
+          entidadDestino: d.entidadDestino ?? f.entidadDestino,
+          numeroOperacion: d.numeroOperacion ?? f.numeroOperacion,
+        }))
+      } else {
+        setErrorComprobante(res.errors?.[0] ?? res.message ?? 'No se pudo subir el comprobante.')
+      }
+    } catch (err: unknown) {
+      const axErr = err as { response?: { data?: { errors?: string[]; message?: string } } }
+      setErrorComprobante(axErr.response?.data?.errors?.[0] ?? axErr.response?.data?.message ?? 'No se pudo subir el comprobante.')
+    } finally {
+      setSubiendoComprobante(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   const cancelarEdicion = () => {
     setEditandoId(null)
     setForm(abonoVacio(liquidacion.montoRestante))
     setError('')
+    setErrorComprobante('')
   }
 
   const handleGuardar = async () => {
@@ -217,6 +254,12 @@ function DetalleLiquidacionModal({ liquidacion, moneda, onCambio, onEliminada, o
                       </p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                      {a.comprobanteUrl && (
+                        <a href={`${API_URL}${a.comprobanteUrl}`} target="_blank" rel="noreferrer"
+                          className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors" title="Ver comprobante">
+                          <FileImage className="w-3.5 h-3.5" />
+                        </a>
+                      )}
                       <button onClick={() => empezarEdicion(a)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Editar">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
@@ -237,6 +280,27 @@ function DetalleLiquidacionModal({ liquidacion, moneda, onCambio, onEliminada, o
                 {editandoId ? 'Editar abono' : 'Agregar abono'}
               </p>
               <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Comprobante (foto o captura, opcional)
+                  </label>
+                  <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic"
+                    disabled={subiendoComprobante}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) void handleSubirComprobante(f) }}
+                    className="block w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-900 hover:file:bg-blue-100 disabled:opacity-60" />
+                  {subiendoComprobante && (
+                    <p className="text-xs text-blue-700 mt-1.5 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5" /> Leyendo el comprobante con IA...
+                    </p>
+                  )}
+                  {!subiendoComprobante && form.comprobanteUrl && (
+                    <p className="text-xs text-green-700 mt-1.5 flex items-center gap-1.5">
+                      <Paperclip className="w-3.5 h-3.5" /> Comprobante adjuntado.
+                      Revisá los datos de abajo antes de guardar — no se cargan solos.
+                    </p>
+                  )}
+                  {errorComprobante && <p className="text-xs text-red-600 mt-1.5">{errorComprobante}</p>}
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Monto</label>
