@@ -225,6 +225,48 @@ una cabecera con el total, varios "detalles" reales que se van cargando por sepa
   borrarlos primero, uno por uno. Esto es a propósito: evita borrar de un tirón un registro que
   todavía tiene plata real transferida asociada.
 
+### Autocompletar comprobante con IA (2026-08-24)
+
+El admin sube la foto/captura del comprobante de transferencia y el sistema precarga el formulario de
+abono (monto, fecha, CBU/CVU, entidad, N° de operación) mandándole la imagen a un modelo de IA con
+visión — **nunca autoguarda, siempre hay que revisar y confirmar antes de guardar** (es plata). La
+imagen queda guardada en el sistema siempre, aunque la IA no encuentre nada.
+
+- **Proveedor de IA aislado detrás de una interfaz** (`IReciboIaService.ExtraerDatosAsync`, en
+  `Aplicacion/Services`), a pedido explícito del usuario: el día que convenga cambiar de proveedor
+  (ej. a OpenAI cuando haya un cliente pagando), alcanza con crear una nueva implementación y cambiar
+  el registro en `Program.cs` — ni el controller ni el frontend saben qué proveedor hay detrás.
+- **Arrancó con Gemini** (`GeminiReciboIaService`, `Infraestructura/Services`) porque tiene tier
+  gratis real sin tarjeta (a diferencia de OpenAI/Anthropic, que solo dan un crédito único de prueba)
+  — sirve para desarrollar y probar sin costo. Usa `gemini-3.6-flash` con `responseSchema` (salida
+  JSON forzada a un shape fijo: `monto`, `fecha`, `cbuCvuDestino`, `entidadDestino`,
+  `numeroOperacion`, todos nullable — la IA nunca inventa un campo que no encuentra). Si falta
+  `Gemini:ApiKey` en configuración o la llamada falla por cualquier motivo, el servicio no tira
+  excepción — devuelve todos los campos en null y el usuario completa a mano; la imagen igual se
+  guarda porque el guardado y la extracción son pasos independientes en el controller.
+- **Ojo con el nombre del modelo, cambia seguido**: se arrancó con `gemini-2.5-flash` y la API
+  devolvió 404 ("ya no está disponible para usuarios nuevos, usar gemini-3.6-flash") — se corrigió a
+  `gemini-3.6-flash`. También puede devolver 503 "high demand" de forma transitoria (tier gratis) —
+  no es un bug, con un reintento simple funciona. Si en el futuro vuelve a fallar con 404, lo primero
+  a chequear es si el nombre del modelo venció de nuevo.
+- **La API key es config global, no por tenant** (a diferencia de las credenciales SMTP, que sí son
+  por tenant en `ConfiguracionEmpresa`) — es un costo/servicio de la plataforma, no algo que cada
+  inmobiliaria configure. Vive en `Gemini:ApiKey`: placeholder vacío en `appsettings.json` (se
+  commitea), la key real va en `appsettings.Development.json` (gitignoreado, `appsettings.*.json`
+  salvo el propio `appsettings.json`).
+- `POST /api/liquidaciones/comprobantes/extraer` — no depende de una `Liquidacion` puntual (se sube
+  antes de saber a qué abono va a terminar asociada). Guarda el archivo con `IStorageService` (mismo
+  patrón que fotos de `SolicitudTasacion`/`Propiedad`) en `uploads/{tenantId}/comprobantes/`, y
+  devuelve `comprobanteUrl` + los datos extraídos en la misma respuesta.
+- `LiquidacionAbono.ComprobanteUrl` (nullable) — un campo simple, no una tabla de documentos aparte
+  (a diferencia de `DocumentoContrato`, que sí permite varios adjuntos): acá es 1 comprobante por
+  abono, mismo criterio que `Contrato.ArchivoUrl`. Se ve como un ícono "Ver comprobante" al lado de
+  cada abono ya cargado en `LiquidacionesPage.tsx`.
+- **Probado en vivo (2026-08-24)** con una imagen de comprobante sintética (generada a propósito para
+  la prueba, con datos ficticios: monto, fecha, CVU, entidad, N° de operación) y la API key real de
+  Gemini: extrajo los 5 campos exactos, sin inventar ni errar ninguno. La imagen quedó guardada en
+  `uploads/{tenantId}/comprobantes/` y se borró después de verificar, para no dejar datos de prueba.
+
 ---
 
 ## GASTOS
@@ -283,8 +325,387 @@ exista ya tenga datos reales que mostrar.
   Vigente o Liquidación con abonos: si algo ya impactó en un movimiento de dinero real, no se toca
   retroactivamente.
 - `VisibleParaInquilino` es un campo pensado para el futuro Portal de autoservicio (que gastos del
-  propietario se le muestren o no al inquilino) — hoy no se usa en ningún lado del sistema todavía,
-  se guarda para no tener que migrar de nuevo cuando se construya el portal.
+  propietario se le muestren o no al inquilino) — ya se usa, ver sección PORTAL DE AUTOSERVICIO.
+
+---
+
+## PUNITORIOS
+
+Recargo por mora en el pago de una cuota. Diseñado 2026-08-11, programado y probado de punta a punta
+2026-08-22/24 (incluyendo un cobro real con punitorio, no solo la fórmula aislada).
+
+**Investigación (2026-08-11)**: cómo se manejan los punitorios de alquiler en Argentina hoy —
+- Marco legal: art. 768 CCyCN — la tasa aplicable es 1) lo pactado en el contrato, 2) ley especial,
+  3) subsidiariamente la que fije el BCRA. Nuestra propia cláusula SÉPTIMA (plantilla de contrato) ya
+  dice *"tasa activa por plazo fijo del Banco de la Nación Argentina"* como texto por defecto.
+- Práctica de mercado: la mayoría pacta una tasa fija (~1% diario / 36% anual) o referencia la tasa
+  BNA. Interés **simple** (lineal por día), no compuesto — así calculan los juzgados en estos casos.
+- Competidor (Barreeo): su calculadora pide monto + fecha vencimiento + fecha pago + tasa del
+  contrato, la marcan como "orientativa" ("depende de lo que diga el contrato"). En su plataforma
+  completa se carga la regla de punitorios por contrato y el sistema calcula solo.
+- Dato nuevo relevante: desde enero 2026 el BCRA publica una tasa pensada específicamente para esto,
+  la **TIM (Tasa de Intereses Moratorios)**, vía Resolución 1/2026 — pensada como referencia oficial
+  para que los tribunales calculen intereses moratorios (art. 768 CCyCN). Más prolija que perseguir la
+  tasa BNA específica, que el banco solo publica en PDF (no hay API limpia para eso).
+
+**Descubrimiento clave al programar (2026-08-22): la TIM NO es una tasa % periódica, es un ÍNDICE
+ACUMULADO** (viene subiendo desde 1993-06-03, hoy vale ~163.000 — mismo mecanismo que el CER). Se usa
+dividiendo dos valores del índice, nunca "días de atraso × tasa diaria":
+
+```
+recargo = MontoAdeudado × (Valor_TIM(fecha_de_cobro) / Valor_TIM(fecha_de_vencimiento) − 1)
+```
+
+Esto de hecho **resuelve solo** la duda de "interés simple o compuesto" — el BCRA ya lo resolvió del
+lado de ellos al construir el índice, nosotros solo dividimos dos valores. Confirmado en vivo contra
+`api.bcra.gob.ar/estadisticas/v4.0/monetarias/1197` (`idVariable=1197`, descripción *"Tasa de
+Intereses Moratorios (TIM) CCC, art. 768(c)"*, periodicidad diaria, serie completa desde 1993-06-03).
+
+**Decisiones tomadas con el usuario (2026-08-11)**:
+- Campo nuevo en `Contrato` con un % fijo diario (mismo patrón Porcentaje/Monto que
+  `ComisionLocador`) — este sí sería una tasa % simple tradicional, no un índice. **Regla híbrida**:
+  si ese % fijo es > 0, se usa ese. Si está en 0/vacío, se usa la fórmula del índice TIM de arriba —
+  así los contratos con la cláusula por defecto (que no cargan un % propio) también calculan algo.
+- Cálculo del monto de punitorio: **en vivo**, al mostrar/cobrar la cuota — nunca se guarda un
+  acumulado que se desactualiza.
+
+**No es un proceso automático ni corre a una hora fija**: a diferencia de
+`RecordatorioVencimientoService` o `TasaMoratoriaSchedulerService`, el punitorio **no tiene ningún
+`BackgroundService` propio**. `IPunitorioService.CalcularAsync(pago)` se ejecuta **cada vez que se
+pide la lista de Pagos o las cuotas de un contrato** (`GET /api/pagos`, `GET /api/contratos/{id}/pagos`)
+— nunca al registrar un cobro específicamente, y nunca en un horario programado. El monto que se ve
+es siempre "a hoy": si se vuelve a mirar la misma cuota al día siguiente, el número cambia solo (un
+día más de atraso, y la tasa TIM puede haber cambiado). No se persiste en ningún lado. Lo único que sí
+corre 1 vez por día es `TasaMoratoriaSchedulerService` — pero ese actualiza la *materia prima* (la
+tabla `TasasMoratorias`), no calcula ningún punitorio; el cálculo en sí lee esa tabla al vuelo cuando
+alguien pide ver una cuota.
+
+### Infraestructura de la tasa TIM
+
+- Entidad `TasaMoratoria` (`Dominio/Entidades/TasaMoratoria.cs`): `Fecha` (día que reporta el BCRA,
+  índice único), `Valor` (`decimal(18,8)`, necesita esa precisión — el índice viene con hasta 4
+  decimales sobre una base de 6 dígitos enteros), `Origen` = "BCRA", `FechaConsulta`. Es dato
+  **global, no por tenant** (la tasa es la misma para todas las inmobiliarias) — a propósito no tiene
+  campo `TenantId` ni `HasQueryFilter`; igual queda auditada en `AuditLogs` por implementar
+  `IAuditable`.
+- `ITasaMoratoriaService.ActualizarAsync()` (`Infraestructura/Services/TasaMoratoriaService.cs`): si
+  la tabla está vacía hace una **carga histórica completa** (pagina de a 3000 registros — es el máximo
+  que permite la API del BCRA por request; la serie completa son ~12.136 valores, entran en 5
+  páginas); si ya hay datos, solo trae `desde = últimaFecha + 1 hasta = hoy`. Deserializa la respuesta
+  de `api.bcra.gob.ar/estadisticas/v4.0/monetarias/1197` con DTOs internos (`JsonPropertyName`, la API
+  devuelve todo en minúscula: `results`/`detalle`/`fecha`/`valor`). Funciona por HTTPS normal sin
+  problemas de certificado (`AddHttpClient("Bcra", ...)` en `Program.cs`, sin handler especial).
+- **Bug real encontrado probando y cómo se resolvió**: el `BackgroundService` arranca su primer ciclo
+  apenas levanta la app (no espera las 24hs), así que al probar manualmente justo después de un
+  arranque en frío, el disparo manual (`POST /actualizar`) y el ciclo automático corrieron al mismo
+  tiempo — los dos vieron la tabla vacía, los dos dispararon la carga histórica completa, y chocaron
+  al insertar las mismas fechas. Se solucionó con un `SemaphoreSlim` **estático** dentro de
+  `TasaMoratoriaService` que serializa todas las llamadas a `ActualizarAsync()` dentro del proceso —
+  el segundo llamado simplemente espera al primero y después no encuentra nada nuevo para traer. Mismo
+  criterio de siempre: el disparo manual y el automático **son literalmente el mismo método**, nunca
+  lógica duplicada.
+- `TasaMoratoriaSchedulerService` (`BackgroundService`, mismo patrón que
+  `RecordatorioVencimientoService`) — llama a `ActualizarAsync()` una vez por día.
+- `TasasMoratoriasController`: `GET /api/tasas-moratorias/ultima` (valor vigente), `GET /api/tasas-moratorias`
+  (histórico, filtrable por `desde`/`hasta`), `POST /api/tasas-moratorias/actualizar`
+  (`Authorize(Roles="Admin")`, dispara el mismo servicio que el background job).
+- Probado en vivo contra la base real: carga histórica completa insertó los 12.136 valores correctos
+  (1993-06-03 a 2026-08-24), y una segunda corrida detectó correctamente "ya está al día" sin duplicar
+  nada.
+
+### Cálculo del punitorio en sí
+
+- `Contrato.PunitorioPorcentaje` (`decimal(7,4)`, nullable) — % diario fijo, opcional.
+- `IPunitorioService.CalcularAsync(Pago pago)` (`Infraestructura/Services/PunitorioService.cs`,
+  requiere `pago.Contrato` cargado): si `Estado` no es Pendiente/Atrasado devuelve 0; si el contrato
+  no tiene `DiaVencimientoPago` cargado devuelve 0; si la cuota no está vencida devuelve 0; si
+  `PunitorioPorcentaje > 0` usa ese % simple diario (`Monto × %/100 × díasAtraso`); si no, usa la
+  fórmula del índice TIM de arriba, buscando en `TasasMoratorias` el valor **más reciente disponible
+  en o antes de** cada fecha. Si no hay ninguna tasa TIM cargada todavía, devuelve 0 en vez de
+  inventar un número.
+- Se extrajo `VencimientoCalculator.Calcular(periodo, diaVencimientoPago)`
+  (`Dominio/Common/VencimientoCalculator.cs`) de adentro de `RecordatorioVencimientoService` (donde
+  vivía duplicado inline) — ahora lo usan los dos.
+- **Se muestra como línea aparte, nunca sumado al monto a cobrar** — mismo criterio que Gastos: en la
+  grilla de Pagos y en las cuotas del contrato aparece como "+ $X punitorio (Nd)" debajo del monto
+  esperado; al registrar un cobro se ve como aviso informativo, separado del total a registrar, así el
+  operador decide si lo cobra aparte o no.
+- DTOs: `PagoDto`/`PagoListDto` ganaron `montoPunitorio`, `diasAtraso`, `tasaPunitorioUsada` (todos
+  calculados, no persistidos). `ContratoDto`/`Create`/`UpdateContratoRequest` ganaron
+  `punitorioPorcentaje`. Formulario de contrato tiene un campo "Punitorio por mora — % diario fijo
+  (opcional)" con la aclaración de que si se deja vacío usa la TIM del BCRA.
+- **Probado en vivo**: se backdateó a mano el período de una cuota de prueba para que quedara vencida
+  (15/07/2026, 38/39 días de atraso según el día de prueba). El monto calculado en pantalla coincidió
+  con la cuenta a mano usando los valores reales de TIM guardados en la base.
+
+### Registro de lo efectivamente cobrado
+
+Probando el flujo de cobro surgió la pregunta obvia — si el operador cobra la cuota + el punitorio,
+¿queda registrado que una parte era interés, a qué tasa, cuántos días? Antes de este agregado, la
+respuesta era no: el operador tenía que sumar todo a mano en el campo Monto de "Formas de pago", y el
+sistema solo veía un "cobré de más" sin explicación, indistinguible de un error de tipeo.
+
+- Campos nuevos en `Pago`, todos nullable, **congelados al momento de cobrar** (a diferencia de
+  `MontoPunitorio`/`DiasAtraso` que son en vivo y cambian todos los días): `MontoPunitorioCobrado`,
+  `DiasAtrasoPunitorioCobrado`, `FechaVencimientoPunitorioCobrado`, y `DetallePunitorioCobrado` (texto
+  libre con la fórmula/tasa completa — ej. `"TIM BCRA: 163157.0316 (23/08/2026) / 158759.2172
+  (15/07/2026)"` o `"1.0000%/día fijo del contrato × 38 días de atraso..."` — así la tasa/índice queda
+  legible sin necesitar columnas separadas para cada valor).
+- `UpdatePagoRequest` ganó `CobrarPunitorio` (bool). En el modal "Registrar cobro" hay un checkbox:
+  "Cobrar también el punitorio por N días: $X".
+- **El monto nunca lo manda el cliente** — cuando `CobrarPunitorio=true` y el nuevo estado es Pagado,
+  `PagosController.UpdatePago` vuelve a llamar `IPunitorioService.CalcularAsync(pago)` del lado del
+  servidor (con el `Estado` todavía Pendiente/Atrasado, antes de mutarlo) y congela ESE resultado —
+  nunca confía en un número que venga del front. Es plata, no se toma de afuera.
+- Se ve en la grilla de Pagos (columna Cobrado) y en las cuotas del contrato, igual que el cálculo en
+  vivo pero ya no cambia: queda fijo con lo que realmente se cobró ese día.
+- **También en el recibo**: tanto el cuerpo del email (`PagosController.BuildEmailBody`) como el PDF
+  adjunto (`QuestPdfReportService.ComposeRecibo`) desglosan Cuota / Punitorio (N días de atraso) antes
+  del total, cuando `MontoPunitorioCobrado` tiene valor.
+- En el modal "Registrar cobro" el checkbox autocompleta el campo Monto con cuota + punitorio (solo si
+  hay una única forma de pago sin editar a mano), y la pantalla de confirmación también desglosa
+  Cuota/Punitorio antes de pedir confirmar.
+- **Probado en vivo de punta a punta (2026-08-23)**: cuota real backdateada a 39 días de atraso,
+  cobrada con el checkbox tildado ($462.465,52 = $450.000 cuota + $12.465,52 punitorio), verificado en
+  la base (`MontoPunitorioCobrado`, `DiasAtrasoPunitorioCobrado`, `DetallePunitorioCobrado` con los
+  valores TIM exactos), en la grilla de Pagos, y en el recibo PDF/email.
+
+### Interruptor por contrato
+
+`Contrato.AplicaPunitorios` (`bool`, default **true**) — si está en `false`, no se calcula ni se
+muestra ningún punitorio para ese contrato, sin importar el % fijo ni la tasa TIM. Es un campo
+separado de `DiaVencimientoPago` (ese lo sigue usando el aviso de vencimiento próximo). En el
+formulario de contrato es un checkbox "Aplicar punitorios por mora a este contrato" — sirve para los
+casos donde la inmobiliaria o el propietario no quieren castigar el atraso de un inquilino puntual.
+Filosofía general: no todo tiene que ser obligatorio, el sistema debe ser flexible por contrato en vez
+de forzar una única regla para todos.
+
+**Se puede tocar sin importar el estado del contrato**: el `Update` general de `Contrato` solo permite
+editar en Borrador, pero `AplicaPunitorios`/`PunitorioPorcentaje` es configuración administrativa, no
+una condición económica congelada — necesita poder cambiarse en cualquier momento. Se agregó
+`PUT /api/contratos/{id}/punitorios` (mismo criterio que el endpoint de Ajuste de cuotas, que también
+funciona fuera del flujo de edición general), y un ícono de % en la grilla de Contratos (rojo si está
+activado, gris si no) que abre `PunitoriosModal.tsx` con el checkbox y el %.
+
+### Relacionado: liquidación del punitorio al propietario
+
+El punitorio cobrado se liquida al propietario neto de la comisión de la inmobiliaria (o sea, la
+comisión también se calcula sobre el punitorio) porque `GenerarLiquidacionSiCorrespondeAsync` usa
+`pago.MontoPagado` (cuota+punitorio) como `MontoCobrado`. No fue una decisión explícita, salió solo de
+sumar el punitorio a `MontoPagado` — pero se investigó cómo se maneja en la práctica en Argentina y
+**coincide con el circuito estándar** (se cobra la cuota + punitorio, se descuenta la comisión de
+administración al total, y el neto se liquida al propietario). Confirmado, no queda nada pendiente.
+
+---
+
+## AJUSTE AUTOMÁTICO
+
+Aplica solo el ajuste periódico de cuotas (según ICL/UVA/IPC o % fijo) sin pedir confirmación humana,
+para los contratos que lo tienen habilitado. Diseñado e implementado de punta a punta 2026-08-24 —
+los 3 índices (ICL, UVA, IPC) quedaron completos y probados en vivo el mismo día en dos sesiones
+(ICL + Porcentaje primero, IPC + UVA después).
+
+**Decisión de fondo**: la competencia (Barreeo, Ubiquo, mialquiler.ar) aplica el ajuste automático,
+sin confirmación humana — se venden con "te olvidás de calcular aumentos". Se decidió ir por el mismo
+camino en vez del criterio habitual de "mostrar y confirmar" (usado para OCR de comprobantes) — no
+hacerlo así nos deja atrás de la competencia. A cambio: **opt-in por contrato**
+(`Contrato.AjusteAutomatico`, default `false`, a diferencia de `AplicaPunitorios` que es default
+`true` — acá cada contrato negoció una cláusula de ajuste específica, activarlo para todos de golpe
+aplicaría aumentos no acordados) + **registro completo y auditable de cada ajuste** + **notificación
+automática** (mismo tema `AvisoAumento` que ya usaba el ajuste manual).
+
+### Infraestructura de los índices (ICL, UVA, IPC)
+
+Mismo patrón que la TIM de Punitorios, pero cada índice en su propia tabla (decisión explícita del
+usuario: no generalizar en un servicio único de "índices BCRA", mantener cada uno desacoplado aunque
+implique código repetido).
+
+- **ICL** (BCRA, `idVariable=40`, "Índice para Contratos de Locación") y **UVA** (BCRA,
+  `idVariable=31`, "Unidad de Valor Adquisitivo") — entidades `IndiceIcl`/`IndiceUva`
+  (`Dominio/Entidades/`), copias casi textuales de `TasaMoratoria`: `Fecha` (índice único), `Valor`
+  (`decimal(18,8)`), `Origen`, `FechaConsulta`. `IIndiceIclService`/`IIndiceUvaService` son el mismo
+  mecanismo que `TasaMoratoriaService` letra por letra (solo cambia el `idVariable`): carga histórica
+  completa si la tabla está vacía (paginada de a 3000, el máximo del BCRA), incremental si ya hay
+  datos, mismo `SemaphoreSlim` estático contra la carrera manual/automático. Schedulers y controllers
+  (`GET /api/indices-icl(-uva)/ultima`, `GET /api/indices-icl(-uva)`,
+  `POST /api/indices-icl(-uva)/actualizar` solo Admin) calcados de sus equivalentes de TIM.
+- **IPC** (INDEC, serie `148.3_INIVELNAL_DICI_M_26`, "IPC Nacional Nivel General") — la integración
+  genuinamente nueva: **API distinta a la del BCRA**
+  (`apis.datos.gob.ar/series/api/series/?ids=...&format=json`), formato de respuesta distinto
+  (`{"data": [["2026-07-01", 12076.3937], ...]}`, array de `[fecha, valor]` en vez de objetos, se
+  parsea con `JsonElement`/`EnumerateArray()` porque no es un shape fijo) y **cadencia mensual, no
+  diaria** — el INDEC publica un valor por mes. `IndiceIpcService` no pagina por `offset` como el
+  BCRA (la serie completa desde dic-2016 entra en un solo pedido con `limit=1000`); para la carga
+  incremental usa `start_date`. Entidad `IndiceIpc` con la misma forma que las otras dos. Se agregó
+  `HttpClient("Indec")` en `Program.cs` apuntando a `apis.datos.gob.ar/`. Igual que ICL/UVA, tiene su
+  scheduler diario y su controller (`/api/indices-ipc/...`) aunque los datos casi nunca cambien de un
+  día para el otro — así no depende de saber la fecha exacta de publicación del INDEC.
+- Los 3 son datos **globales, no por tenant** (sin `TenantId` ni `HasQueryFilter`), igual quedan
+  auditados por `IAuditable`.
+- `TipoAjuste` ganó dos valores nuevos al final del enum para no correr los existentes:
+  `IndiceIPC = 5`, `IndiceUVA = 6` (`Fijo=1`, `IndiceICL=2`, `Porcentaje=3`, `Otro=4` quedan igual).
+- **Probado en vivo (2026-08-24)**: ICL trajo 2269 valores nuevos (2020-07-01 a 2026-09-16), UVA trajo
+  3821 (2016-03-31 a 2026-09-15), IPC trajo 116 (2016-12-01 a 2026-07-01) — los 3 sin errores en el
+  primer arranque.
+
+### El job de ajuste automático
+
+- `AjusteAutomaticoService` (`BackgroundService`, revisa una vez por día, mismo patrón que
+  `RecordatorioVencimientoService`/`TasaMoratoriaSchedulerService`). Por cada tenant activo, busca
+  contratos `Vigente` + `AjusteAutomatico=true` + `PeriodicidadAjusteMeses` cargado, y dispara el
+  ajuste si `hoy >= (FechaUltimoAjuste ?? FechaInicio) + PeriodicidadAjusteMeses`.
+- Cálculo del nuevo monto según `TipoAjuste`: `Porcentaje` usa `Contrato.PorcentajeAjuste` simple;
+  `IndiceICL`/`IndiceUVA`/`IndiceIPC` dividen el valor del índice a hoy sobre el valor en la fecha
+  base (mismo mecanismo de índice acumulado que la TIM) — `nuevoMonto = montoActual × (Índice(hoy) /
+  Índice(fechaBase))`, factorizado una sola vez en `CalcularPorIndiceAsync` (recibe qué tabla mirar
+  como parámetro — esto es una función privada interna del servicio, no rompe la decisión de no
+  generalizar `IndiceIcl`/`IndiceUva`/`IndiceIpc` como tablas/servicios de fetch, que siguen
+  totalmente separados). `Fijo`/`Otro` no tienen cálculo automático definido, se saltean sin tocar
+  nada.
+- **El detalle de auditoría usa la fecha REAL del valor encontrado, no la fecha consultada** — bug
+  chico encontrado probando IPC en vivo: como el IPC es mensual, buscar "el valor más reciente en o
+  antes de hoy" puede devolver un valor de semanas atrás, y al principio el texto armaba
+  `"IPC INDEC: 12076,3937 (24/08/2026) / ..."` mostrando la fecha de HOY al lado de un valor que en
+  realidad correspondía al 01/07/2026 — auditoría engañosa aunque el cálculo en sí fuera correcto. Se
+  corrigió para que `ValorIclEnFechaAsync`/`ValorUvaEnFechaAsync`/`ValorIpcEnFechaAsync` devuelvan
+  también la fecha real del registro usado, y el detalle la muestre en vez de `hoy`/`fechaBase`. Para
+  ICL/UVA (diarios) casi nunca cambia nada visualmente; para IPC (mensual) es la diferencia entre un
+  detalle correcto y uno confuso.
+- Al aplicar: actualiza `Contrato.MontoActual`, **solo** las cuotas `Pendiente`/`Atrasado` (nunca
+  cuotas ya generadas con otra lógica ni cuotas `Pagado` — decisión explícita del usuario, mismo
+  criterio que `AplicarAjuste` manual), crea un `AjusteContrato` con `Automatico=true` y
+  `DetalleIndiceUsado` (texto libre con los valores exactos del índice en ambas fechas, mismo criterio
+  que `DetallePunitorioCobrado` de Punitorios — ej. `"ICL BCRA: 35,4600 (23/08/2026) / 29,3900
+  (01/01/2026)"`), y notifica por el tema `AvisoAumento` (mismo que el ajuste manual, sin tema nuevo).
+  Una falla al notificar queda contenida en su propio `try/catch` y no aborta el ajuste ya aplicado.
+- **Logging de cada ciclo, no solo cuando hay ajustes** (agregado a pedido del usuario, mismo criterio
+  que `TasaMoratoriaSchedulerService`/`IndiceIclSchedulerService`): cada corrida deja una línea
+  `AjusteAutomaticoService: ciclo OK. N contratos revisados, M ajustes aplicados.` — permite confirmar
+  desde el log que el job corrió sin errores aunque no haya tocado ningún contrato ese día.
+
+### Interruptor por contrato
+
+`PUT /api/contratos/{id}/ajuste-automatico` (mismo criterio que `AplicaPunitorios`: configuración
+administrativa, no una condición económica congelada, se puede tocar en cualquier estado del
+contrato, no solo Borrador) — actualiza `AjusteAutomatico`, `TipoAjuste`, `PeriodicidadAjusteMeses` y
+`PorcentajeAjuste` juntos. Ícono de refresh en la grilla de Contratos (azul si está activado, gris si
+no) que abre `AjusteAutomaticoModal.tsx`. El formulario de Crear/Editar contrato también tiene el
+checkbox. `DetalleContratoModal` muestra el estado (Activado/Desactivado).
+
+### Probado en vivo de punta a punta (2026-08-24)
+
+Se backdateó `FechaUltimoAjuste` de un contrato de prueba (con `AjusteAutomatico=true`,
+`TipoAjuste=IndiceICL`, periodicidad 6 meses) a una fecha vencida y se reinició el backend para que el
+job corriera su primer ciclo:
+
+- Log del ciclo: `1 contratos con ajuste automático revisados, 1 ajustes aplicados.`
+- `Contrato.MontoActual`: $450.000 → $542.939,78 (coeficiente ICL 35,46/29,39 = +20,65%).
+- `AjustesContrato` creado con `Automatico=true` y el `DetalleIndiceUsado` correcto.
+- Cuotas `Pagado` (2) intactas, las 23 `Pendiente` actualizadas al nuevo monto.
+- Notificación al propietario: **omitida** correctamente porque no tiene el tema `AvisoAumento`
+  habilitado en sus preferencias (opt-in respetado).
+- Notificación al inquilino: intentó el envío real y falló por falta de conectividad SMTP del entorno
+  de prueba (no es un bug) — el error quedó contenido y **no rompió el ciclo**, que igual terminó OK.
+- Después de verificar todo, se revirtió el contrato de prueba a su estado original (monto, cuotas,
+  se borró el `AjusteContrato` de prueba) para no dejar datos falseados.
+- **`TipoAjuste=Porcentaje` probado en vivo también (2026-08-24)**, mismo contrato de prueba, 10% fijo:
+  $450.000 → $495.000 exacto, `AjustesContrato` con `Porcentaje=10` y
+  `DetalleIndiceUsado="10,00% aplicado automáticamente"`, mismo comportamiento con cuotas
+  Pendiente/Pagado que ICL. Revertido después de verificar.
+- **`TipoAjuste=IndiceIPC` probado en vivo (2026-08-24)**, mismo contrato: $450.000 → $521.882,36
+  (coeficiente IPC 12.076,3937/10.413,0309 = +15,97%), `DetalleIndiceUsado="IPC INDEC: 12.076,3937
+  (01/07/2026) / 10.413,0309 (01/01/2026)"` — con la fecha real del valor (01/07), no la de hoy, ya
+  con el fix de arriba aplicado. Mismo comportamiento de cuotas que los demás tipos.
+- **Regresión de `IndiceICL` re-verificada después del refactor** del helper compartido
+  (`CalcularPorIndiceAsync`) — se volvió a correr el mismo escenario de ICL y dio el resultado
+  esperado, sin romper nada. `TipoAjuste=IndiceUVA` no se probó de punta a punta en el job (mismo
+  mecanismo exacto que ICL, ya verificado 2 veces), pero sí se confirmó la carga del índice en sí.
+- Después de cada prueba se revirtió el contrato al estado original — no queda ningún dato de prueba
+  en la base.
+
+Con esto, los 3 índices (ICL, UVA, IPC) y los dos tipos no-índice (Fijo → sin cálculo automático,
+Porcentaje) quedan implementados y verificados. No queda nada pendiente en este tema.
+
+---
+
+## PORTAL DE AUTOSERVICIO
+
+Vista pública, sin login, para que el Inquilino vea su estado de cuenta y el Propietario vea sus
+liquidaciones — sin entrar al panel interno. Implementado 2026-08-24, primera pieza pública del
+sistema que no pasa por JWT.
+
+### Acceso — investigado antes de decidir
+
+Se investigó cómo lo resuelve la competencia (Barreeo, mialquiler.ar): **ninguno usa
+usuario/contraseña**. Cita textual de Barreeo: *"Compartí el link con el inquilino... No necesita
+instalar nada ni registrarse."* Se decidió ir por el mismo camino — un link con un token largo y
+aleatorio, sin sesión ni registro. Es información de solo lectura (nada de pagos ni acciones desde
+ahí), así que el nivel de seguridad de "link con secreto imposible de adivinar" alcanza.
+
+### Diseño del token
+
+- `TokenPortal` (string, único) en `Inquilino` y en `Propietario`. `null` hasta que se genera la
+  primera vez.
+- **Formato: `"{TenantId}.{secreto}"`** (`Dominio/Common/TokenPortal.cs`). El `TenantId` no es
+  secreto — es solo dato de ruteo, para poder resolver a qué tenant pertenece el link **sin tener
+  que escanear la tabla de todos los tenants** buscando el token (mismo problema que ya se había
+  resuelto de otra forma, con `IgnoreQueryFilters()` + filtro manual, en los background services).
+  Acá directamente se parsea el tenant del propio token antes de tocar la base. El secreto en sí son
+  32 bytes de `RandomNumberGenerator` (criptográficamente aleatorio, no `Random` común).
+- **Se genera (o regenera) desde `POST /api/{propietarios|inquilinos}/{id}/token-portal`** — un
+  Admin/Operador lo dispara con el botón "Copiar link del portal" en la grilla correspondiente, que
+  además copia la URL completa al portapapeles. Regenerar **invalida el link viejo automáticamente**
+  (se pisa el valor, y el índice es único) — útil si se sospecha que el link se filtró.
+
+### El controller público (`PortalController`)
+
+- **A propósito no tiene `[Authorize]`** — no hay JWT, el token de la URL ES la credencial. Corre
+  siempre con `IgnoreQueryFilters()` + `TenantId` explícito (parseado del token) en cada query, mismo
+  patrón que los `BackgroundService`.
+- `GET /api/portal/inquilino/{token}`: contrato Vigente (si tiene), histórico completo de cuotas
+  (reusando `IPunitorioService.CalcularAsync` para el punitorio en vivo de la próxima cuota, igual
+  que en el panel interno), y los `Gasto` con `Responsable=Inquilino` **atados a ese contrato
+  puntual** (`ContratoId == contrato.Id`, no solo por Propiedad — así no se le muestra al inquilino
+  actual algo que haya quedado cargado sin ContratoId de una relación anterior con la misma
+  propiedad) y `VisibleParaInquilino=true`.
+- `GET /api/portal/propietario/{token}`: todas sus Liquidaciones (cualquier propiedad), con el mismo
+  desglose Cobrado/Comisión/Gastos/Abonado que ya tiene la grilla interna. **Agregado 2026-08-24**: el
+  detalle expandible de cada Liquidación (fila con flecha ▼, mismo patrón que el panel interno) ahora
+  muestra también cada transferencia recibida (fecha, medio, entidad, N° de operación, y un link "Ver
+  comprobante" si el admin subió la foto — ver sección LIQUIDACIÓN → "Autocompletar comprobante con
+  IA") y cada gasto descontado (categoría + descripción). Antes solo se veían los totales agregados;
+  esto le da transparencia real al propietario sobre exactamente qué se le transfirió y por qué se
+  descontó lo que se descontó, sin tener que preguntarle a la inmobiliaria.
+- Un link inválido, mal formado, o de un tenant/persona inactiva siempre devuelve 404 con el mismo
+  mensaje genérico ("Link inválido.") — no se filtra si el problema es "no existe" vs "está inactivo"
+  vs "tenant no existe", para no dar pistas.
+
+### Frontend
+
+- Páginas nuevas en `pages/public/` (mismo lugar que la web pública de Propiedades), sin el layout
+  del dashboard — pensadas para abrirse desde el celular, sin sidebar ni nada del panel interno.
+  Rutas `/portal/inquilino/:token` y `/portal/propietario/:token`.
+- El logo de la empresa (`ConfiguracionEmpresa.LogoUrl`) es una URL absoluta completa cargada a mano
+  en Configuración (no un archivo servido por nuestra API con ruta relativa, a diferencia de las
+  fotos de Propiedad) — se usa directo, sin anteponerle nada. Se encontró y corrigió este error
+  probando: al principio se le anteponía la URL de la API como si fuera una ruta relativa.
+- Probado en vivo end-to-end (token seteado a mano en la base para el test): ambos portales devuelven
+  exactamente los datos esperados, coincidiendo con todo lo verificado a mano esta sesión (Gasto de
+  $150.000, punitorio de $12.465,52, etc.) — y los casos de token mal formado / tenant inexistente
+  devuelven 404 prolijo en vez de explotar.
+- **Detalle de abonos/gastos del Portal Propietario probado en vivo (2026-08-24)**: se insertó un
+  abono de prueba con comprobante y se confirmó que `GET /api/portal/propietario/{token}` lo devuelve
+  completo (monto, medio, entidad, N° operación, `comprobanteUrl`) junto con el gasto real ya cargado
+  en esa liquidación — se borró el abono de prueba después de verificar.
+
+### Todavía no resuelto (para más adelante, no bloquea el uso básico)
+
+- No hay ningún flujo para **mandar el link automáticamente** (ej. por email al activar el contrato)
+  — hoy es 100% manual, un Admin lo copia y lo comparte a mano por el canal que prefiera.
+  `INotificacionService` ya existe y se podría reusar para esto en el futuro.
+  - Portal del Inquilino: solo muestra su contrato **Vigente** — un inquilino con varios contratos
+  históricos en distintas propiedades no ve los viejos (no parece un problema real hoy, se anota por
+  si en algún momento hace falta).
 
 ---
 
@@ -293,73 +714,72 @@ exista ya tenga datos reales que mostrar.
 Lista única de lo que falta, para no depender de la memoria de sesión a sesión. Se va tachando o
 sacando a medida que se resuelve, como el resto del documento.
 
-- [ ] **Anulación de cobros — EN ANÁLISIS, sin decidir ni implementar (2026-08-23)**. Hoy no existe
-  ninguna forma de anular/deshacer un `Pago` ya marcado `Pagado`. El enum `EstadoPago.Anulado` (4)
-  existe pero está **muerto** — se grepeó todo el código y no lo usa nada, ni backend ni frontend
-  (mismo caso que `EstadoPago.Atrasado`, que tampoco lo setea nada — ver más abajo). Surgió al
-  encontrar que con el checkbox nuevo de punitorio es fácil cobrar mal por error y no hay forma de
-  corregirlo.
+- [ ] **Desplegar el sistema para que el usuario le pase el link a sus contactos y lo prueben, con
+  acceso desde el celular — EN PROGRESO, arrancado 2026-08-24.** Plan elegido: todo gratis para
+  arrancar (más adelante, cuando haya un cliente pagando, se puede migrar a algo pago sin drama).
+  - **Base de datos**: Azure SQL Database, tier "oferta gratuita" (100.000 vCore-segundos + 32GB
+    gratis por mes, de por vida de la suscripción, en modo Auto-pausa — nunca cobra sin que el
+    usuario habilite manualmente el excedente). **Ya creada y migrada** — servidor
+    `servermobiliario.database.windows.net`, base `gestioninmobiliaria`, en la suscripción de Azure
+    que el usuario ya tenía (`dwg_free_basic`), grupo de recursos nuevo `sql_free` para no mezclarla
+    con su otro proyecto (GestionarticulosV3). Las 36 tablas del esquema completo (incluyendo todo lo
+    de esta sesión: IndicesIpc/Uva, ComprobanteUrl) ya corrieron ahí vía `dotnet ef database update`
+    apuntando la connection string por variable de entorno (nunca se escribió la contraseña real en
+    ningún archivo del repo). Firewall del servidor con la IP del usuario habilitada para conectar
+    por SSMS.
+  - **Importante, no se pudo usar el Azure CLI desde acá** — falla con error de certificado SSL
+    (`CERTIFICATE_VERIFY_FAILED`) en la máquina del usuario, probablemente por algún proxy/antivirus
+    corporativo de su red. Toda la creación de recursos en Azure se hizo a mano desde el Portal web,
+    guiando al usuario paso a paso. Si se retoma con automatización (CLI/Terraform/etc.), primero hay
+    que resolver ese problema de certificados, o hacerlo desde otra máquina/red.
+  - **Backend (.NET API)**: pendiente. Plan: Render.com, tier gratis, desplegado como contenedor
+    Docker (evita el problema de que .NET 10 todavía es SDK preview y no todos los hosting managed lo
+    soportan nativamente). Contras conocidas del tier gratis de Render: se "duerme" a los 15 min sin
+    tráfico (primer request después tarda ~30-60s en responder) y el disco es efímero (los archivos
+    subidos — fotos, comprobantes, documentos — se pierden en cada reinicio/redeploy; aceptable para
+    una prueba corta, no para producción real sin resolverlo aparte con un storage tipo Azure Blob).
+  - **Frontend (React)**: pendiente. Plan: Vercel o Cloudflare Pages, build estático, gratis.
+  - **Bloqueante real antes de desplegar**: las URLs del backend están hardcodeadas a
+    `http://localhost:5005` en varios archivos del frontend (`api/client.ts`, `LandingPage.tsx`,
+    `PortalPropietarioPage.tsx`, y cualquier otro que arme un link a `/uploads/...`) — hay que
+    volverlas configurables (variable de entorno de Vite) antes de que el despliegue tenga sentido,
+    si no ningún link va a funcionar fuera de la máquina de desarrollo.
+  - Falta armar el `Dockerfile` del backend y configurar en Render la connection string de Azure SQL
+    (como variable de entorno del servicio, nunca committeada) más la `Gemini:ApiKey`.
 
-  **Por qué no es tan simple — importa CUÁNDO se pide anular**, porque entre el cobro y el pedido de
-  anulación pueden haber pasado cosas automáticas que "usaron" ese cobro:
-  1. **Inmediatamente**: ya se mandaron los emails `AvisoCobro`/`ReciboPago` con el recibo adjunto
-     (fire-and-forget, no se pueden desenviar). Si el contrato tiene administración de cobros +
-     comisión: ya se generó sola una `Liquidacion` (Pendiente, sin abonos). Si había `Gasto` del
-     Propietario Pendientes en la propiedad: ya se descontaron ahí (quedaron Resuelto).
-  2. **Unos días después, la Liquidación sigue Pendiente** (nadie le transfirió nada al propietario
-     todavía): todavía es "seguro" revertir todo de una — no salió plata real del sistema.
-  3. **Después de que la Liquidación tiene abonos** (el propietario ya cobró, parcial o total): acá
-     ya no se puede simplemente deshacer. Se investigó cómo lo manejan plataformas reales de property
-     management (Rentvine, AppFolio) y el principio contable general — **nunca se reescribe una
-     transacción ya liquidada, se corrige hacia adelante con un ajuste** (equivalente a una factura
-     rectificativa). Acá eso significa: generar un `Gasto` correctivo a cargo del Propietario que se
-     le descuenta de su **próxima** Liquidación, reusando la infraestructura que ya existe para
-     Gastos — no hay que inventar un mecanismo nuevo.
-
-  **Hallazgo relacionado, mientras se investigaba esto**: hoy el punitorio cobrado se está liquidando
-  **100% al propietario, y la comisión de la inmobiliaria se calcula sobre el total incluyendo el
-  punitorio** — porque `GenerarLiquidacionSiCorrespondeAsync` usa `pago.MontoPagado` (que ya incluye
-  cuota + punitorio) como `MontoCobrado`. Confirmado en la base con el pago de prueba: Liquidación del
-  Pago #2 → `MontoCobrado=462.465,52`, `MontoComision=9.249,31` (2% de todo, punitorio incluido).
-  Nadie decidió esto a propósito, salió solo al sumar el punitorio a `MontoPagado`. Es una pregunta
-  aparte, pero pesa acá porque cambia cuánto hay que reclamarle al propietario si se anula un cobro
-  ya liquidado con punitorio adentro.
-
-  **Preguntas abiertas para decidir**:
-  1. ¿Se permite anular en cualquier momento (con lógica distinta según el estado de la Liquidación),
-     o hay un punto más allá del cual directamente no se puede anular desde el sistema?
-  2. Con la Liquidación ya con abonos: ¿el Gasto correctivo es por el total liquidado al propietario,
-     o hay que restarle la comisión que la inmobiliaria ya se quedó (para no reclamarle algo que
-     nunca tuvo)?
-  3. Si la Liquidación está "Parcial" (una parte transferida, otra no): ¿se ajusta directo la parte
-     pendiente de esa misma Liquidación, y solo se genera Gasto correctivo por la parte YA
-     transferida?
-  4. ¿El punitorio le corresponde al propietario (como pasa hoy sin haberlo decidido) o debería
-     quedarse 100% en la inmobiliaria? Cambia toda la cuenta de "cuánto reclamar" al anular.
-  5. ¿Motivo obligatorio para anular? (propuesta: sí, mismo criterio que Rescindir/Anular contrato).
-  6. ¿Se resetean los flags de aviso de vencimiento (`AvisoVencimiento7Dias/1DiaEnviado`) al volver la
-     cuota a Pendiente, o quedan como estaban?
-
-  **A favor, no hay que construir de cero**: el mecanismo de "Gasto a cargo del Propietario
-  descontado de la próxima Liquidación" ya existe y andaría igual acá. `LiquidacionRepository.EliminarAsync`
-  ya bloquea borrar una Liquidación con abonos activos — mismo criterio que hace falta acá. `Pago` ya
-  es `IAuditable`, así que cualquier reversión queda sola en `AuditLogs`.
+- [x] **Anulación de cobros — DECIDIDO: no se implementa (analizado 2026-08-23/24)**. Surgió al ver
+  que con el checkbox de punitorio es fácil cobrar mal por error y no había forma de corregirlo. Se
+  analizó a fondo (ver historial de este ítem si hace falta retomar el detalle) y se llegó a la
+  conclusión de que **no hace falta la funcionalidad**:
+  - Los únicos motivos de anulación que se identificaron fueron 1) doble carga del mismo cobro y
+    2) cargarlo contra el contrato equivocado. El primero no debería poder pasar nunca — no es algo
+    que se "corrija", es algo que el sistema tiene que impedir de entrada. El segundo, en la práctica,
+    es equivalente a un adelanto de cuota: cualquier diferencia de plata se resuelve con un ajuste en
+    la próxima cuota, no reescribiendo el cobro ya asentado.
+  - Encaja con el principio contable real investigado antes (Rentvine, AppFolio y demás): nunca se
+    reescribe una transacción ya liquidada, toda corrección va hacia adelante. Si ese es el criterio
+    general, "anular" un cobro específicamente no tiene un caso de uso real que lo justifique.
+  - **Blindaje agregado igual, por las dudas** (2026-08-24): aunque el motivo #1 "no debería pasar
+    nunca", no había ninguna validación real que lo impidiera del lado del servidor — lo único que
+    evitaba re-cobrar una cuota ya Pagada era que el botón "Registrar cobro" desaparecía de la
+    pantalla (una barrera de UI, no del backend). Se agregó el guard explícito en
+    `PagosController.UpdatePago`: si `pago.Estado == Pagado`, rechaza con 400 antes de tocar nada.
+    De paso se confirmó que `UpdateWithDetallesAsync` da de baja lógica las formas de pago viejas (no
+    las borra físicamente), así que aunque alguien lo hubiera pisado, no se perdía el rastro.
+  - El enum `EstadoPago.Anulado` (4) queda como está, sin usarse — no se saca porque no hace daño
+    tenerlo, pero es dead code, igual que `EstadoPago.Atrasado` (ver ítem de abajo).
+  - Hallazgo aparte encontrado en el camino, ya confirmado y sin nada pendiente — ver sección
+    PUNITORIOS, "Relacionado: liquidación del punitorio al propietario".
 - [ ] **Probar `AvisoVencimientoProximo` en la práctica** (implementado 2026-08-08, sin probar
   todavía). Difícil de replicar rápido porque depende de fechas de vencimiento reales — el chequeo
   corre una vez por día, así que verificar el circuito completo (7 días antes, 1 día antes, nada si
   ya venció) lleva varios días de prueba real, no algo que se pueda apurar con un botón. Para
   probarlo hace falta un contrato con `DiaVencimientoPago` cargado y una cuota Pendiente cuyo
   vencimiento caiga justo en alguna de esas ventanas.
-- [ ] **Autocompletar los datos de la transferencia de una Liquidación a partir de una foto/captura
-  del comprobante** (ej: comprobante de Mercado Pago o de un banco). No es viable con OCR tradicional
-  porque cada entidad tiene un diseño de comprobante distinto — la vía realista es mandarle la imagen
-  a un modelo de IA con visión (ej. API de Claude) pidiendo que devuelva un JSON con los campos
-  (monto, fecha, CBU/CVU destino, entidad, número de operación) y precargar el formulario de "Marcar
-  liquidado" con eso — **siempre mostrando el resultado para que el usuario lo confirme antes de
-  guardar, nunca autocompletar y guardar directo** (es plata). Implica: subida de imagen, integración
-  con un servicio de IA externo (API key, costo por imagen), y el prompt de extracción. Depende de
-  que existan los campos estructurados (`Medio`, `CbuCvuDestino`, `EntidadDestino`,
-  `NumeroOperacion`) — ya están, así que esto queda listo para atacar cuando se priorice.
+- [x] **Autocompletar los datos de la transferencia de un abono de Liquidación a partir de una foto
+  del comprobante** — implementado y probado en vivo de punta a punta 2026-08-24 con Gemini (IA con
+  visión), detrás de una interfaz swappeable a otro proveedor. Ver sección LIQUIDACIÓN →
+  "Autocompletar comprobante con IA". Sin nada pendiente.
 
 ### Ideas sacadas de investigar la competencia (Barreeo, 2026-08-09)
 
@@ -367,191 +787,12 @@ Barreeo es un competidor enfocado 100% en administración de alquileres (no cubr
 leads, agentes como nosotros). Se revisó su sitio para comparar funcionalidades. Prioridad acordada
 con el usuario:
 
-- [ ] **Portal de autoservicio para Inquilino y Propietario** (prioridad alta). Hoy el sistema es
-  100% panel interno (Admin/Operador/Agente) — no hay ninguna vista liviana pública/semi-pública
-  donde el inquilino vea su estado de cuenta (cuánto debe, histórico de pagos, próximo vencimiento)
-  o el propietario vea sus liquidaciones, sin loguearse al dashboard completo. Falta definir
-  mecanismo de acceso (¿link mágico por email? ¿usuario/contraseña liviano?).
-- [x] **Punitorios automáticos por mora** (implementado 2026-08-22 — diseñado 2026-08-11, programado
-  y probado el mismo día que se terminó de diseñar). Falta todavía probarlo con una cuota realmente
-  atrasada (la única Pendiente hoy vence en el futuro), pero el cálculo y toda la infraestructura ya
-  están escritos, compilando y con la parte de la tasa TIM verificada en vivo.
-
-  **Investigación (2026-08-11)**: cómo se manejan los punitorios de alquiler en Argentina hoy —
-  - Marco legal: art. 768 CCyCN — la tasa aplicable es 1) lo pactado en el contrato, 2) ley especial,
-    3) subsidiariamente la que fije el BCRA. Nuestra propia cláusula SÉPTIMA (plantilla de contrato)
-    ya dice *"tasa activa por plazo fijo del Banco de la Nación Argentina"* como texto por defecto.
-  - Práctica de mercado: la mayoría pacta una tasa fija (~1% diario / 36% anual) o referencia la tasa
-    BNA. Interés **simple** (lineal por día), no compuesto — así calculan los juzgados en estos casos.
-  - Competidor (Barreeo): su calculadora pide monto + fecha vencimiento + fecha pago + tasa del
-    contrato, la marcan como "orientativa" ("depende de lo que diga el contrato"). En su plataforma
-    completa se carga la regla de punitorios por contrato y el sistema calcula solo.
-  - Dato nuevo relevante: desde enero 2026 el BCRA publica una tasa pensada específicamente para esto,
-    la **TIM (Tasa de Intereses Moratorios)**, vía Resolución 1/2026 — pensada como referencia oficial
-    para que los tribunales calculen intereses moratorios (art. 768 CCyCN). Más prolija que perseguir
-    la tasa BNA específica, que el banco solo publica en PDF (no hay API limpia para eso).
-
-  **Descubrimiento clave al programar (2026-08-22): la TIM NO es una tasa % periódica, es un ÍNDICE
-  ACUMULADO** (viene subiendo desde 1993-06-03, hoy vale ~163.000 — mismo mecanismo que el CER).
-  Se usa dividiendo dos valores del índice, nunca "días de atraso × tasa diaria":
-
-  ```
-  recargo = MontoAdeudado × (Valor_TIM(fecha_de_cobro) / Valor_TIM(fecha_de_vencimiento) − 1)
-  ```
-
-  Esto de hecho **resuelve solo** la duda de "interés simple o compuesto" que quedó abierta el
-  2026-08-11 — el BCRA ya lo resolvió del lado de ellos al construir el índice, nosotros solo
-  dividimos dos valores. Confirmado en vivo contra `api.bcra.gob.ar/estadisticas/v4.0/monetarias/1197`
-  (`idVariable=1197`, descripción *"Tasa de Intereses Moratorios (TIM) CCC, art. 768(c)"*,
-  periodicidad diaria, serie completa desde 1993-06-03).
-
-  **Decisiones tomadas con el usuario (2026-08-11)**:
-  - Campo nuevo en `Contrato` con un % fijo diario (mismo patrón Porcentaje/Monto que
-    `ComisionLocador`) — este sí sería una tasa % simple tradicional, no un índice. **Regla híbrida**:
-    si ese % fijo es > 0, se usa ese. Si está en 0/vacío, se usa la fórmula del índice TIM de arriba
-    — así los contratos con la cláusula por defecto (que no cargan un % propio) también calculan algo.
-  - Cálculo del monto de punitorio: **en vivo**, al mostrar/cobrar la cuota — nunca se guarda un
-    acumulado que se desactualiza.
-
-  **Importante — no es un proceso automático ni corre a una hora fija (aclarado 2026-08-22)**: a
-  diferencia de `RecordatorioVencimientoService` o `TasaMoratoriaSchedulerService`, el punitorio **no
-  tiene ningún `BackgroundService` propio**. `IPunitorioService.CalcularAsync(pago)` se ejecuta
-  **cada vez que se pide la lista de Pagos o las cuotas de un contrato** (`GET /api/pagos`,
-  `GET /api/contratos/{id}/pagos`) — nunca al registrar un cobro específicamente, y nunca en un
-  horario programado. El monto que se ve es siempre "a hoy": si se vuelve a mirar la misma cuota al
-  día siguiente, el número cambia solo (un día más de atraso, y la tasa TIM puede haber cambiado). No
-  se persiste en ningún lado. Lo único que sí corre 1 vez por día es
-  `TasaMoratoriaSchedulerService` — pero ese actualiza la *materia prima* (la tabla `TasasMoratorias`),
-  no calcula ningún punitorio; el cálculo en sí lee esa tabla al vuelo cuando alguien pide ver una
-  cuota.
-
-  **Infraestructura de la tasa TIM — implementada y probada (2026-08-22)**:
-  - Entidad `TasaMoratoria` (`Dominio/Entidades/TasaMoratoria.cs`): `Fecha` (día que reporta el BCRA,
-    índice único), `Valor` (`decimal(18,8)`, necesita esa precisión — el índice viene con hasta 4
-    decimales sobre una base de 6 dígitos enteros), `Origen` = "BCRA", `FechaConsulta`. Es dato
-    **global, no por tenant** (la tasa es la misma para todas las inmobiliarias) — a propósito no
-    tiene campo `TenantId` ni `HasQueryFilter`; igual queda auditada en `AuditLogs` por implementar
-    `IAuditable` (sin nada especial que armar — era el pedido explícito del usuario).
-  - `ITasaMoratoriaService.ActualizarAsync()` (`Infraestructura/Services/TasaMoratoriaService.cs`):
-    si la tabla está vacía hace una **carga histórica completa** (pagina de a 3000 registros — es el
-    máximo que permite la API del BCRA por request, `"El límite no puede superar los 3000 registros"`;
-    la serie completa son ~12.136 valores, entran en 5 páginas); si ya hay datos, solo trae
-    `desde = últimaFecha + 1 hasta = hoy`. Deserializa la respuesta de
-    `api.bcra.gob.ar/estadisticas/v4.0/monetarias/1197` con DTOs internos (`JsonPropertyName`, la API
-    devuelve todo en minúscula: `results`/`detalle`/`fecha`/`valor`). La API funciona por HTTPS normal
-    sin problemas de certificado (`AddHttpClient("Bcra", ...)` en `Program.cs`, sin handler especial).
-  - **Bug real encontrado probando (2026-08-22) y cómo se resolvió**: el `BackgroundService` arranca
-    su primer ciclo apenas levanta la app (no espera las 24hs), así que al probar manualmente justo
-    después de un arranque en frío, el disparo manual (`POST /actualizar`) y el ciclo automático
-    corrieron al mismo tiempo — los dos vieron la tabla vacía, los dos dispararon la carga histórica
-    completa, y chocaron al insertar las mismas fechas (`Cannot insert duplicate key row... IX_TasasMoratorias_Fecha`).
-    Se solucionó con un `SemaphoreSlim` **estático** dentro de `TasaMoratoriaService` que serializa
-    todas las llamadas a `ActualizarAsync()` dentro del proceso — el segundo llamado simplemente
-    espera al primero y después no encuentra nada nuevo para traer. Mismo criterio que ya se aplicó en
-    otros lados del sistema: el disparo manual y el automático **son literalmente el mismo método**,
-    nunca lógica duplicada, así que alcanzó con proteger ese único método.
-  - `TasaMoratoriaSchedulerService` (`BackgroundService`, mismo patrón que
-    `RecordatorioVencimientoService`) — llama a `ActualizarAsync()` una vez por día.
-  - `TasasMoratoriasController`: `GET /api/tasas-moratorias/ultima` (valor vigente), `GET /api/tasas-moratorias`
-    (histórico, filtrable por `desde`/`hasta`), `POST /api/tasas-moratorias/actualizar`
-    (`Authorize(Roles="Admin")`, dispara el mismo servicio que el background job).
-  - Probado en vivo contra la base real: carga histórica completa insertó los 12.136 valores
-    correctos (1993-06-03 a 2026-08-24), y una segunda corrida detectó correctamente "ya está al día"
-    sin duplicar nada.
-
-  **Cálculo del punitorio en sí — implementado 2026-08-22**:
-  - `Contrato.PunitorioPorcentaje` (`decimal(7,4)`, nullable) — % diario fijo, opcional.
-  - `IPunitorioService.CalcularAsync(Pago pago)` (`Infraestructura/Services/PunitorioService.cs`,
-    requiere `pago.Contrato` cargado): si `Estado` no es Pendiente/Atrasado devuelve 0; si el contrato
-    no tiene `DiaVencimientoPago` cargado devuelve 0 (no hay con qué calcular vencimiento); si la
-    cuota no está vencida devuelve 0; si `PunitorioPorcentaje > 0` usa ese % simple diario
-    (`Monto × %/100 × díasAtraso`); si no, usa la fórmula del índice TIM de arriba, buscando en
-    `TasasMoratorias` el valor **más reciente disponible en o antes de** cada fecha (no exige un
-    match exacto, por si algún día falta en la serie). Si no hay ninguna tasa TIM cargada todavía,
-    devuelve 0 en vez de inventar un número — nunca "no calcular nada" se confunde con "punitorio
-    cero real".
-  - Se extrajo `VencimientoCalculator.Calcular(periodo, diaVencimientoPago)`
-    (`Dominio/Common/VencimientoCalculator.cs`) de adentro de `RecordatorioVencimientoService`
-    (donde vivía duplicado inline) — ahora lo usan los dos, un solo lugar con la lógica de "clampear
-    al último día del mes si no tiene ese día".
-  - **Se muestra como línea aparte, nunca sumado al monto a cobrar** — mismo criterio que Gastos:
-    en la grilla de Pagos y en las cuotas del contrato aparece como "+ $X punitorio (Nd)" debajo del
-    monto esperado; al registrar un cobro se ve como aviso informativo, separado del total a
-    registrar, así el operador decide si lo cobra aparte o no. No se fuerza a incluirlo.
-  - DTOs: `PagoDto`/`PagoListDto` ganaron `montoPunitorio`, `diasAtraso`, `tasaPunitorioUsada` (todos
-    calculados, no persistidos). `ContratoDto`/`Create`/`UpdateContratoRequest` ganaron
-    `punitorioPorcentaje`. Formulario de contrato tiene un campo nuevo "Punitorio por mora — % diario
-    fijo (opcional)" con la aclaración de que si se deja vacío usa la TIM del BCRA.
-  - **Probado en vivo (2026-08-22)**: se backdateó a mano el período de una cuota de prueba para que
-    quedara vencida (15/07/2026, 38 días de atraso a la fecha). El monto calculado en pantalla
-    ($12.117,91) coincidió con la cuenta a mano usando los valores reales de TIM guardados en la base
-    (163.034,3957 / 158.759,2172).
-
-  **Registro de lo efectivamente cobrado — implementado 2026-08-22**: probando el flujo de cobro
-  surgió la pregunta obvia — si el operador cobra la cuota + el punitorio, ¿queda registrado que una
-  parte era interés, a qué tasa, cuántos días? Antes de este agregado, la respuesta era no: el
-  operador tenía que sumar todo a mano en el campo Monto de "Formas de pago", y el sistema solo veía
-  un "cobré de más" sin explicación, indistinguible de un error de tipeo.
-  - Campos nuevos en `Pago`, todos nullable, **congelados al momento de cobrar** (a diferencia de
-    `MontoPunitorio`/`DiasAtraso` que son en vivo y cambian todos los días): `MontoPunitorioCobrado`,
-    `DiasAtrasoPunitorioCobrado`, `FechaVencimientoPunitorioCobrado`, y `DetallePunitorioCobrado`
-    (texto libre con la fórmula/tasa completa — ej. `"TIM BCRA: 163034.3957 (22/08/2026) /
-    158759.2172 (15/07/2026)"` o `"1.0000%/día fijo del contrato × 38 días de atraso..."` — así la
-    tasa/índice queda legible sin necesitar columnas separadas para cada valor).
-  - `UpdatePagoRequest` ganó `CobrarPunitorio` (bool). En el modal "Registrar cobro" el texto
-    informativo se convirtió en un checkbox real: "Cobrar también el punitorio por N días: $X".
-  - **El monto nunca lo manda el cliente** — cuando `CobrarPunitorio=true` y el nuevo estado es
-    Pagado, `PagosController.UpdatePago` vuelve a llamar `IPunitorioService.CalcularAsync(pago)` del
-    lado del servidor (con el `Estado` todavía Pendiente/Atrasado, antes de mutarlo) y congela ESE
-    resultado — nunca confía en un número que venga del front. Es plata, no se toma de afuera.
-  - Se ve en la grilla de Pagos (columna Cobrado) y en las cuotas del contrato, igual que el cálculo
-    en vivo pero ya no cambia: queda fijo con lo que realmente se cobró ese día.
-  - **También en el recibo** (probado, encontrado en el primer cobro real): tanto el cuerpo del email
-    (`PagosController.BuildEmailBody`) como el PDF adjunto (`QuestPdfReportService.ComposeRecibo`)
-    ahora desglosan Cuota / Punitorio (N días de atraso) antes del total, cuando
-    `MontoPunitorioCobrado` tiene valor — antes solo mostraban un monto total sin explicar el
-    excedente.
-  - En el modal "Registrar cobro" el checkbox autocompleta el campo Monto con cuota + punitorio (solo
-    si hay una única forma de pago sin editar a mano), y la pantalla de confirmación también desglosa
-    Cuota/Punitorio antes de pedir confirmar — antes solo mostraba "Total cobrado (+$X vs esperado)",
-    que se leía como un sobrepago sin explicar.
-
-  **Interruptor por contrato — implementado 2026-08-22**: `Contrato.AplicaPunitorios` (`bool`, default
-  **true**) — si está en `false`, no se calcula ni se muestra ningún punitorio para ese contrato,
-  sin importar el % fijo ni la tasa TIM. Es un campo separado de `DiaVencimientoPago` (ese lo sigue
-  usando el aviso de vencimiento próximo). En el formulario de contrato es un checkbox "Aplicar
-  punitorios por mora a este contrato" — sirve para los casos donde la inmobiliaria o el propietario
-  no quieren castigar el atraso de un inquilino puntual. Filosofía general: no todo tiene que ser
-  obligatorio, el sistema debe ser flexible por contrato en vez de forzar una única regla para todos.
-
-  **Se puede tocar sin importar el estado del contrato**: el `Update` general de `Contrato` solo
-  permite editar en Borrador, pero `AplicaPunitorios`/`PunitorioPorcentaje` es configuración
-  administrativa, no una condición económica congelada — necesita poder cambiarse en cualquier
-  momento. Se agregó `PUT /api/contratos/{id}/punitorios` (mismo criterio que el endpoint de Ajuste de
-  cuotas, que también funciona fuera del flujo de edición general), y un ícono de % en la grilla de
-  Contratos (rojo si está activado, gris si no) que abre `PunitoriosModal.tsx` con el checkbox y el %.
+- [x] **Punitorios automáticos por mora** (implementado y probado en vivo 2026-08-22/24) — ver
+  sección PUNITORIOS.
 - [x] **Gestión de Gastos** (prioridad alta) — implementado 2026-08-09, ver sección GASTOS.
-- [ ] **Automatizar el ajuste periódico de cuotas** (prioridad alta, pendiente de análisis a fondo —
-  2026-08-09, detectado probando el formulario de Contrato). Hoy `TipoAjuste` (`Fijo`/`IndiceICL`/
-  `Porcentaje`/`Otro`) y `PeriodicidadAjusteMeses` son solo datos que se cargan en el contrato — no
-  disparan nada solos. Todo ajuste de cuota hoy es 100% manual, vía `POST /api/contratos/{id}/ajustes`
-  (ver sección CONTRATO/`AjusteModal.tsx`). Falta pensar el circuito completo automático, no solo el
-  cálculo:
-  - **Cálculo del nuevo monto** según `TipoAjuste`: `Porcentaje` es simple (ya existe la lógica manual
-    de referencia en `AjusteModal`/`AplicarAjuste`), pero `IndiceICL` (y cualquier índice real tipo
-    IPC) requiere traer un valor externo actualizado (¿API del BCRA/INDEC? ¿carga manual mensual de
-    un valor de índice en el sistema?) — hoy no hay ninguna fuente de datos de índices conectada.
-  - **Cuándo disparar**: necesita un proceso periódico (similar a `RecordatorioVencimientoService`)
-    que revise, contrato por contrato, si ya se cumplió `PeriodicidadAjusteMeses` desde el último
-    ajuste (`AjusteContrato` más reciente, o `FechaInicio` si nunca tuvo uno).
-  - **Notificar el ajuste**: ya existe el tema `AvisoAumento` (ver NOTIFICACIONES) pero hoy solo se
-    dispara cuando alguien aplica un ajuste a mano — habría que dispararlo también desde este proceso
-    automático.
-  - **Aplicar el nuevo monto**: decidir si se autoaplica directo (mueve `MontoActual`/genera
-    `AjusteContrato` solo) o si queda como una "propuesta" que un Admin/Operador tiene que confirmar
-    antes de que impacte en los próximos `Pago` — dado que es dinero, probablemente conviene un paso
-    de confirmación humana, mismo criterio que se usó para no auto-completar datos de Liquidación con
-    IA (ver ítem de arriba).
+- [x] **Automatizar el ajuste periódico de cuotas** (ICL, UVA e IPC, prioridad alta) — implementado y
+  probado en vivo de punta a punta 2026-08-24, los 3 índices. Ver sección AJUSTE AUTOMÁTICO. Sin nada
+  pendiente.
 - [ ] WhatsApp como canal de notificación (hoy solo email). Para más adelante.
 - [ ] Integración de facturación electrónica (ARCA/ex-AFIP). Para más adelante, alcance grande y
   específico de Argentina.
