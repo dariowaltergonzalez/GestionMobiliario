@@ -761,18 +761,48 @@ sacando a medida que se resuelve, como el resto del documento.
       (subir + borrar) contra la cuenta real de Cloudinary del usuario — anduvo perfecto.
     - **API keys de Cloudinary**: config global (no por tenant, mismo criterio que `Gemini:ApiKey`),
       van directo como variables de entorno en Render — nunca en un archivo del repo.
-  - **Backend (.NET API)**: Dockerfile armado (`/Dockerfile`, build multi-etapa con
-    `mcr.microsoft.com/dotnet/sdk:10.0`/`aspnet:10.0`, instala `libfontconfig1` porque QuestPDF lo
-    necesita en Linux aunque se presente como "100% .NET puro" — problema ya conocido, ver memoria del
-    proyecto `pdf_reportes.md`). Falta el despliegue en sí: crear el servicio en Render.com (tier
-    gratis) apuntando a este repo, y cargar ahí las variables de entorno
-    (`ConnectionStrings__DefaultConnection` con la cadena de Azure SQL, `Gemini__ApiKey`,
-    `Cloudinary__CloudName`/`ApiKey`/`ApiSecret`). Contra conocida que sigue en pie del tier gratis de
-    Render: se "duerme" a los 15 min sin tráfico (primer request después tarda ~30-60s en responder) —
-    esto ya no afecta a los archivos subidos (van a Cloudinary), solo implica una demora al primer
-    ingreso después de estar inactivo.
-  - **Frontend (React)**: pendiente. Plan: Vercel o Cloudflare Pages, build estático, gratis,
-    configurando `VITE_API_URL` con la URL real de Render una vez que exista.
+  - **Backend (.NET API) — DESPLEGADO Y PROBADO EN VIVO (2026-08-25/26)**. Dockerfile armado
+    (`/Dockerfile`, build multi-etapa con `mcr.microsoft.com/dotnet/sdk:10.0`/`aspnet:10.0`, instala
+    `libfontconfig1` porque QuestPDF lo necesita en Linux aunque se presente como "100% .NET puro" —
+    problema ya conocido, ver memoria del proyecto `pdf_reportes.md`). Servicio creado en Render.com
+    (tier gratis, cuenta nueva logueada con GitHub, acceso restringido solo a este repo), con las 7
+    variables de entorno cargadas (`ASPNETCORE_ENVIRONMENT=Production`,
+    `ConnectionStrings__DefaultConnection`, `Jwt__Key`, `Gemini__ApiKey`,
+    `Cloudinary__CloudName`/`ApiKey`/`ApiSecret`) — ninguna vive en el repo. URL pública:
+    `https://gestioninmobiliaria-api.onrender.com`. Login probado en vivo contra esa URL: `200 OK`
+    con los datos reales del usuario — funciona de punta a punta.
+    - **`Jwt:Key` nueva y real, generada para este despliegue** — el valor que estaba en
+      `appsettings.json` era literalmente el placeholder `"CAMBIAR_POR_CLAVE_SEGURA..."`, y como el
+      repo es público, quedaba expuesto; cualquiera podría haber forjado tokens válidos si se hubiera
+      usado tal cual en producción. Se generó una clave real random y se cargó solo como variable de
+      entorno en Render.
+    - **3 problemas reales encontrados y resueltos en el primer intento de deploy**:
+      1. **Firewall de Azure SQL** — Render no es un servicio de Azure, así que la excepción
+         "permitir servicios de Azure" no lo cubre, y como el tier gratis de Render no tiene IP fija,
+         hubo que agregar una regla de firewall `0.0.0.0`-`255.255.255.255` (la base sigue protegida
+         por usuario/contraseña, es la práctica común para conectar servicios cloud sin IP fija).
+      2. **El `#` de la contraseña de Azure SQL se cortaba al pegar las variables con "Add from .env"
+         de Render** — el parser trata `#` como inicio de comentario y descartaba el resto de la
+         connection string, dejando la contraseña incompleta (`Login failed for user 'dario'`). Se
+         resolvió editando esa variable puntual directo en el campo individual, no por el pegado
+         masivo.
+      3. **Las migraciones de EF Core crean tablas, no copian datos** — la base de Azure quedó con el
+         esquema completo pero vacía (sin tenants/usuarios/propiedades). Se migraron los datos reales
+         desde SQL Server local con SSMS: `Tasks → Generate Scripts` sobre la base local, con
+         **"Types of data to script" = "Data only"** (la estructura ya existía en Azure, no hacía
+         falta recrearla), sacando la línea `USE [GestionInmobiliaria]` del script generado, y
+         ejecutándolo contra la base de Azure. Errores esperados e inofensivos al correrlo:
+         `__EFMigrationsHistory` (ya coincide en las dos bases) y `TasasMoratorias` (Azure ya la había
+         completado sola al arrancar, con datos más frescos del BCRA).
+    - **Contra que sigue en pie del tier gratis de Render**: se "duerme" a los 15 min sin tráfico
+      (primer request después tarda ~30-60s en responder, y hasta puede fallar por DNS transitorio en
+      el primerísimo intento — reintentar alcanza). Ya no afecta a los archivos subidos (van a
+      Cloudinary, no al disco de Render).
+    - Dato curioso confirmado en vivo: las respuestas llegan servidas por Cloudflare desde un nodo en
+      **Ezeiza (EZE)** — buena latencia para usuarios en Argentina pese a que la región del servicio
+      en Render es Ohio (no hay región de Render en Sudamérica).
+  - **Frontend (React)**: pendiente, próximo paso. Plan: Vercel o Cloudflare Pages, build estático,
+    gratis, configurando `VITE_API_URL=https://gestioninmobiliaria-api.onrender.com`.
   - **Nota técnica para pruebas locales futuras**: `dotnet run` ignora un `ASPNETCORE_ENVIRONMENT`
     seteado por variable de entorno ambiente porque `Properties/launchSettings.json` lo pisa con
     `"Development"` en el profile por defecto — para forzar otro ambiente en local hay que agregar
