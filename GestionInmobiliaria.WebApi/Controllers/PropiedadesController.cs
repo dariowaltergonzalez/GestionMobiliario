@@ -14,7 +14,7 @@ public class PropiedadesController : ControllerBase
 {
     private readonly IPropiedadRepository _repo;
     private readonly IPropietarioRepository _propietarioRepo;
-    private readonly IWebHostEnvironment _env;
+    private readonly IStorageService _storage;
     private readonly ITenantService _tenantService;
 
     private static readonly string[] ExtensionesPermitidas = [".jpg", ".jpeg", ".png", ".webp"];
@@ -25,12 +25,12 @@ public class PropiedadesController : ControllerBase
     public PropiedadesController(
         IPropiedadRepository repo,
         IPropietarioRepository propietarioRepo,
-        IWebHostEnvironment env,
+        IStorageService storage,
         ITenantService tenantService)
     {
         _repo = repo;
         _propietarioRepo = propietarioRepo;
-        _env = env;
+        _storage = storage;
         _tenantService = tenantService;
     }
 
@@ -343,8 +343,6 @@ public class PropiedadesController : ControllerBase
             return BadRequest(ApiResponse<object>.Fail("Máximo 20 fotos por propiedad."));
 
         var tenantId = _tenantService.TenantId ?? 0;
-        var carpeta = Path.Combine(_env.ContentRootPath, "FotosPropiedad", tenantId.ToString(), id.ToString());
-        Directory.CreateDirectory(carpeta);
 
         var esPrimeraFoto = !propiedad.Fotos.Any();
         var ordenBase = propiedad.Fotos.Any() ? propiedad.Fotos.Max(f => f.Orden) + 1 : 1;
@@ -359,12 +357,10 @@ public class PropiedadesController : ControllerBase
             if (archivo.Length > TamanoMaximoBytes)
                 return BadRequest(ApiResponse<object>.Fail($"El archivo {archivo.FileName} supera el límite de 10 MB."));
 
-            var nuevoNombre = $"{Guid.NewGuid()}{extension}";
-            var rutaFisica = Path.Combine(carpeta, nuevoNombre);
-            using (var stream = new FileStream(rutaFisica, FileMode.Create))
-                await archivo.CopyToAsync(stream);
+            string url;
+            using (var stream = archivo.OpenReadStream())
+                url = await _storage.GuardarArchivoAsync(stream, archivo.FileName, $"{tenantId}/fotos-propiedad/{id}");
 
-            var url = $"/fotos-propiedad/{tenantId}/{id}/{nuevoNombre}";
             var foto = await _repo.AddFotoAsync(new FotoPropiedad
             {
                 PropiedadId = id,
@@ -403,11 +399,7 @@ public class PropiedadesController : ControllerBase
         var foto = await _repo.GetFotoAsync(id, fotoId);
         if (foto is null) return NotFound(ApiResponse<object>.Fail("Foto no encontrada."));
 
-        var tenantId = _tenantService.TenantId ?? 0;
-        var rutaFisica = Path.Combine(_env.ContentRootPath, "FotosPropiedad",
-            tenantId.ToString(), id.ToString(), Path.GetFileName(foto.Url));
-        if (System.IO.File.Exists(rutaFisica)) System.IO.File.Delete(rutaFisica);
-
+        await _storage.EliminarArchivoAsync(foto.Url);
         await _repo.DeleteFotoAsync(id, fotoId);
         return Ok(ApiResponse<object>.Ok(null, "Foto eliminada correctamente."));
     }
@@ -432,23 +424,15 @@ public class PropiedadesController : ControllerBase
             return BadRequest(ApiResponse<object>.Fail("El video supera el límite de 200 MB."));
 
         var tenantId = _tenantService.TenantId ?? 0;
-        var carpeta = Path.Combine(_env.ContentRootPath, "VideosPropiedad", tenantId.ToString(), id.ToString());
-        Directory.CreateDirectory(carpeta);
 
         // Borrar video anterior si existe
         if (!string.IsNullOrWhiteSpace(propiedad.VideoUrl))
-        {
-            var rutaAnterior = Path.Combine(_env.ContentRootPath, "VideosPropiedad",
-                tenantId.ToString(), id.ToString(), Path.GetFileName(propiedad.VideoUrl));
-            if (System.IO.File.Exists(rutaAnterior)) System.IO.File.Delete(rutaAnterior);
-        }
+            await _storage.EliminarArchivoAsync(propiedad.VideoUrl);
 
-        var nuevoNombre = $"{Guid.NewGuid()}{extension}";
-        var rutaFisica = Path.Combine(carpeta, nuevoNombre);
-        using (var stream = new FileStream(rutaFisica, FileMode.Create))
-            await video.CopyToAsync(stream);
+        string url;
+        using (var stream = video.OpenReadStream())
+            url = await _storage.GuardarArchivoAsync(stream, video.FileName, $"{tenantId}/videos-propiedad/{id}");
 
-        var url = $"/videos-propiedad/{tenantId}/{id}/{nuevoNombre}";
         await _repo.SetVideoUrlAsync(id, url);
 
         return Ok(ApiResponse<object>.Ok(new { videoUrl = url }, "Video subido correctamente."));
@@ -462,12 +446,7 @@ public class PropiedadesController : ControllerBase
             return NotFound(ApiResponse<object>.Fail("Propiedad no encontrada."));
 
         if (!string.IsNullOrWhiteSpace(propiedad.VideoUrl))
-        {
-            var tenantId = _tenantService.TenantId ?? 0;
-            var rutaFisica = Path.Combine(_env.ContentRootPath, "VideosPropiedad",
-                tenantId.ToString(), id.ToString(), Path.GetFileName(propiedad.VideoUrl));
-            if (System.IO.File.Exists(rutaFisica)) System.IO.File.Delete(rutaFisica);
-        }
+            await _storage.EliminarArchivoAsync(propiedad.VideoUrl);
 
         await _repo.SetVideoUrlAsync(id, null);
         return Ok(ApiResponse<object>.Ok(null, "Video eliminado correctamente."));

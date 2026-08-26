@@ -788,6 +788,38 @@ Docker). La base de datos y Cloudinary no se "despliegan", solo se les pega en v
    servidor" (no es un error de red real, es CORS). Se cambió para permitir también cualquier
    `*.vercel.app` (cubre producción y previews de Vercel automáticamente, sin tener que actualizar
    nada a mano) y una lista opcional `AllowedOrigins` (env var) para dominios propios futuros.
+8. **Fotos de propiedades, video de propiedades y documentos de contrato nunca se migraron a
+   Cloudinary** — cuando se armó el storage permanente (ver sección LIQUIDACIÓN → "Autocompletar
+   comprobante con IA" y `IStorageService`), solo se conectó en 2 lugares (comprobantes de
+   Liquidación, fotos de SolicitudTasacion). `PropiedadesController` (fotos y video) y
+   `DocumentosContratoController` tenían su propio código que escribía directo a
+   `_env.ContentRootPath` — se detectó porque las fotos de una propiedad de prueba aparecían rotas en
+   el sistema ya desplegado (los archivos solo existían en el disco local de desarrollo, nunca
+   llegaron a ningún lado accesible desde Render). Se migraron los tres a `IStorageService`, mismo
+   patrón que los otros dos:
+   - `PropiedadesController`: `SubirFotos`/`DeleteFoto`/`SubirVideo`/`DeleteVideo` reemplazan
+     `File.Create`/`File.Delete` por `_storage.GuardarArchivoAsync`/`EliminarArchivoAsync`. Se sacó
+     la dependencia de `IWebHostEnvironment` del controller (ya no hace falta).
+   - `DocumentosContratoController`: mismo cambio en `Upload`/`Delete`. La acción `Download` cambió
+     de comportamiento — antes leía los bytes del disco propio y los devolvía (`File(bytes, ...)`,
+     preservando el nombre original de descarga); ahora hace `Redirect(doc.RutaRelativa)` a la URL
+     guardada (funciona igual sea relativa —local— o absoluta —Cloudinary—), a costa de perder el
+     nombre original bonito al descargar desde Cloudinary (el archivo baja con el nombre generado,
+     no el que subió el usuario) — no se resolvió porque requeriría una transformación específica de
+     Cloudinary (`fl_attachment`) que rompería la abstracción de `IStorageService`; se anota acá por
+     si en algún momento se prioriza.
+   - **Probado en vivo contra la cuenta real de Cloudinary**: subida y borrado de una foto de
+     propiedad (confirmado con un `404` directo a la URL después de borrar) y de un documento de
+     contrato (incluida la descarga, que devolvió el `302 Found` con el `Location` de Cloudinary
+     correcto). Video no se probó explícitamente pero usa el mismo código exacto que fotos, ya
+     verificado dos veces con éxito (acá y con comprobantes).
+   - **Nota para pruebas locales futuras en modo Production**: además de `--no-launch-profile` (ver
+     nota de abajo sobre el puerto), en modo Production real la app **no carga
+     `appsettings.Development.json`** — si se prueba localmente forzando este ambiente, hay que pasar
+     también `ConnectionStrings__DefaultConnection` explícita (la de `appsettings.json` apunta a
+     `Server=localhost` a secas, no a la instancia real `.\SQLEXPRESS`), si no el login falla con un
+     500 sin cuerpo (la excepción original de conexión rota hace que hasta el logueo del error a
+     `AppLogs` falle, porque también necesita la base).
 
 ### A tener en cuenta
 
