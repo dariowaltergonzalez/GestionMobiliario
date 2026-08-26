@@ -9,8 +9,7 @@ import {
 } from '../../../api/liquidaciones'
 import { getPropietariosActivos, type PropietarioComboDto } from '../../../api/propietarios'
 import { MEDIOS_PAGO, medioPagoNumero } from '../../../api/contratos'
-
-const API_URL = 'http://localhost:5005'
+import { resolveMediaUrl } from '../../../api/client'
 
 function mesAnio(iso: string) {
   return new Date(iso).toLocaleDateString('es-AR', { month: 'short', year: 'numeric' })
@@ -255,7 +254,7 @@ function DetalleLiquidacionModal({ liquidacion, moneda, onCambio, onEliminada, o
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       {a.comprobanteUrl && (
-                        <a href={`${API_URL}${a.comprobanteUrl}`} target="_blank" rel="noreferrer"
+                        <a href={resolveMediaUrl(a.comprobanteUrl)} target="_blank" rel="noreferrer"
                           className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors" title="Ver comprobante">
                           <FileImage className="w-3.5 h-3.5" />
                         </a>

@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom'
 import { MapPin, Home, Search, Phone, Mail, ChevronRight, Building2, TrendingUp, Users, Maximize2, BedDouble, Bath } from 'lucide-react'
 import { getConfiguracionPublica, type ConfiguracionPublicaDto } from '../../api/configuracion'
 import { getPropiedadesPublicas, type PropiedadPublicaDto } from '../../api/propiedades'
-
-const API_URL = 'http://localhost:5005'
+import { resolveMediaUrl } from '../../api/client'
 
 const stats = [
   { icono: Building2, valor: '500+', label: 'Propiedades' },
@@ -230,7 +229,7 @@ export default function LandingPage() {
                 })
                 .slice(0, 9)
                 .map((p) => {
-                  const imgSrc = p.fotoPrincipalUrl ? `${API_URL}${p.fotoPrincipalUrl}` : null
+                  const imgSrc = p.fotoPrincipalUrl ? resolveMediaUrl(p.fotoPrincipalUrl) : null
                   const esVenta = p.operacionNombre === 'Venta' || p.operacionNombre === 'AlquilerOVenta'
                   return (
                     <Link key={p.id} to={`/propiedades/${p.id}`} onClick={() => sessionStorage.setItem('landingScrollY', String(window.scrollY))} className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow group cursor-pointer block">

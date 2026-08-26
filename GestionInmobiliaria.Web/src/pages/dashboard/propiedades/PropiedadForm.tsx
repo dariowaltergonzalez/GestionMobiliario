@@ -7,8 +7,7 @@ import {
   type PropiedadDto, type PropiedadFormData, type FotoPropiedadDto,
 } from '../../../api/propiedades'
 import { getPropietariosActivos, type PropietarioComboDto } from '../../../api/propietarios'
-
-const API_URL = 'http://localhost:5005'
+import { resolveMediaUrl } from '../../../api/client'
 
 interface Props {
   propiedad: PropiedadDto | null
@@ -142,7 +141,7 @@ function FotosSection({ propiedadId, fotosIniciales, fotasPendientes, onFotosPen
           {fotos.map(f => (
             <div key={f.id} className="relative group rounded-lg overflow-hidden border border-gray-200 aspect-square bg-gray-50">
               <img
-                src={`${API_URL}${f.url}`}
+                src={resolveMediaUrl(f.url)}
                 alt={f.nombreArchivo}
                 className="w-full h-full object-cover"
               />
@@ -280,7 +279,7 @@ function VideoSection({ propiedadId, videoUrlInicial, videoPendiente, onVideoPen
       {/* Video existente */}
       {videoUrl && !videoPendiente && (
         <div className="mb-3 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
-          <video src={`${API_URL}${videoUrl}`} controls className="w-full max-h-48" preload="metadata" />
+          <video src={resolveMediaUrl(videoUrl)} controls className="w-full max-h-48" preload="metadata" />
           <div className="flex items-center justify-between px-3 py-2">
             <span className="text-xs text-gray-500 flex items-center gap-1.5"><Video className="w-3.5 h-3.5" /> Video cargado</span>
             <button type="button" onClick={handleEliminar} disabled={eliminando}

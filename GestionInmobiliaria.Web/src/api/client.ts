@@ -1,6 +1,10 @@
 import axios from 'axios'
 
-const API_URL = 'http://localhost:5005'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5005'
+
+// Los archivos subidos pueden venir como URL relativa (disco local, en desarrollo) o absoluta
+// (Cloudinary, en producción) — esta función arma el src correcto para cualquiera de los dos casos.
+export const resolveMediaUrl = (url: string) => url.startsWith('http') ? url : `${API_URL}${url}`
 
 const client = axios.create({ baseURL: API_URL })
 

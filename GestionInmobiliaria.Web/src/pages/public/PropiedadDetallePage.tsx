@@ -5,9 +5,8 @@ import {
   ChevronLeft, ChevronRight, ArrowLeft, Phone, MessageCircle, Clock, Shield
 } from 'lucide-react'
 import { getPropiedadPublica, getPropiedadesPublicas, type PropiedadPublicaDto } from '../../api/propiedades'
+import { resolveMediaUrl } from '../../api/client'
 import { getConfiguracionPublica, type ConfiguracionPublicaDto } from '../../api/configuracion'
-
-const API_URL = 'http://localhost:5005'
 
 function formatPrecio(p: PropiedadPublicaDto): { lineas: string[] } {
   const lineas: string[] = []
@@ -36,7 +35,7 @@ function Galeria({ fotos, direccion }: { fotos: string[]; direccion: string }) {
       {/* Foto principal */}
       <div className="relative rounded-2xl overflow-hidden bg-gray-100 aspect-[16/9] cursor-zoom-in" onClick={() => setLightbox(true)}>
         <img
-          src={`${API_URL}${fotos[idx]}`}
+          src={resolveMediaUrl(fotos[idx])}
           alt={`${direccion} - foto ${idx + 1}`}
           className="w-full h-full object-cover"
         />
@@ -63,7 +62,7 @@ function Galeria({ fotos, direccion }: { fotos: string[]; direccion: string }) {
           {fotos.map((url, i) => (
             <button key={i} onClick={() => setIdx(i)}
               className={`shrink-0 w-20 h-16 rounded-lg overflow-hidden border-2 transition-all ${i === idx ? 'border-blue-900 scale-105' : 'border-transparent opacity-60 hover:opacity-100'}`}>
-              <img src={`${API_URL}${url}`} alt="" className="w-full h-full object-cover" />
+              <img src={resolveMediaUrl(url)} alt="" className="w-full h-full object-cover" />
             </button>
           ))}
         </div>
@@ -80,7 +79,7 @@ function Galeria({ fotos, direccion }: { fotos: string[]; direccion: string }) {
             <ChevronLeft className="w-6 h-6" />
           </button>
           <img
-            src={`${API_URL}${fotos[idx]}`}
+            src={resolveMediaUrl(fotos[idx])}
             alt=""
             className="max-w-full max-h-full object-contain rounded-xl"
             onClick={e => e.stopPropagation()}
@@ -104,7 +103,7 @@ function VideoPlayer({ url }: { url: string }) {
       <h2 className="text-lg font-bold text-blue-900 mb-3">Video de la propiedad</h2>
       <div className="rounded-2xl overflow-hidden bg-black aspect-[16/9]">
         <video
-          src={`${API_URL}${url}`}
+          src={resolveMediaUrl(url)}
           controls
           className="w-full h-full"
           preload="metadata"
@@ -344,7 +343,7 @@ export default function PropiedadDetallePage() {
             <h2 className="text-xl font-bold text-blue-900 mb-6">Otras propiedades disponibles</h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               {relacionadas.map(p => {
-                const imgSrc = p.fotoPrincipalUrl ? `${API_URL}${p.fotoPrincipalUrl}` : null
+                const imgSrc = p.fotoPrincipalUrl ? resolveMediaUrl(p.fotoPrincipalUrl) : null
                 return (
                   <Link key={p.id} to={`/propiedades/${p.id}`}
                     className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">

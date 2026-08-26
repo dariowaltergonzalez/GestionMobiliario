@@ -84,7 +84,13 @@ builder.Services.AddScoped<IGastoRepository, GastoRepository>();
 builder.Services.AddScoped<IClausulaContratoRepository, ClausulaContratoRepository>();
 builder.Services.AddScoped<IAppLogRepository, AppLogRepository>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
-builder.Services.AddScoped<IStorageService, LocalStorageService>();
+// En producción los archivos van a Cloudinary (storage permanente); en desarrollo local se
+// siguen guardando en disco — evita que cada dev necesite credenciales de Cloudinary para levantar
+// el proyecto. Ver docs/logica-negocio.md, sección PENDIENTES GENERALES → "Desplegar el sistema".
+if (builder.Environment.IsProduction())
+    builder.Services.AddScoped<IStorageService, CloudinaryStorageService>();
+else
+    builder.Services.AddScoped<IStorageService, LocalStorageService>();
 builder.Services.AddScoped<IPdfReportService, QuestPdfReportService>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<INotificacionService, NotificacionService>();

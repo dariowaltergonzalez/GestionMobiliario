@@ -732,20 +732,52 @@ sacando a medida que se resuelve, como el resto del documento.
     corporativo de su red. Toda la creación de recursos en Azure se hizo a mano desde el Portal web,
     guiando al usuario paso a paso. Si se retoma con automatización (CLI/Terraform/etc.), primero hay
     que resolver ese problema de certificados, o hacerlo desde otra máquina/red.
-  - **Backend (.NET API)**: pendiente. Plan: Render.com, tier gratis, desplegado como contenedor
-    Docker (evita el problema de que .NET 10 todavía es SDK preview y no todos los hosting managed lo
-    soportan nativamente). Contras conocidas del tier gratis de Render: se "duerme" a los 15 min sin
-    tráfico (primer request después tarda ~30-60s en responder) y el disco es efímero (los archivos
-    subidos — fotos, comprobantes, documentos — se pierden en cada reinicio/redeploy; aceptable para
-    una prueba corta, no para producción real sin resolverlo aparte con un storage tipo Azure Blob).
-  - **Frontend (React)**: pendiente. Plan: Vercel o Cloudflare Pages, build estático, gratis.
-  - **Bloqueante real antes de desplegar**: las URLs del backend están hardcodeadas a
-    `http://localhost:5005` en varios archivos del frontend (`api/client.ts`, `LandingPage.tsx`,
-    `PortalPropietarioPage.tsx`, y cualquier otro que arme un link a `/uploads/...`) — hay que
-    volverlas configurables (variable de entorno de Vite) antes de que el despliegue tenga sentido,
-    si no ningún link va a funcionar fuera de la máquina de desarrollo.
-  - Falta armar el `Dockerfile` del backend y configurar en Render la connection string de Azure SQL
-    (como variable de entorno del servicio, nunca committeada) más la `Gemini:ApiKey`.
+  - **URLs del frontend, ya resuelto (2026-08-25)**: estaban hardcodeadas a `http://localhost:5005`
+    en 6 archivos. Se agregó `.env` (`VITE_API_URL`, commiteado, sin secretos) y cada archivo ahora
+    usa `import.meta.env.VITE_API_URL || 'http://localhost:5005'` — en desarrollo local sigue
+    funcionando igual, en producción Vercel va a inyectar la URL real de Render.
+  - **Storage permanente, ya resuelto y probado en vivo (2026-08-25)**: en vez de aceptar que el
+    disco efímero de Render borre las fotos/comprobantes/documentos en cada redeploy, se decidió
+    resolverlo de entrada — el usuario prefirió no arriesgar los datos que vayan cargando sus
+    contactos durante la prueba. Se usa **Cloudinary** (tier gratis de por vida, sin tarjeta, 25
+    créditos/mes = ~25GB entre storage/banda ancha — verificado en vivo, ver fuente abajo), detrás de
+    la interfaz `IStorageService` que ya existía (mismo patrón swappeable que `IReciboIaService`):
+    `CloudinaryStorageService` (`Infraestructura/Services/`) se registra en producción,
+    `LocalStorageService` se sigue usando en desarrollo local — así ningún dev necesita credenciales
+    de Cloudinary para levantar el proyecto (`Program.cs`, `if (builder.Environment.IsProduction())`).
+    - **Cómo resolver URLs mixtas**: el disco local devuelve URLs relativas (`/uploads/...`),
+      Cloudinary devuelve absolutas (`https://res.cloudinary.com/...`). Se agregó
+      `resolveMediaUrl()` en `api/client.ts` (si ya empieza con `http`, se usa tal cual; si no, se le
+      antepone `VITE_API_URL`) y se reemplazó todo `${API_URL}${url}` suelto del frontend por esto.
+    - **Se sube siempre como `resource_type=raw`**, nunca `auto` — no usamos transformaciones de
+      imagen de Cloudinary, así que no hace falta que detecte el tipo, y usar siempre el mismo tipo
+      hace que borrar el archivo después sea determinístico (con `auto`, borrar necesitaría saber qué
+      tipo le asignó Cloudinary al subir, dato que no se guarda en ningún lado).
+    - **Bug real encontrado y corregido probando el borrado**: a diferencia de `image`/`video`, en
+      recursos `raw` el `public_id` de Cloudinary **incluye la extensión del archivo** — el primer
+      intento de `EliminarArchivoAsync` la sacaba siempre (asumiendo el comportamiento de
+      image/video) y el borrado fallaba silencioso ("not found"). Se corrigió la extracción del
+      `public_id` para no tocar la extensión, y se volvió a probar en vivo el ciclo completo
+      (subir + borrar) contra la cuenta real de Cloudinary del usuario — anduvo perfecto.
+    - **API keys de Cloudinary**: config global (no por tenant, mismo criterio que `Gemini:ApiKey`),
+      van directo como variables de entorno en Render — nunca en un archivo del repo.
+  - **Backend (.NET API)**: Dockerfile armado (`/Dockerfile`, build multi-etapa con
+    `mcr.microsoft.com/dotnet/sdk:10.0`/`aspnet:10.0`, instala `libfontconfig1` porque QuestPDF lo
+    necesita en Linux aunque se presente como "100% .NET puro" — problema ya conocido, ver memoria del
+    proyecto `pdf_reportes.md`). Falta el despliegue en sí: crear el servicio en Render.com (tier
+    gratis) apuntando a este repo, y cargar ahí las variables de entorno
+    (`ConnectionStrings__DefaultConnection` con la cadena de Azure SQL, `Gemini__ApiKey`,
+    `Cloudinary__CloudName`/`ApiKey`/`ApiSecret`). Contra conocida que sigue en pie del tier gratis de
+    Render: se "duerme" a los 15 min sin tráfico (primer request después tarda ~30-60s en responder) —
+    esto ya no afecta a los archivos subidos (van a Cloudinary), solo implica una demora al primer
+    ingreso después de estar inactivo.
+  - **Frontend (React)**: pendiente. Plan: Vercel o Cloudflare Pages, build estático, gratis,
+    configurando `VITE_API_URL` con la URL real de Render una vez que exista.
+  - **Nota técnica para pruebas locales futuras**: `dotnet run` ignora un `ASPNETCORE_ENVIRONMENT`
+    seteado por variable de entorno ambiente porque `Properties/launchSettings.json` lo pisa con
+    `"Development"` en el profile por defecto — para forzar otro ambiente en local hay que agregar
+    `--no-launch-profile` (ojo: eso también hace que Kestrel ignore `applicationUrl` y caiga en el
+    puerto 5000 por defecto en vez de 5005).
 
 - [x] **Anulación de cobros — DECIDIDO: no se implementa (analizado 2026-08-23/24)**. Surgió al ver
   que con el checkbox de punitorio es fácil cobrar mal por error y no había forma de corregirlo. Se

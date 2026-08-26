@@ -9,6 +9,8 @@ appsettings.*.json
 GestionInmobiliaria.WebApi/Logos/
 GestionInmobiliaria.WebApi/FotosPropiedad/
 GestionInmobiliaria.WebApi/DocumentosContrato/
+GestionInmobiliaria.WebApi/wwwroot/uploads/*
+!GestionInmobiliaria.WebApi/wwwroot/uploads/.gitkeep
 
 # Config local de herramientas
 .claude/

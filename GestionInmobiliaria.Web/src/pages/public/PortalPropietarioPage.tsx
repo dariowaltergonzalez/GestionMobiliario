@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { Building2, AlertTriangle, Wallet, ChevronDown, ChevronUp, FileImage } from 'lucide-react'
 import { getPortalPropietario, type PortalPropietarioDto } from '../../api/portal'
-
-const API_URL = 'http://localhost:5005'
+import { resolveMediaUrl } from '../../api/client'
 
 function formatMoneda(monto: number) {
   return `$ ${monto.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -143,7 +142,7 @@ export default function PortalPropietarioPage() {
                                     </p>
                                   </div>
                                   {a.comprobanteUrl && (
-                                    <a href={`${API_URL}${a.comprobanteUrl}`} target="_blank" rel="noreferrer"
+                                    <a href={resolveMediaUrl(a.comprobanteUrl)} target="_blank" rel="noreferrer"
                                       className="shrink-0 flex items-center gap-1 text-yellow-300 hover:text-yellow-200 font-bold">
                                       <FileImage className="w-3.5 h-3.5" /> Comprobante
                                     </a>

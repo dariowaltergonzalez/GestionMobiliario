@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+**/.vs/
+**/node_modules/
+**/dist/
+GestionInmobiliaria.Web/
+docs/
+*.md
+.git/
+.claude/
+appsettings.Development.json
