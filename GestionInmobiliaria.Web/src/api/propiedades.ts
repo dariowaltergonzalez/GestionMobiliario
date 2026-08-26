@@ -72,6 +72,7 @@ export interface PropiedadDto {
   propietarioNombre: string
   fotos: FotoPropiedadDto[]
   fotoPrincipalUrl: string | null
+  videoUrl: string | null
 }
 
 export interface PropiedadFormData {

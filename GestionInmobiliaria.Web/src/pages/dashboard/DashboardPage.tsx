@@ -55,11 +55,6 @@ function formatFechaHora(iso: string) {
   return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' }) + ` ${hora}`
 }
 
-function formatHora(iso: string) {
-  const utc = iso.endsWith('Z') ? iso : iso + 'Z'
-  return new Date(utc).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
-}
-
 function estadoBadgeClass(estado: string) {
   switch (estado) {
     case 'Pendiente': return 'bg-red-50 text-red-600'

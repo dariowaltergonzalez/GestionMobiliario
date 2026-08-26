@@ -8,7 +8,7 @@ import DetalleContratoModal from './DetalleContratoModal'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
 import {
   getContratos, getContrato, createContrato, updateContrato, deleteContrato, transicionEstado,
-  TIPOS_CONTRATO, ESTADOS_CONTRATO, TIPOS_AJUSTE,
+  TIPOS_CONTRATO, ESTADOS_CONTRATO,
   estadoContratoNumero,
   type ContratoDto, type PagoDto, type FiltrosContratos,
   type CreateContratoRequest, type UpdateContratoRequest,

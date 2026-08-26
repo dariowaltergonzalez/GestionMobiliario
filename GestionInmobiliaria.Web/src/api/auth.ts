@@ -13,6 +13,7 @@ export interface TokenResponse {
   apellido: string
   roles: string[]
   tenantId: number
+  agenteId: number | null
 }
 
 export interface TenantLoginDto {

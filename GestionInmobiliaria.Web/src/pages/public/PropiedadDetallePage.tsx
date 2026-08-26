@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
-  MapPin, Home, BedDouble, Bath, Maximize2, Car, Flame, PawPrint,
+  MapPin, Home, BedDouble, Bath, Car, Flame, PawPrint,
   ChevronLeft, ChevronRight, ArrowLeft, Phone, MessageCircle, Clock, Shield
 } from 'lucide-react'
 import { getPropiedadPublica, getPropiedadesPublicas, type PropiedadPublicaDto } from '../../api/propiedades'
