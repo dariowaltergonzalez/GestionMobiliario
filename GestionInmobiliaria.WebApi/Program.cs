@@ -15,13 +15,21 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// CORS — permite que cualquier frontend local consuma la API durante desarrollo
+// CORS — localhost para desarrollo, cualquier *.vercel.app (producción + previews de Vercel) y
+// cualquier origen extra que se cargue en AllowedOrigins (env var, coma-separado) para dominios
+// propios futuros.
+var allowedOrigins = (builder.Configuration["AllowedOrigins"] ?? "")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendDev", policy =>
     {
         policy.SetIsOriginAllowed(origin =>
-                new Uri(origin).Host == "localhost")
+            {
+                var host = new Uri(origin).Host;
+                return host == "localhost" || host.EndsWith(".vercel.app") || allowedOrigins.Contains(origin);
+            })
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
