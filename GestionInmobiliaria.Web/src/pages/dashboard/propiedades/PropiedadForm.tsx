@@ -309,6 +309,8 @@ function VideoSection({ propiedadId, videoUrlInicial, videoPendiente, onVideoPen
       {!videoPendiente && (
         <div
           onClick={() => inputRef.current?.click()}
+          onDragOver={e => e.preventDefault()}
+          onDrop={e => { e.preventDefault(); handleArchivo(e.dataTransfer.files[0] ?? null) }}
           className="border-2 border-dashed border-gray-200 hover:border-blue-400 hover:bg-gray-50 rounded-xl p-5 flex flex-col items-center gap-2 cursor-pointer transition-colors"
         >
           {videoUrl ? <VideoOff className="w-6 h-6 text-gray-400" /> : <Video className="w-6 h-6 text-gray-400" />}
