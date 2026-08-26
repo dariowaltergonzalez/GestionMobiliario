@@ -709,105 +709,117 @@ ahí), así que el nivel de seguridad de "link con secreto imposible de adivinar
 
 ---
 
+## DESPLIEGUE
+
+Sistema desplegado en la nube para que el usuario le pase el link a sus contactos y lo prueben,
+ideal desde el celular. Hecho y probado en vivo de punta a punta 2026-08-24/26. Plan elegido: **todo
+gratis para arrancar** — cuando haya un cliente pagando, se puede migrar a algo pago sin drama, cada
+pieza vive detrás de una interfaz swappeable (mismo criterio que `IReciboIaService`).
+
+### Mapa — dónde vive cada cosa
+
+| Pieza | Dónde | URL / identificador | Plan |
+|---|---|---|---|
+| Frontend (React) | Vercel | `https://gestion-mobiliario.vercel.app` | Hobby (gratis) |
+| Backend (.NET API) | Render.com, como contenedor Docker | `https://gestioninmobiliaria-api.onrender.com` | Free |
+| Base de datos | Azure SQL Database | servidor `servermobiliario.database.windows.net`, base `gestioninmobiliaria` | Oferta gratuita (Auto-pausa) |
+| Storage de archivos (fotos, comprobantes, documentos) | Cloudinary | cloud name `ftrqrxmb` | Free (25 créditos/mes) |
+
+Cuentas: Render y Vercel son cuentas nuevas del usuario logueadas con GitHub, con acceso restringido
+solo al repo `GestionMobiliario` (no a todos sus repos). Azure SQL vive en la suscripción que el
+usuario ya tenía (`dwg_free_basic`), en un grupo de recursos nuevo `sql_free` para no mezclarla con
+su otro proyecto (GestionarticulosV3) — mismo usuario/contraseña que su otro servidor Azure, por
+comodidad, decisión consciente del usuario. Cloudinary es una cuenta nueva.
+
+### Cómo se actualiza
+
+Tanto Render como Vercel tienen **autodeploy conectado a `master`** — cualquier `git push` dispara un
+redeploy solo, sin tocar nada manualmente (Vercel tarda ~1 min, Render ~2-4 min por ser build de
+Docker). La base de datos y Cloudinary no se "despliegan", solo se les pega en vivo.
+
+### Variables de entorno (ninguna vive en el repo)
+
+- **Render** (backend): `ASPNETCORE_ENVIRONMENT=Production`, `ConnectionStrings__DefaultConnection`
+  (cadena de Azure SQL), `Jwt__Key` (generada nueva para este despliegue — la del repo es un
+  placeholder público, nunca se usó en producción), `Gemini__ApiKey`, `Cloudinary__CloudName`/
+  `ApiKey`/`ApiSecret`.
+- **Vercel** (frontend): `VITE_API_URL=https://gestioninmobiliaria-api.onrender.com`.
+- **Local (dev)**: `appsettings.Development.json` (gitignoreado) para `Gemini:ApiKey`; el resto usa
+  los valores por defecto de `appsettings.json` (SQL Server local, storage en disco).
+
+### Problemas reales encontrados y resueltos (en orden)
+
+1. **Azure CLI no funciona desde la máquina del usuario** — falla con
+   `CERTIFICATE_VERIFY_FAILED`, probablemente proxy/antivirus corporativo de su red. Toda la creación
+   de recursos en Azure se hizo a mano desde el Portal web, guiando paso a paso. Si se retoma con
+   automatización (CLI/Terraform/etc.), primero hay que resolver esto o hacerlo desde otra
+   máquina/red.
+2. **Firewall de Azure SQL** — Render no es un servicio de Azure, así que la excepción "permitir
+   servicios de Azure" no lo cubre, y el tier gratis de Render no tiene IP fija. Se agregó una regla
+   de firewall `0.0.0.0`-`255.255.255.255` (la base sigue protegida por usuario/contraseña — práctica
+   común para conectar servicios cloud sin IP fija).
+3. **El `#` de la contraseña de Azure SQL se cortaba al pegar las variables con "Add from .env" de
+   Render** — el parser trata `#` como inicio de comentario y descartaba el resto de la connection
+   string (`Login failed for user 'dario'`). Se resolvió editando esa variable puntual directo en el
+   campo individual, no por el pegado masivo.
+4. **Las migraciones de EF Core crean tablas, no copian datos** — la base de Azure quedó con el
+   esquema completo pero vacía. Se migraron los datos reales (tenants, usuarios, propiedades,
+   contratos) desde SQL Server local con SSMS: `Tasks → Generate Scripts` sobre la base local, con
+   **"Types of data to script" = "Data only"**, sacando la línea `USE [GestionInmobiliaria]` del
+   script generado, y ejecutándolo contra la base de Azure. Errores esperados e inofensivos al
+   correrlo: `__EFMigrationsHistory` (ya coincide en las dos bases) y `TasasMoratorias` (Azure ya la
+   había completado sola al arrancar, con datos más frescos del BCRA).
+5. **`npx tsc --noEmit` no detectaba los mismos errores que el build real** (`npm run build`, que usa
+   `tsc -b` con project references) — el primer deploy en Vercel falló con 6 errores de TypeScript
+   reales que nunca se habían visto en toda la sesión: campos faltantes en `TokenResponse`/
+   `PropiedadDto` (`agenteId`/`videoUrl`, el backend ya los devolvía hace rato), un import de tipo sin
+   `type` (`verbatimModuleSyntax`), y variables/imports sin usar. **Para verificar el frontend de acá
+   en más, correr `npm run build` (el comando real), no `tsc --noEmit` solo.**
+6. **El `.gitignore` del frontend ignoraba `src/pages/dashboard/logs/` entero** — la regla `logs`
+   (heredada del template de Vite, pensada para carpetas de logs de npm/build) no tenía barra inicial,
+   así que coincidía con cualquier carpeta llamada "logs" en cualquier nivel del proyecto, incluyendo
+   la pantalla real de Logs del panel. `LogsPage.tsx` nunca había llegado a GitHub desde que se creó
+   (meses atrás) — compilaba bien en local porque el archivo sí existía en el disco, pero Vercel clona
+   desde GitHub y no lo encontraba. Se acotó la regla a `/logs` (solo la carpeta de la raíz) y se
+   agregó el archivo. Se verificó que fuera el único afectado en todo el proyecto (frontend y
+   backend), comparando los archivos del disco contra lo que git trackea realmente.
+7. **CORS solo permitía `localhost`** — bloqueaba directamente al frontend ya desplegado
+   (`gestion-mobiliario.vercel.app`), el navegador lo mostraba como "No se pudo conectar con el
+   servidor" (no es un error de red real, es CORS). Se cambió para permitir también cualquier
+   `*.vercel.app` (cubre producción y previews de Vercel automáticamente, sin tener que actualizar
+   nada a mano) y una lista opcional `AllowedOrigins` (env var) para dominios propios futuros.
+
+### A tener en cuenta
+
+- **No compartir el usuario admin real con los contactos que prueben** — hoy el acceso que se probó
+  es `dariogonzalez08@gmail.com` (rol Admin) sobre el tenant `inmobiliaria-del-sur`. Si se les va a
+  dar acceso a terceros, conviene crearles un usuario `Operador` aparte.
+- **Render free se "duerme"** a los 15 min sin tráfico — el primer request después tarda ~30-60s en
+  responder, y hasta puede fallar por un DNS transitorio en el primerísimo intento (reintentar
+  alcanza). Ya no afecta a los archivos subidos (van a Cloudinary, no al disco de Render).
+- Dato curioso confirmado en vivo: las respuestas del backend llegan servidas por Cloudflare desde un
+  nodo en **Ezeiza (EZE)** — buena latencia para usuarios en Argentina pese a que la región del
+  servicio en Render es Ohio (no hay región de Render en Sudamérica).
+- **Nota técnica para pruebas locales futuras**: `dotnet run` ignora un `ASPNETCORE_ENVIRONMENT`
+  seteado por variable de entorno porque `Properties/launchSettings.json` lo pisa con `"Development"`
+  en el profile por defecto — para forzar otro ambiente en local hay que agregar
+  `--no-launch-profile` (ojo: eso también hace que Kestrel ignore `applicationUrl` y caiga en el
+  puerto 5000 por defecto en vez de 5005).
+- Todavía no se probó desde un celular real (solo navegador de escritorio) — pendiente de que el
+  usuario lo confirme.
+
+---
+
 ## PENDIENTES GENERALES
 
 Lista única de lo que falta, para no depender de la memoria de sesión a sesión. Se va tachando o
 sacando a medida que se resuelve, como el resto del documento.
 
-- [ ] **Desplegar el sistema para que el usuario le pase el link a sus contactos y lo prueben, con
-  acceso desde el celular — EN PROGRESO, arrancado 2026-08-24.** Plan elegido: todo gratis para
-  arrancar (más adelante, cuando haya un cliente pagando, se puede migrar a algo pago sin drama).
-  - **Base de datos**: Azure SQL Database, tier "oferta gratuita" (100.000 vCore-segundos + 32GB
-    gratis por mes, de por vida de la suscripción, en modo Auto-pausa — nunca cobra sin que el
-    usuario habilite manualmente el excedente). **Ya creada y migrada** — servidor
-    `servermobiliario.database.windows.net`, base `gestioninmobiliaria`, en la suscripción de Azure
-    que el usuario ya tenía (`dwg_free_basic`), grupo de recursos nuevo `sql_free` para no mezclarla
-    con su otro proyecto (GestionarticulosV3). Las 36 tablas del esquema completo (incluyendo todo lo
-    de esta sesión: IndicesIpc/Uva, ComprobanteUrl) ya corrieron ahí vía `dotnet ef database update`
-    apuntando la connection string por variable de entorno (nunca se escribió la contraseña real en
-    ningún archivo del repo). Firewall del servidor con la IP del usuario habilitada para conectar
-    por SSMS.
-  - **Importante, no se pudo usar el Azure CLI desde acá** — falla con error de certificado SSL
-    (`CERTIFICATE_VERIFY_FAILED`) en la máquina del usuario, probablemente por algún proxy/antivirus
-    corporativo de su red. Toda la creación de recursos en Azure se hizo a mano desde el Portal web,
-    guiando al usuario paso a paso. Si se retoma con automatización (CLI/Terraform/etc.), primero hay
-    que resolver ese problema de certificados, o hacerlo desde otra máquina/red.
-  - **URLs del frontend, ya resuelto (2026-08-25)**: estaban hardcodeadas a `http://localhost:5005`
-    en 6 archivos. Se agregó `.env` (`VITE_API_URL`, commiteado, sin secretos) y cada archivo ahora
-    usa `import.meta.env.VITE_API_URL || 'http://localhost:5005'` — en desarrollo local sigue
-    funcionando igual, en producción Vercel va a inyectar la URL real de Render.
-  - **Storage permanente, ya resuelto y probado en vivo (2026-08-25)**: en vez de aceptar que el
-    disco efímero de Render borre las fotos/comprobantes/documentos en cada redeploy, se decidió
-    resolverlo de entrada — el usuario prefirió no arriesgar los datos que vayan cargando sus
-    contactos durante la prueba. Se usa **Cloudinary** (tier gratis de por vida, sin tarjeta, 25
-    créditos/mes = ~25GB entre storage/banda ancha — verificado en vivo, ver fuente abajo), detrás de
-    la interfaz `IStorageService` que ya existía (mismo patrón swappeable que `IReciboIaService`):
-    `CloudinaryStorageService` (`Infraestructura/Services/`) se registra en producción,
-    `LocalStorageService` se sigue usando en desarrollo local — así ningún dev necesita credenciales
-    de Cloudinary para levantar el proyecto (`Program.cs`, `if (builder.Environment.IsProduction())`).
-    - **Cómo resolver URLs mixtas**: el disco local devuelve URLs relativas (`/uploads/...`),
-      Cloudinary devuelve absolutas (`https://res.cloudinary.com/...`). Se agregó
-      `resolveMediaUrl()` en `api/client.ts` (si ya empieza con `http`, se usa tal cual; si no, se le
-      antepone `VITE_API_URL`) y se reemplazó todo `${API_URL}${url}` suelto del frontend por esto.
-    - **Se sube siempre como `resource_type=raw`**, nunca `auto` — no usamos transformaciones de
-      imagen de Cloudinary, así que no hace falta que detecte el tipo, y usar siempre el mismo tipo
-      hace que borrar el archivo después sea determinístico (con `auto`, borrar necesitaría saber qué
-      tipo le asignó Cloudinary al subir, dato que no se guarda en ningún lado).
-    - **Bug real encontrado y corregido probando el borrado**: a diferencia de `image`/`video`, en
-      recursos `raw` el `public_id` de Cloudinary **incluye la extensión del archivo** — el primer
-      intento de `EliminarArchivoAsync` la sacaba siempre (asumiendo el comportamiento de
-      image/video) y el borrado fallaba silencioso ("not found"). Se corrigió la extracción del
-      `public_id` para no tocar la extensión, y se volvió a probar en vivo el ciclo completo
-      (subir + borrar) contra la cuenta real de Cloudinary del usuario — anduvo perfecto.
-    - **API keys de Cloudinary**: config global (no por tenant, mismo criterio que `Gemini:ApiKey`),
-      van directo como variables de entorno en Render — nunca en un archivo del repo.
-  - **Backend (.NET API) — DESPLEGADO Y PROBADO EN VIVO (2026-08-25/26)**. Dockerfile armado
-    (`/Dockerfile`, build multi-etapa con `mcr.microsoft.com/dotnet/sdk:10.0`/`aspnet:10.0`, instala
-    `libfontconfig1` porque QuestPDF lo necesita en Linux aunque se presente como "100% .NET puro" —
-    problema ya conocido, ver memoria del proyecto `pdf_reportes.md`). Servicio creado en Render.com
-    (tier gratis, cuenta nueva logueada con GitHub, acceso restringido solo a este repo), con las 7
-    variables de entorno cargadas (`ASPNETCORE_ENVIRONMENT=Production`,
-    `ConnectionStrings__DefaultConnection`, `Jwt__Key`, `Gemini__ApiKey`,
-    `Cloudinary__CloudName`/`ApiKey`/`ApiSecret`) — ninguna vive en el repo. URL pública:
-    `https://gestioninmobiliaria-api.onrender.com`. Login probado en vivo contra esa URL: `200 OK`
-    con los datos reales del usuario — funciona de punta a punta.
-    - **`Jwt:Key` nueva y real, generada para este despliegue** — el valor que estaba en
-      `appsettings.json` era literalmente el placeholder `"CAMBIAR_POR_CLAVE_SEGURA..."`, y como el
-      repo es público, quedaba expuesto; cualquiera podría haber forjado tokens válidos si se hubiera
-      usado tal cual en producción. Se generó una clave real random y se cargó solo como variable de
-      entorno en Render.
-    - **3 problemas reales encontrados y resueltos en el primer intento de deploy**:
-      1. **Firewall de Azure SQL** — Render no es un servicio de Azure, así que la excepción
-         "permitir servicios de Azure" no lo cubre, y como el tier gratis de Render no tiene IP fija,
-         hubo que agregar una regla de firewall `0.0.0.0`-`255.255.255.255` (la base sigue protegida
-         por usuario/contraseña, es la práctica común para conectar servicios cloud sin IP fija).
-      2. **El `#` de la contraseña de Azure SQL se cortaba al pegar las variables con "Add from .env"
-         de Render** — el parser trata `#` como inicio de comentario y descartaba el resto de la
-         connection string, dejando la contraseña incompleta (`Login failed for user 'dario'`). Se
-         resolvió editando esa variable puntual directo en el campo individual, no por el pegado
-         masivo.
-      3. **Las migraciones de EF Core crean tablas, no copian datos** — la base de Azure quedó con el
-         esquema completo pero vacía (sin tenants/usuarios/propiedades). Se migraron los datos reales
-         desde SQL Server local con SSMS: `Tasks → Generate Scripts` sobre la base local, con
-         **"Types of data to script" = "Data only"** (la estructura ya existía en Azure, no hacía
-         falta recrearla), sacando la línea `USE [GestionInmobiliaria]` del script generado, y
-         ejecutándolo contra la base de Azure. Errores esperados e inofensivos al correrlo:
-         `__EFMigrationsHistory` (ya coincide en las dos bases) y `TasasMoratorias` (Azure ya la había
-         completado sola al arrancar, con datos más frescos del BCRA).
-    - **Contra que sigue en pie del tier gratis de Render**: se "duerme" a los 15 min sin tráfico
-      (primer request después tarda ~30-60s en responder, y hasta puede fallar por DNS transitorio en
-      el primerísimo intento — reintentar alcanza). Ya no afecta a los archivos subidos (van a
-      Cloudinary, no al disco de Render).
-    - Dato curioso confirmado en vivo: las respuestas llegan servidas por Cloudflare desde un nodo en
-      **Ezeiza (EZE)** — buena latencia para usuarios en Argentina pese a que la región del servicio
-      en Render es Ohio (no hay región de Render en Sudamérica).
-  - **Frontend (React)**: pendiente, próximo paso. Plan: Vercel o Cloudflare Pages, build estático,
-    gratis, configurando `VITE_API_URL=https://gestioninmobiliaria-api.onrender.com`.
-  - **Nota técnica para pruebas locales futuras**: `dotnet run` ignora un `ASPNETCORE_ENVIRONMENT`
-    seteado por variable de entorno ambiente porque `Properties/launchSettings.json` lo pisa con
-    `"Development"` en el profile por defecto — para forzar otro ambiente en local hay que agregar
-    `--no-launch-profile` (ojo: eso también hace que Kestrel ignore `applicationUrl` y caiga en el
-    puerto 5000 por defecto en vez de 5005).
+- [x] **Desplegar el sistema para que el usuario le pase el link a sus contactos y lo prueben, con
+  acceso desde el celular** — hecho y probado en vivo de punta a punta 2026-08-24/26 (login, dashboard
+  y datos reales funcionando desde el navegador contra el sistema desplegado). Ver sección
+  DESPLIEGUE para el detalle completo de dónde vive cada cosa y los problemas reales que se
+  encontraron en el camino.
 
 - [x] **Anulación de cobros — DECIDIDO: no se implementa (analizado 2026-08-23/24)**. Surgió al ver
   que con el checkbox de punitorio es fácil cobrar mal por error y no había forma de corregirlo. Se
