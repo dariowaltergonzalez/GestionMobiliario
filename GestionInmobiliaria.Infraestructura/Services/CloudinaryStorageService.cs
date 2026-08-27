@@ -52,7 +52,7 @@ public class CloudinaryStorageService : IStorageService
 
         var resultado = await _cloudinary.UploadAsync(uploadParams, resourceType);
         if (resultado.Error is not null)
-            throw new InvalidOperationException($"Error subiendo archivo a Cloudinary: {resultado.Error.Message}");
+            throw new InvalidOperationException($"Error subiendo archivo a Cloudinary (archivo={nombreArchivo}, resourceType={resourceType}): {resultado.Error.Message}");
 
         return resultado.SecureUrl.ToString();
     }
