@@ -811,8 +811,7 @@ Docker). La base de datos y Cloudinary no se "despliegan", solo se les pega en v
    - **Probado en vivo contra la cuenta real de Cloudinary**: subida y borrado de una foto de
      propiedad (confirmado con un `404` directo a la URL después de borrar) y de un documento de
      contrato (incluida la descarga, que devolvió el `302 Found` con el `Location` de Cloudinary
-     correcto). Video no se probó explícitamente pero usa el mismo código exacto que fotos, ya
-     verificado dos veces con éxito (acá y con comprobantes).
+     correcto).
    - **Nota para pruebas locales futuras en modo Production**: además de `--no-launch-profile` (ver
      nota de abajo sobre el puerto), en modo Production real la app **no carga
      `appsettings.Development.json`** — si se prueba localmente forzando este ambiente, hay que pasar
@@ -820,6 +819,29 @@ Docker). La base de datos y Cloudinary no se "despliegan", solo se les pega en v
      `Server=localhost` a secas, no a la instancia real `.\SQLEXPRESS`), si no el login falla con un
      500 sin cuerpo (la excepción original de conexión rota hace que hasta el logueo del error a
      `AppLogs` falle, porque también necesita la base).
+9. **Video de propiedad de >10MB fallaba al subir aun después de migrar a `IStorageService`** —
+   `CloudinaryStorageService.GuardarArchivoAsync` subía todo con `resource_type=raw`, y el plan de
+   Cloudinary limita "raw" a 10MB (video real de ~29.5MB fallaba con
+   `File size too large. Got 31017054. Maximum is 10485760.`, visto directo en `AppLogs`). Primer
+   intento de arreglo (detectar `.mp4`/`.mov`/etc. y pasar `"video"` como argumento `type` a
+   `UploadAsync(RawUploadParams, string type)`) **no alcanzó** — se agregó un log de diagnóstico
+   (`archivo=..., resourceType=...` en el mensaje de la excepción) y se vio en `AppLogs` que el
+   backend sí calculaba `resourceType=video` pero Cloudinary igual devolvía el límite de 10MB. Se
+   verificó en el dashboard de Cloudinary (Settings → Account → Usage Limits) que la cuenta real
+   permite hasta **100MB para video** — descartando que fuera un límite de plan/cuenta. La causa real,
+   encontrada decompilando el SDK `CloudinaryDotNet` 1.29.3 con `ilspycmd`: el overload
+   `UploadAsync(RawUploadParams parameters, string type)` **ignora el argumento `type`** al armar la
+   URL de subida — usa `GetUploadUrl(parameters)`, que lee `parameters.ResourceType`, una propiedad
+   **de solo lectura hardcodeada a `ResourceType.Raw`** en `BasicRawUploadParams` (clase base de
+   `RawUploadParams`). O sea: no importa qué string se le pase como `type`, siempre pegaba a
+   `/raw/upload`. Arreglado usando el overload correcto,
+   `UploadAsync(string resourceType, IDictionary<string, object> parameters, FileDescription
+   fileDescription)`, que sí arma la URL con el `resourceType` real (`m_api.GetUploadUrl(resourceType)`).
+   **Probado en vivo con un video real de 29.5MB — subida y persistencia confirmadas.** Lección para
+   el futuro: si un método del SDK de Cloudinary "acepta" un parámetro pero el comportamiento no
+   cambia, no asumir que el código propio está mal — puede ser el SDK ignorando el argumento;
+   decompilar con `ilspycmd` (`dotnet tool install -g ilspycmd`) para confirmar antes de seguir
+   probando variantes a ciegas.
 
 ### A tener en cuenta
 
