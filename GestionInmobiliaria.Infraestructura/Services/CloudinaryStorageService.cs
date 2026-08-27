@@ -30,6 +30,8 @@ public class CloudinaryStorageService : IStorageService
         _logger = logger;
     }
 
+    private static readonly string[] ExtensionesVideo = { ".mp4", ".mov", ".webm", ".avi", ".mkv" };
+
     public async Task<string> GuardarArchivoAsync(Stream contenido, string nombreArchivo, string carpeta)
     {
         var uploadParams = new RawUploadParams
@@ -41,11 +43,14 @@ public class CloudinaryStorageService : IStorageService
             Overwrite = false,
         };
 
-        // Siempre "raw" (no "auto"): no usamos transformaciones de imagen de Cloudinary, así que no
-        // hace falta que detecte el tipo — y usar siempre el mismo resource_type hace que borrar el
-        // archivo después sea determinístico (con "auto" el borrado necesitaría saber qué tipo le
-        // asignó Cloudinary al subir, dato que no guardamos en ningún lado).
-        var resultado = await _cloudinary.UploadAsync(uploadParams, "raw");
+        // "raw" para todo salvo videos: el plan free de Cloudinary limita "raw" a 10MB, pero permite
+        // hasta 100MB para resource_type "video" — sin esta distinción, cualquier video real (>10MB)
+        // fallaba al subir. Fotos/documentos se quedan en "raw" (ya están por debajo de 10MB por
+        // validación propia del backend, y así el borrado sigue siendo determinístico).
+        var esVideo = ExtensionesVideo.Contains(Path.GetExtension(nombreArchivo).ToLowerInvariant());
+        var resourceType = esVideo ? "video" : "raw";
+
+        var resultado = await _cloudinary.UploadAsync(uploadParams, resourceType);
         if (resultado.Error is not null)
             throw new InvalidOperationException($"Error subiendo archivo a Cloudinary: {resultado.Error.Message}");
 
@@ -54,25 +59,32 @@ public class CloudinaryStorageService : IStorageService
 
     public async Task EliminarArchivoAsync(string url)
     {
-        var publicId = ExtraerPublicId(url);
+        // El resource_type usado al subir queda codificado en la URL (".../raw/upload/..." o
+        // ".../video/upload/...") — lo leemos de ahí en vez de guardarlo aparte.
+        var esVideo = url.Contains("/video/upload/");
+        var tipo = esVideo ? ResourceType.Video : ResourceType.Raw;
+
+        var publicId = ExtraerPublicId(url, esVideo);
         if (publicId is null)
         {
             _logger.LogWarning("CloudinaryStorageService: no se pudo extraer el public_id de {Url}, no se elimina nada.", url);
             return;
         }
 
-        var resultado = await _cloudinary.DestroyAsync(new DeletionParams(publicId) { ResourceType = ResourceType.Raw });
+        var resultado = await _cloudinary.DestroyAsync(new DeletionParams(publicId) { ResourceType = tipo });
         if (resultado.Error is not null)
             _logger.LogWarning("CloudinaryStorageService: error eliminando {PublicId}: {Error}", publicId, resultado.Error.Message);
     }
 
-    // Una URL "raw" de Cloudinary tiene la forma:
-    // https://res.cloudinary.com/{cloud}/raw/upload/v{version}/{public_id}
-    // A diferencia de image/video, en "raw" el public_id INCLUYE la extensión — no hay que sacarla.
+    // Una URL de Cloudinary tiene la forma:
+    // https://res.cloudinary.com/{cloud}/{resource_type}/upload/v{version}/{public_id}
+    // En "raw" el public_id INCLUYE la extensión; en "video" (igual que "image") Cloudinary la
+    // recorta del public_id, así que hay que quitarla nosotros para poder borrar el recurso.
     // El public_id incluye la carpeta (ej. "gestioninmobiliaria/2/fotos/abc123.jpg").
-    private static string? ExtraerPublicId(string url)
+    private static string? ExtraerPublicId(string url, bool esVideo)
     {
-        var match = Regex.Match(url, @"/upload/(?:v\d+/)?(.+)$");
+        var patron = esVideo ? @"/upload/(?:v\d+/)?(.+?)(?:\.[a-zA-Z0-9]+)?$" : @"/upload/(?:v\d+/)?(.+)$";
+        var match = Regex.Match(url, patron);
         return match.Success ? match.Groups[1].Value : null;
     }
 }
