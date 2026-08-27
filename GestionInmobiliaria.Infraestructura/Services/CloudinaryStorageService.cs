@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
@@ -34,23 +35,28 @@ public class CloudinaryStorageService : IStorageService
 
     public async Task<string> GuardarArchivoAsync(Stream contenido, string nombreArchivo, string carpeta)
     {
-        var uploadParams = new RawUploadParams
-        {
-            File = new FileDescription(nombreArchivo, contenido),
-            Folder = $"gestioninmobiliaria/{carpeta}",
-            UseFilename = false,
-            UniqueFilename = true,
-            Overwrite = false,
-        };
-
         // "raw" para todo salvo videos: el plan free de Cloudinary limita "raw" a 10MB, pero permite
         // hasta 100MB para resource_type "video" — sin esta distinción, cualquier video real (>10MB)
         // fallaba al subir. Fotos/documentos se quedan en "raw" (ya están por debajo de 10MB por
         // validación propia del backend, y así el borrado sigue siendo determinístico).
+        //
+        // OJO: no usar UploadAsync(RawUploadParams, string type) — ese overload IGNORA el argumento
+        // "type" al armar la URL (bug/diseño confuso del SDK CloudinaryDotNet: RawUploadParams.ResourceType
+        // es una propiedad de solo lectura hardcodeada a "Raw"), así que siempre pegaba a /raw/upload sin
+        // importar qué le pasáramos. Hay que usar el overload UploadAsync(string resourceType, IDictionary,
+        // FileDescription), que sí arma la URL con el resourceType real.
         var esVideo = ExtensionesVideo.Contains(Path.GetExtension(nombreArchivo).ToLowerInvariant());
         var resourceType = esVideo ? "video" : "raw";
 
-        var resultado = await _cloudinary.UploadAsync(uploadParams, resourceType);
+        var parametros = new Dictionary<string, object>
+        {
+            ["folder"] = $"gestioninmobiliaria/{carpeta}",
+            ["use_filename"] = false,
+            ["unique_filename"] = true,
+            ["overwrite"] = false,
+        };
+
+        var resultado = await _cloudinary.UploadAsync(resourceType, parametros, new FileDescription(nombreArchivo, contenido));
         if (resultado.Error is not null)
             throw new InvalidOperationException($"Error subiendo archivo a Cloudinary (archivo={nombreArchivo}, resourceType={resourceType}): {resultado.Error.Message}");
 
