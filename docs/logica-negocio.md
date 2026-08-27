@@ -859,8 +859,8 @@ Docker). La base de datos y Cloudinary no se "despliegan", solo se les pega en v
   en el profile por defecto — para forzar otro ambiente en local hay que agregar
   `--no-launch-profile` (ojo: eso también hace que Kestrel ignore `applicationUrl` y caiga en el
   puerto 5000 por defecto en vez de 5005).
-- Todavía no se probó desde un celular real (solo navegador de escritorio) — pendiente de que el
-  usuario lo confirme.
+- **Probado desde un celular real (2026-08-27)**: se ve bien responsive y se probó editar un
+  propietario sin errores, desde el navegador del celular contra la misma URL de Vercel.
 
 ---
 
