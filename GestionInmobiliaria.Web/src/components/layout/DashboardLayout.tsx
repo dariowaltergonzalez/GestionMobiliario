@@ -77,9 +77,9 @@ export default function DashboardLayout({ children, titulo }: Props) {
           <button
             onClick={() => setColapsado(v => !v)}
             title={colapsado ? 'Expandir menú' : 'Colapsar menú'}
-            className="absolute top-1/2 -right-3 -translate-y-1/2 w-6 h-6 bg-blue-800 hover:bg-blue-700 text-white rounded-full flex items-center justify-center shadow-md transition-colors"
+            className="absolute top-1/2 -right-3.5 -translate-y-1/2 w-7 h-7 bg-white hover:bg-yellow-400 text-blue-900 rounded-full flex items-center justify-center shadow-lg ring-2 ring-blue-950 transition-colors z-20"
           >
-            {colapsado ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+            {colapsado ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
         </div>
 
