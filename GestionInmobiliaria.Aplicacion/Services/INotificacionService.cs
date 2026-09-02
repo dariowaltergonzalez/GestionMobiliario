@@ -19,5 +19,6 @@ public class NotificacionContexto
 public interface INotificacionService
 {
     Task<bool> NotificarAsync(INotificable destinatario, string tema, string asunto, string cuerpo,
-        NotificacionContexto contexto, IReadOnlyList<EmailAdjunto>? adjuntos = null);
+        NotificacionContexto contexto, IReadOnlyList<EmailAdjunto>? adjuntos = null,
+        WhatsAppPlantilla? whatsApp = null);
 }

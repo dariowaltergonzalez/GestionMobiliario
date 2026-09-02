@@ -136,6 +136,34 @@ por su cuenta. Es el primer `BackgroundService` del proyecto (`RecordatorioVenci
   otros 4 eventos, acá hay que recorrer **todos los Tenants activos** y filtrar cada consulta a mano
   por `TenantId` (`IgnoreQueryFilters()` en cada query, no solo en la búsqueda del destinatario).
 
+### WhatsApp (2026-09-02)
+
+Segundo canal, además del email, para los mismos eventos — arrancó por `AvisoVencimientoProximo`.
+
+- **`IWhatsAppService`** (`GestionInmobiliaria.Aplicacion/Services/IWhatsAppService.cs`), swappeable
+  igual que `IReciboIaService`/`IStorageService`. Hoy lo implementa `TwilioWhatsAppService` (sandbox de
+  Twilio, gratis para probar); cambiar de proveedor es una clase nueva + una línea en `Program.cs`.
+- WhatsApp no admite texto libre para mensajes que inicia el sistema — exige una plantilla
+  pre-aprobada con variables (`WhatsAppPlantilla.Sid` + `Variables`). La plantilla actual
+  (`WhatsApp:PlantillaAvisoVencimiento`) es una de demo del sandbox de Twilio ("Appointment
+  Reminders"), no el texto final — hay que crear una plantilla propia al pasar a producción real.
+- `Telefono` y `NotificacionesWhatsApp` (mismo patrón JSON opt-in que `Notificaciones`, pero
+  independiente) se agregaron a `INotificable`, `Propietario` e `Inquilino`.
+- `NotificacionService.NotificarAsync` ahora recibe un `WhatsAppPlantilla?` opcional — si el llamador
+  no lo pasa, ese evento simplemente no manda WhatsApp (así se puede conectar de a un evento por vez,
+  sin tocar los otros 3). Misma auditoría que el email, con `Action` = `ENVIADO_WHATSAPP` /
+  `OMITIDO_WHATSAPP` / `ERROR_WHATSAPP`.
+- **Bug real encontrado en la primera prueba**: `AuditLogs.Action` tenía `HasMaxLength(10)`, muy chico
+  para "ENVIADO_WHATSAPP" — tiraba `String or binary data would be truncated`. Se amplió a 20
+  (migración `AmpliarActionAuditLog`).
+- **Probado en vivo dos veces**: el envío aislado contra la cuenta real de Twilio, y el circuito
+  completo dentro de la app (opt-in → `NotificacionService` → `TwilioWhatsAppService` → WhatsApp real),
+  adelantando a propósito el vencimiento de una cuota de prueba para disparar
+  `RecordatorioVencimientoService` sin esperar días.
+- Pendiente para cuando se quiera pasar de prueba a real: cuenta de WhatsApp Business verificada (no
+  sandbox), plantilla propia con el texto final, y normalizar el campo `Telefono` a formato
+  internacional (+54 9 ...) — hoy es texto libre pensado para mostrar/llamar, no para mandar por API.
+
 ---
 
 ## LEADS
@@ -921,6 +949,9 @@ con el usuario:
 - [x] **Automatizar el ajuste periódico de cuotas** (ICL, UVA e IPC, prioridad alta) — implementado y
   probado en vivo de punta a punta 2026-08-24, los 3 índices. Ver sección AJUSTE AUTOMÁTICO. Sin nada
   pendiente.
-- [ ] WhatsApp como canal de notificación (hoy solo email). Para más adelante.
+- [x] **WhatsApp como canal de notificación** — implementado y probado en vivo 2026-09-02 con Twilio
+  (sandbox), arrancó por `AvisoVencimientoProximo`. Ver sección NOTIFICACIONES → "WhatsApp". Falta
+  para producción real (no bloqueante, anotado ahí): cuenta verificada, plantilla propia, y
+  normalizar `Telefono` a formato internacional.
 - [ ] Integración de facturación electrónica (ARCA/ex-AFIP). Para más adelante, alcance grande y
   específico de Argentina.

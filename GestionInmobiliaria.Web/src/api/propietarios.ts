@@ -15,6 +15,7 @@ export interface PropietarioDto {
   cbu: string | null
   notas: string | null
   notificaciones: Record<string, boolean>
+  notificacionesWhatsApp: Record<string, boolean>
   activo: boolean
   fechaCreacion: string
   cantidadPropiedades: number
@@ -43,12 +44,13 @@ export interface PropietarioFormData {
   cbu: string
   notas: string
   notificaciones: Record<string, boolean>
+  notificacionesWhatsApp: Record<string, boolean>
 }
 
 export const propietarioFormVacio: PropietarioFormData = {
   nombre: '', apellido: '', dni: '', cuit: '', email: '',
   telefono: '', telefono2: '', direccion: '', banco: '', cbu: '', notas: '',
-  notificaciones: {},
+  notificaciones: {}, notificacionesWhatsApp: {},
 }
 
 export const getTemasNotificacionPropietario = async () => {
@@ -92,6 +94,7 @@ const toRequest = (f: PropietarioFormData, activo?: boolean) => ({
   cbu: f.cbu || null,
   notas: f.notas || null,
   notificaciones: f.notificaciones,
+  notificacionesWhatsApp: f.notificacionesWhatsApp,
   ...(activo !== undefined ? { activo } : {}),
 })
 

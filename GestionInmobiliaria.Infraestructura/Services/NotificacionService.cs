@@ -10,18 +10,34 @@ namespace GestionInmobiliaria.Infraestructura.Services;
 public class NotificacionService : INotificacionService
 {
     private readonly IEmailService _email;
+    private readonly IWhatsAppService _whatsApp;
     private readonly ApplicationDbContext _context;
     private readonly ILogger<NotificacionService> _logger;
 
-    public NotificacionService(IEmailService email, ApplicationDbContext context, ILogger<NotificacionService> logger)
+    public NotificacionService(IEmailService email, IWhatsAppService whatsApp, ApplicationDbContext context, ILogger<NotificacionService> logger)
     {
         _email = email;
+        _whatsApp = whatsApp;
         _context = context;
         _logger = logger;
     }
 
     public async Task<bool> NotificarAsync(INotificable destinatario, string tema, string asunto, string cuerpo,
-        NotificacionContexto contexto, IReadOnlyList<EmailAdjunto>? adjuntos = null)
+        NotificacionContexto contexto, IReadOnlyList<EmailAdjunto>? adjuntos = null, WhatsAppPlantilla? whatsApp = null)
+    {
+        var enviadoEmail = await EnviarEmailAsync(destinatario, tema, asunto, cuerpo, contexto, adjuntos);
+
+        // whatsApp es opcional: solo se intenta para los eventos que ya lo tienen conectado (ver
+        // llamador). Un tema sin plantilla WhatsApp simplemente no manda nada por ese canal, sin
+        // afectar el envío de email.
+        if (whatsApp is not null)
+            await EnviarWhatsAppAsync(destinatario, tema, whatsApp, contexto);
+
+        return enviadoEmail;
+    }
+
+    private async Task<bool> EnviarEmailAsync(INotificable destinatario, string tema, string asunto, string cuerpo,
+        NotificacionContexto contexto, IReadOnlyList<EmailAdjunto>? adjuntos)
     {
         string? motivoOmision =
             !destinatario.Activo ? "destinatario inactivo" :
@@ -58,10 +74,36 @@ public class NotificacionService : INotificacionService
         }
     }
 
-    private async Task RegistrarAsync(string resultado, string tema, string? destinatarioEmail, NotificacionContexto contexto, string? motivo = null)
+    private async Task EnviarWhatsAppAsync(INotificable destinatario, string tema, WhatsAppPlantilla plantilla, NotificacionContexto contexto)
     {
-        _logger.LogInformation("Notificación {Resultado}. Tema={Tema} Destinatario={Email} Motivo={Motivo}",
-            resultado, tema, destinatarioEmail, motivo);
+        string? motivoOmision =
+            !destinatario.Activo ? "destinatario inactivo" :
+            string.IsNullOrWhiteSpace(destinatario.Telefono) ? "sin teléfono cargado" :
+            !DebeEnviar(destinatario.NotificacionesWhatsApp, tema) ? "tema no habilitado" :
+            null;
+
+        if (motivoOmision is not null)
+        {
+            await RegistrarAsync("OMITIDO_WHATSAPP", tema, destinatario.Telefono, contexto, motivoOmision);
+            return;
+        }
+
+        try
+        {
+            await _whatsApp.EnviarAsync(destinatario.Telefono!, plantilla);
+            await RegistrarAsync("ENVIADO_WHATSAPP", tema, destinatario.Telefono, contexto);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al enviar WhatsApp. Tema={Tema} Destinatario={Telefono}", tema, destinatario.Telefono);
+            await RegistrarAsync("ERROR_WHATSAPP", tema, destinatario.Telefono, contexto, ex.Message);
+        }
+    }
+
+    private async Task RegistrarAsync(string resultado, string tema, string? destinatarioIdentificador, NotificacionContexto contexto, string? motivo = null)
+    {
+        _logger.LogInformation("Notificación {Resultado}. Tema={Tema} Destinatario={Destinatario} Motivo={Motivo}",
+            resultado, tema, destinatarioIdentificador, motivo);
 
         _context.AuditLogs.Add(new AuditLog
         {
@@ -70,7 +112,7 @@ public class NotificacionService : INotificacionService
             EntityId = contexto.EntidadRelacionadaId,
             UserId = contexto.UserId,
             UserName = contexto.UserName,
-            NewValues = JsonSerializer.Serialize(new { tema, destinatario = destinatarioEmail, motivo, detalle = contexto.DatosAdicionales }),
+            NewValues = JsonSerializer.Serialize(new { tema, destinatario = destinatarioIdentificador, motivo, detalle = contexto.DatosAdicionales }),
             Timestamp = DateTime.UtcNow,
             TenantId = contexto.TenantId,
         });

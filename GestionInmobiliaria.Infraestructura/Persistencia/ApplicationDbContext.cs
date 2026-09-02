@@ -417,7 +417,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         {
             e.HasKey(a => a.Id);
             e.Property(a => a.EntityName).IsRequired().HasMaxLength(100);
-            e.Property(a => a.Action).IsRequired().HasMaxLength(10);
+            e.Property(a => a.Action).IsRequired().HasMaxLength(20);
             e.Property(a => a.EntityId).IsRequired().HasMaxLength(50);
             e.Property(a => a.UserId).HasMaxLength(450);
             e.Property(a => a.UserName).HasMaxLength(200);

@@ -3,6 +3,7 @@ using GestionInmobiliaria.Dominio.Common;
 using GestionInmobiliaria.Dominio.Entidades;
 using GestionInmobiliaria.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -20,11 +21,13 @@ public class RecordatorioVencimientoService : BackgroundService
     private static readonly TimeSpan Intervalo = TimeSpan.FromHours(24);
 
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IConfiguration _config;
     private readonly ILogger<RecordatorioVencimientoService> _logger;
 
-    public RecordatorioVencimientoService(IServiceScopeFactory scopeFactory, ILogger<RecordatorioVencimientoService> logger)
+    public RecordatorioVencimientoService(IServiceScopeFactory scopeFactory, IConfiguration config, ILogger<RecordatorioVencimientoService> logger)
     {
         _scopeFactory = scopeFactory;
+        _config = config;
         _logger = logger;
     }
 
@@ -101,7 +104,19 @@ public class RecordatorioVencimientoService : BackgroundService
                             EntidadRelacionadaId = pago.Id.ToString(),
                             DatosAdicionales = new { contrato = pago.Contrato.Codigo, diasHastaVencimiento },
                         };
-                        await notificacion.NotificarAsync(inquilino, "AvisoVencimientoProximo", asunto, cuerpo, contexto);
+
+                        // Plantilla del sandbox de Twilio ("Appointment Reminders") — placeholder mientras
+                        // se prueba el circuito de WhatsApp; al pasar a producción hay que crear una
+                        // plantilla propia con el texto real ("Tu cuota de $X vence el...") y actualizar
+                        // WhatsApp:PlantillaAvisoVencimiento. Ver docs/logica-negocio.md, NOTIFICACIONES.
+                        var plantillaSid = _config["WhatsApp:PlantillaAvisoVencimiento"];
+                        WhatsAppPlantilla? whatsApp = string.IsNullOrWhiteSpace(plantillaSid) ? null : new WhatsAppPlantilla
+                        {
+                            Sid = plantillaSid,
+                            Variables = new[] { fechaVencimiento.ToString("dd/MM"), $"cuota {pago.Contrato.Codigo}" },
+                        };
+
+                        await notificacion.NotificarAsync(inquilino, "AvisoVencimientoProximo", asunto, cuerpo, contexto, whatsApp: whatsApp);
                     }
                 }
 
