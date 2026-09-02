@@ -105,6 +105,7 @@ public class InquilinosController : ControllerBase
             DniGarante = request.DniGarante,
             Notas = request.Notas,
             Notificaciones = SerializarNotificaciones(request.Notificaciones),
+            NotificacionesWhatsApp = SerializarNotificaciones(request.NotificacionesWhatsApp),
         };
 
         var creado = await _repo.CreateAsync(entidad);
@@ -135,6 +136,7 @@ public class InquilinosController : ControllerBase
         existente.DniGarante = request.DniGarante;
         existente.Notas = request.Notas;
         existente.Notificaciones = SerializarNotificaciones(request.Notificaciones);
+        existente.NotificacionesWhatsApp = SerializarNotificaciones(request.NotificacionesWhatsApp);
         existente.Activo = request.Activo;
 
         await _repo.UpdateAsync(existente);
@@ -181,6 +183,7 @@ public class InquilinosController : ControllerBase
         DniGarante = i.DniGarante,
         Notas = i.Notas,
         Notificaciones = DeserializarNotificaciones(i.Notificaciones),
+        NotificacionesWhatsApp = DeserializarNotificaciones(i.NotificacionesWhatsApp),
         Activo = i.Activo,
         FechaCreacion = i.FechaCreacion
     };

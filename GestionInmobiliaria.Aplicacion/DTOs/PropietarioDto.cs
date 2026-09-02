@@ -16,6 +16,7 @@ public class PropietarioDto
     public string? CBU { get; set; }
     public string? Notas { get; set; }
     public Dictionary<string, bool> Notificaciones { get; set; } = new();
+    public Dictionary<string, bool> NotificacionesWhatsApp { get; set; } = new();
     public bool Activo { get; set; }
     public DateTime FechaCreacion { get; set; }
     public int CantidadPropiedades { get; set; }
@@ -35,6 +36,7 @@ public class CreatePropietarioRequest
     public string? CBU { get; set; }
     public string? Notas { get; set; }
     public Dictionary<string, bool>? Notificaciones { get; set; }
+    public Dictionary<string, bool>? NotificacionesWhatsApp { get; set; }
 }
 
 public class UpdatePropietarioRequest
@@ -51,6 +53,7 @@ public class UpdatePropietarioRequest
     public string? CBU { get; set; }
     public string? Notas { get; set; }
     public Dictionary<string, bool>? Notificaciones { get; set; }
+    public Dictionary<string, bool>? NotificacionesWhatsApp { get; set; }
     public bool Activo { get; set; }
 }
 

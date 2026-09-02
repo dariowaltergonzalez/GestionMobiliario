@@ -86,6 +86,7 @@ public class PropietariosController : ControllerBase
             CBU = request.CBU,
             Notas = request.Notas,
             Notificaciones = SerializarNotificaciones(request.Notificaciones),
+            NotificacionesWhatsApp = SerializarNotificaciones(request.NotificacionesWhatsApp),
         };
 
         var creado = await _repo.CreateAsync(entidad);
@@ -114,6 +115,7 @@ public class PropietariosController : ControllerBase
         existente.CBU = request.CBU;
         existente.Notas = request.Notas;
         existente.Notificaciones = SerializarNotificaciones(request.Notificaciones);
+        existente.NotificacionesWhatsApp = SerializarNotificaciones(request.NotificacionesWhatsApp);
         existente.Activo = request.Activo;
 
         await _repo.UpdateAsync(existente);
@@ -158,6 +160,7 @@ public class PropietariosController : ControllerBase
         CBU = p.CBU,
         Notas = p.Notas,
         Notificaciones = DeserializarNotificaciones(p.Notificaciones),
+        NotificacionesWhatsApp = DeserializarNotificaciones(p.NotificacionesWhatsApp),
         Activo = p.Activo,
         FechaCreacion = p.FechaCreacion,
         CantidadPropiedades = p.Propiedades.Count

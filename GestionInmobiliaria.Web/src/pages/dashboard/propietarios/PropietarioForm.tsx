@@ -56,6 +56,7 @@ export default function PropietarioForm({ propietario, onGuardado, onCerrar }: P
   const [error, setError] = useState('')
   const [temas, setTemas] = useState<TemaNotificacionDto[]>([])
   const [temaAAgregar, setTemaAAgregar] = useState('')
+  const [temaWhatsAppAAgregar, setTemaWhatsAppAAgregar] = useState('')
 
   useEffect(() => {
     getTemasNotificacionPropietario().then(res => { if (res.success) setTemas(res.data) }).catch(() => {})
@@ -76,6 +77,7 @@ export default function PropietarioForm({ propietario, onGuardado, onCerrar }: P
         cbu: propietario.cbu ?? '',
         notas: propietario.notas ?? '',
         notificaciones: { ...propietario.notificaciones },
+        notificacionesWhatsApp: { ...propietario.notificacionesWhatsApp },
       })
       setActivo(propietario.activo)
     } else {
@@ -87,22 +89,25 @@ export default function PropietarioForm({ propietario, onGuardado, onCerrar }: P
   const set = (campo: keyof PropietarioFormData, valor: string) =>
     setForm(f => ({ ...f, [campo]: valor }))
 
-  const temasDisponibles = temas.filter(t => !(t.codigo in form.notificaciones))
+  type CampoNotificaciones = 'notificaciones' | 'notificacionesWhatsApp'
 
-  const agregarTema = () => {
-    if (!temaAAgregar) return
-    setForm(f => ({ ...f, notificaciones: { ...f.notificaciones, [temaAAgregar]: true } }))
-    setTemaAAgregar('')
+  const temasDisponibles = temas.filter(t => !(t.codigo in form.notificaciones))
+  const temasWhatsAppDisponibles = temas.filter(t => !(t.codigo in form.notificacionesWhatsApp))
+
+  const agregarTema = (campo: CampoNotificaciones, codigo: string, limpiar: () => void) => {
+    if (!codigo) return
+    setForm(f => ({ ...f, [campo]: { ...f[campo], [codigo]: true } }))
+    limpiar()
   }
 
-  const toggleTema = (codigo: string) =>
-    setForm(f => ({ ...f, notificaciones: { ...f.notificaciones, [codigo]: !f.notificaciones[codigo] } }))
+  const toggleTema = (campo: CampoNotificaciones, codigo: string) =>
+    setForm(f => ({ ...f, [campo]: { ...f[campo], [codigo]: !f[campo][codigo] } }))
 
-  const quitarTema = (codigo: string) =>
+  const quitarTema = (campo: CampoNotificaciones, codigo: string) =>
     setForm(f => {
-      const resto = { ...f.notificaciones }
+      const resto = { ...f[campo] }
       delete resto[codigo]
-      return { ...f, notificaciones: resto }
+      return { ...f, [campo]: resto }
     })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -212,14 +217,14 @@ export default function PropietarioForm({ propietario, onGuardado, onCerrar }: P
                       <div className="flex items-center gap-1 shrink-0">
                         <button
                           type="button"
-                          onClick={() => toggleTema(codigo)}
+                          onClick={() => toggleTema('notificaciones', codigo)}
                           className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
                             habilitado ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
                           }`}
                         >
                           {habilitado ? 'Sí' : 'No'}
                         </button>
-                        <button type="button" onClick={() => quitarTema(codigo)}
+                        <button type="button" onClick={() => quitarTema('notificaciones', codigo)}
                           className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -243,8 +248,65 @@ export default function PropietarioForm({ propietario, onGuardado, onCerrar }: P
                   </select>
                   <button
                     type="button"
-                    onClick={agregarTema}
+                    onClick={() => agregarTema('notificaciones', temaAAgregar, () => setTemaAAgregar(''))}
                     disabled={!temaAAgregar}
+                    className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" /> Agregar
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Notificaciones automáticas por WhatsApp</label>
+              <p className="text-xs text-gray-400 mb-2">
+                Requiere que el propietario tenga un teléfono cargado arriba. Solo se envía lo que se agregue acá.
+              </p>
+
+              {Object.keys(form.notificacionesWhatsApp).length > 0 && (
+                <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 mb-2">
+                  {Object.entries(form.notificacionesWhatsApp).map(([codigo, habilitado]) => (
+                    <div key={codigo} className="flex items-center justify-between gap-2 px-3 py-2">
+                      <span className="text-sm text-gray-700">
+                        {temas.find(t => t.codigo === codigo)?.label ?? codigo}
+                      </span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => toggleTema('notificacionesWhatsApp', codigo)}
+                          className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
+                            habilitado ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                          }`}
+                        >
+                          {habilitado ? 'Sí' : 'No'}
+                        </button>
+                        <button type="button" onClick={() => quitarTema('notificacionesWhatsApp', codigo)}
+                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {temasWhatsAppDisponibles.length > 0 && (
+                <div className="flex gap-2">
+                  <select
+                    value={temaWhatsAppAAgregar}
+                    onChange={e => setTemaWhatsAppAAgregar(e.target.value)}
+                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 transition bg-white"
+                  >
+                    <option value="">Seleccionar tema...</option>
+                    {temasWhatsAppDisponibles.map(t => (
+                      <option key={t.codigo} value={t.codigo}>{t.label}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => agregarTema('notificacionesWhatsApp', temaWhatsAppAAgregar, () => setTemaWhatsAppAAgregar(''))}
+                    disabled={!temaWhatsAppAAgregar}
                     className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 transition-colors"
                   >
                     <Plus className="w-4 h-4" /> Agregar

@@ -20,6 +20,7 @@ export interface InquilinoDto {
   dniGarante: string | null
   notas: string | null
   notificaciones: Record<string, boolean>
+  notificacionesWhatsApp: Record<string, boolean>
   activo: boolean
   fechaCreacion: string
 }
@@ -44,13 +45,14 @@ export interface InquilinoFormData {
   dniGarante: string
   notas: string
   notificaciones: Record<string, boolean>
+  notificacionesWhatsApp: Record<string, boolean>
 }
 
 export const inquilinoFormVacio: InquilinoFormData = {
   nombre: '', apellido: '', dni: '', cuit: '', email: '',
   telefono: '', telefono2: '', direccion: '', ocupacion: '',
   nombreGarante: '', telefonoGarante: '', dniGarante: '', notas: '',
-  notificaciones: {},
+  notificaciones: {}, notificacionesWhatsApp: {},
 }
 
 export interface FiltrosInquilinos {
@@ -96,6 +98,7 @@ const toRequest = (f: InquilinoFormData, activo?: boolean) => ({
   dniGarante: f.dniGarante || null,
   notas: f.notas || null,
   notificaciones: f.notificaciones,
+  notificacionesWhatsApp: f.notificacionesWhatsApp,
   ...(activo !== undefined ? { activo } : {}),
 })
 
