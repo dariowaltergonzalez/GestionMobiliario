@@ -7,6 +7,7 @@ using GestionInmobiliaria.Infraestructura.Persistencia;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace GestionInmobiliaria.WebApi.Controllers;
@@ -24,6 +25,7 @@ public class PagosController : ControllerBase
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<PagosController> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IConfiguration _config;
 
     public PagosController(
         IPagoRepository pagos,
@@ -33,7 +35,8 @@ public class PagosController : ControllerBase
         ApplicationDbContext context,
         IWebHostEnvironment env,
         ILogger<PagosController> logger,
-        IServiceScopeFactory scopeFactory)
+        IServiceScopeFactory scopeFactory,
+        IConfiguration config)
     {
         _pagos = pagos;
         _pdf = pdf;
@@ -43,6 +46,7 @@ public class PagosController : ControllerBase
         _env = env;
         _logger = logger;
         _scopeFactory = scopeFactory;
+        _config = config;
     }
 
     [HttpGet]
@@ -222,7 +226,18 @@ public class PagosController : ControllerBase
                     if (inquilino is not null)
                     {
                         var cuerpo = BuildEmailBody(pdfConfig.NombreEmpresa, contratoDto, pagoDto, detallesSnap, periodo, monto, paraLocatario: true);
-                        await notificacion.NotificarAsync(inquilino, "ReciboPago", asunto, cuerpo, contexto, adjuntos);
+
+                        // Misma plantilla de prueba del sandbox de Twilio que AvisoVencimientoProximo —
+                        // placeholder mientras se valida el circuito; en producción real cada tema
+                        // debería tener su propia plantilla con el texto correspondiente.
+                        var plantillaSid = _config["WhatsApp:PlantillaReciboPago"] ?? _config["WhatsApp:PlantillaAvisoVencimiento"];
+                        WhatsAppPlantilla? whatsApp = string.IsNullOrWhiteSpace(plantillaSid) ? null : new WhatsAppPlantilla
+                        {
+                            Sid = plantillaSid,
+                            Variables = new[] { periodo, monto },
+                        };
+
+                        await notificacion.NotificarAsync(inquilino, "ReciboPago", asunto, cuerpo, contexto, adjuntos, whatsApp);
                     }
                 }
             });
