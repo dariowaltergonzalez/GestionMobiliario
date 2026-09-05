@@ -206,6 +206,16 @@ public class PagosController : ControllerBase
                     DatosAdicionales = new { contrato = contratoCodigo, periodo },
                 };
 
+                // Misma plantilla de prueba del sandbox de Twilio en todos los eventos — placeholder
+                // mientras se valida el circuito; en producción real cada tema debería tener su
+                // propia plantilla con el texto correspondiente.
+                var plantillaSid = _config["WhatsApp:PlantillaAvisoVencimiento"];
+                WhatsAppPlantilla? whatsApp = string.IsNullOrWhiteSpace(plantillaSid) ? null : new WhatsAppPlantilla
+                {
+                    Sid = plantillaSid,
+                    Variables = new[] { periodo, monto },
+                };
+
                 // Tenant filtrado a mano: este Task.Run corre sin HttpContext, así que
                 // ITenantService no puede resolver el tenant activo (ver NotificacionService).
                 if (propietarioRefId.HasValue)
@@ -215,7 +225,7 @@ public class PagosController : ControllerBase
                     if (propietario is not null)
                     {
                         var cuerpo = BuildEmailBody(pdfConfig.NombreEmpresa, contratoDto, pagoDto, detallesSnap, periodo, monto, paraLocatario: false);
-                        await notificacion.NotificarAsync(propietario, "AvisoCobro", asunto, cuerpo, contexto, adjuntos);
+                        await notificacion.NotificarAsync(propietario, "AvisoCobro", asunto, cuerpo, contexto, adjuntos, whatsApp);
                     }
                 }
 
@@ -226,17 +236,6 @@ public class PagosController : ControllerBase
                     if (inquilino is not null)
                     {
                         var cuerpo = BuildEmailBody(pdfConfig.NombreEmpresa, contratoDto, pagoDto, detallesSnap, periodo, monto, paraLocatario: true);
-
-                        // Misma plantilla de prueba del sandbox de Twilio que AvisoVencimientoProximo —
-                        // placeholder mientras se valida el circuito; en producción real cada tema
-                        // debería tener su propia plantilla con el texto correspondiente.
-                        var plantillaSid = _config["WhatsApp:PlantillaReciboPago"] ?? _config["WhatsApp:PlantillaAvisoVencimiento"];
-                        WhatsAppPlantilla? whatsApp = string.IsNullOrWhiteSpace(plantillaSid) ? null : new WhatsAppPlantilla
-                        {
-                            Sid = plantillaSid,
-                            Variables = new[] { periodo, monto },
-                        };
-
                         await notificacion.NotificarAsync(inquilino, "ReciboPago", asunto, cuerpo, contexto, adjuntos, whatsApp);
                     }
                 }

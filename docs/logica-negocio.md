@@ -156,13 +156,25 @@ Segundo canal, además del email, para los mismos eventos — arrancó por `Avis
 - **Bug real encontrado en la primera prueba**: `AuditLogs.Action` tenía `HasMaxLength(10)`, muy chico
   para "ENVIADO_WHATSAPP" — tiraba `String or binary data would be truncated`. Se amplió a 20
   (migración `AmpliarActionAuditLog`).
-- **Probado en vivo dos veces**: el envío aislado contra la cuenta real de Twilio, y el circuito
-  completo dentro de la app (opt-in → `NotificacionService` → `TwilioWhatsAppService` → WhatsApp real),
-  adelantando a propósito el vencimiento de una cuota de prueba para disparar
-  `RecordatorioVencimientoService` sin esperar días.
+- **Probado en vivo dos veces en local** (envío aislado contra Twilio, y el circuito completo dentro
+  de la app adelantando a propósito el vencimiento de una cuota de prueba) **y una vez en producción
+  real (2026-09-05)**: registrando un cobro real desde la app desplegada llegó el WhatsApp a un
+  celular real, con los datos reales del pago (período y monto), y quedó el registro
+  `ENVIADO_WHATSAPP` en Auditoría. Variables de Twilio ya cargadas en Render.
+- **Cerrado (2026-09-05): los 11 eventos quedaron conectados**, los 5 temas de Propietario
+  (`NuevoContrato`, `AvisoAumento`, `AvisoCobro`, `CambioEstadoContrato`, `AvisoLiquidacion`) y los 6
+  de Inquilino (los mismos + `ReciboPago`, `AvisoVencimientoProximo`, `AvisoGastoPendiente` en vez de
+  `AvisoCobro`) — mismo patrón en cada uno, todos reutilizando la plantilla de prueba del sandbox.
+- **Consultado con el usuario y anotado para más adelante, no encarado todavía:** (1) adjuntar el
+  comprobante/recibo (PDF) en el WhatsApp — posible, pero primero hay que subirlo a Cloudinary para
+  tener una URL pública (WhatsApp no acepta bytes crudos como el email); (2) un "bot" que reciba
+  preguntas de propietarios/inquilinos por WhatsApp (ej. "¿cuál es el estado de mi deuda?") — posible
+  vía webhook de Twilio, pero es un módulo nuevo grande (identificar al que escribe, interpretar la
+  pregunta, consultar la base, responder), no una extensión chica de lo que hay.
 - Pendiente para cuando se quiera pasar de prueba a real: cuenta de WhatsApp Business verificada (no
-  sandbox), plantilla propia con el texto final, y normalizar el campo `Telefono` a formato
-  internacional (+54 9 ...) — hoy es texto libre pensado para mostrar/llamar, no para mandar por API.
+  sandbox), una plantilla propia por evento con el texto final (hoy todos comparten la misma plantilla
+  de demo en inglés), y normalizar el campo `Telefono` a formato internacional (+54 9 ...) — hoy es
+  texto libre pensado para mostrar/llamar, no para mandar por API.
 
 ---
 
@@ -949,9 +961,9 @@ con el usuario:
 - [x] **Automatizar el ajuste periódico de cuotas** (ICL, UVA e IPC, prioridad alta) — implementado y
   probado en vivo de punta a punta 2026-08-24, los 3 índices. Ver sección AJUSTE AUTOMÁTICO. Sin nada
   pendiente.
-- [x] **WhatsApp como canal de notificación** — implementado y probado en vivo 2026-09-02 con Twilio
-  (sandbox), arrancó por `AvisoVencimientoProximo`. Ver sección NOTIFICACIONES → "WhatsApp". Falta
-  para producción real (no bloqueante, anotado ahí): cuenta verificada, plantilla propia, y
-  normalizar `Telefono` a formato internacional.
+- [x] **WhatsApp como canal de notificación** — implementado y probado en vivo con Twilio (sandbox),
+  conectado a los 11 eventos existentes (los 5 de Propietario y los 6 de Inquilino). Ver sección
+  NOTIFICACIONES → "WhatsApp". Falta para producción real (no bloqueante, anotado ahí): cuenta
+  verificada, plantilla propia por evento, y normalizar `Telefono` a formato internacional.
 - [ ] Integración de facturación electrónica (ARCA/ex-AFIP). Para más adelante, alcance grande y
   específico de Argentina.

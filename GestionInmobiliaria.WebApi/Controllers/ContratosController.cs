@@ -7,6 +7,7 @@ using GestionInmobiliaria.Infraestructura.Persistencia;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace GestionInmobiliaria.WebApi.Controllers;
@@ -25,6 +26,7 @@ public class ContratosController : ControllerBase
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<ContratosController> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IConfiguration _config;
 
     public ContratosController(
         IContratoRepository repo,
@@ -35,7 +37,8 @@ public class ContratosController : ControllerBase
         ApplicationDbContext context,
         IWebHostEnvironment env,
         ILogger<ContratosController> logger,
-        IServiceScopeFactory scopeFactory)
+        IServiceScopeFactory scopeFactory,
+        IConfiguration config)
     {
         _repo = repo;
         _pagos = pagos;
@@ -46,6 +49,7 @@ public class ContratosController : ControllerBase
         _env = env;
         _logger = logger;
         _scopeFactory = scopeFactory;
+        _config = config;
     }
 
     [HttpGet]
@@ -390,6 +394,13 @@ public class ContratosController : ControllerBase
                     DatosAdicionales = new { contrato = contratoDto.Codigo },
                 };
 
+                var plantillaSid = _config["WhatsApp:PlantillaAvisoVencimiento"];
+                WhatsAppPlantilla? whatsApp = string.IsNullOrWhiteSpace(plantillaSid) ? null : new WhatsAppPlantilla
+                {
+                    Sid = plantillaSid,
+                    Variables = new[] { contratoDto.Codigo, contratoDto.PropiedadDireccion },
+                };
+
                 // Tenant filtrado a mano: ver comentario equivalente en PagosController.
                 if (propietarioRefId.HasValue)
                 {
@@ -398,7 +409,7 @@ public class ContratosController : ControllerBase
                     if (propietario is not null)
                     {
                         var cuerpo = BuildNuevoContratoEmailBody(pdfConfig.NombreEmpresa, contratoDto, paraLocatario: false);
-                        await notificacion.NotificarAsync(propietario, "NuevoContrato", asunto, cuerpo, contexto, adjuntos);
+                        await notificacion.NotificarAsync(propietario, "NuevoContrato", asunto, cuerpo, contexto, adjuntos, whatsApp);
                     }
                 }
 
@@ -409,7 +420,7 @@ public class ContratosController : ControllerBase
                     if (inquilino is not null)
                     {
                         var cuerpo = BuildNuevoContratoEmailBody(pdfConfig.NombreEmpresa, contratoDto, paraLocatario: true);
-                        await notificacion.NotificarAsync(inquilino, "NuevoContrato", asunto, cuerpo, contexto, adjuntos);
+                        await notificacion.NotificarAsync(inquilino, "NuevoContrato", asunto, cuerpo, contexto, adjuntos, whatsApp);
                     }
                 }
             }
@@ -450,6 +461,13 @@ public class ContratosController : ControllerBase
                     DatosAdicionales = new { contrato = contratoDto.Codigo, estado = nuevoEstado.ToString(), motivo },
                 };
 
+                var plantillaSid = _config["WhatsApp:PlantillaAvisoVencimiento"];
+                WhatsAppPlantilla? whatsApp = string.IsNullOrWhiteSpace(plantillaSid) ? null : new WhatsAppPlantilla
+                {
+                    Sid = plantillaSid,
+                    Variables = new[] { contratoDto.Codigo, EstadoLabel(nuevoEstado) },
+                };
+
                 // Tenant filtrado a mano: ver comentario equivalente en PagosController.
                 if (propietarioRefId.HasValue)
                 {
@@ -458,7 +476,7 @@ public class ContratosController : ControllerBase
                     if (propietario is not null)
                     {
                         var cuerpo = BuildCambioEstadoEmailBody(pdfConfig.NombreEmpresa, contratoDto, nuevoEstado, motivo, paraLocatario: false);
-                        await notificacion.NotificarAsync(propietario, "CambioEstadoContrato", asunto, cuerpo, contexto);
+                        await notificacion.NotificarAsync(propietario, "CambioEstadoContrato", asunto, cuerpo, contexto, whatsApp: whatsApp);
                     }
                 }
 
@@ -469,7 +487,7 @@ public class ContratosController : ControllerBase
                     if (inquilino is not null)
                     {
                         var cuerpo = BuildCambioEstadoEmailBody(pdfConfig.NombreEmpresa, contratoDto, nuevoEstado, motivo, paraLocatario: true);
-                        await notificacion.NotificarAsync(inquilino, "CambioEstadoContrato", asunto, cuerpo, contexto);
+                        await notificacion.NotificarAsync(inquilino, "CambioEstadoContrato", asunto, cuerpo, contexto, whatsApp: whatsApp);
                     }
                 }
             }
@@ -549,6 +567,13 @@ public class ContratosController : ControllerBase
                     DatosAdicionales = new { contrato = contratoDto.Codigo, montoAnterior, montoNuevo },
                 };
 
+                var plantillaSid = _config["WhatsApp:PlantillaAvisoVencimiento"];
+                WhatsAppPlantilla? whatsApp = string.IsNullOrWhiteSpace(plantillaSid) ? null : new WhatsAppPlantilla
+                {
+                    Sid = plantillaSid,
+                    Variables = new[] { contratoDto.Codigo, $"nuevo monto {montoNuevo:N0}" },
+                };
+
                 // Tenant filtrado a mano: ver comentario equivalente en PagosController.
                 if (propietarioRefId.HasValue)
                 {
@@ -557,7 +582,7 @@ public class ContratosController : ControllerBase
                     if (propietario is not null)
                     {
                         var cuerpo = BuildAvisoAumentoEmailBody(pdfConfig.NombreEmpresa, contratoDto, montoAnterior, montoNuevo, observaciones, paraLocatario: false);
-                        await notificacion.NotificarAsync(propietario, "AvisoAumento", asunto, cuerpo, contexto);
+                        await notificacion.NotificarAsync(propietario, "AvisoAumento", asunto, cuerpo, contexto, whatsApp: whatsApp);
                     }
                 }
 
@@ -568,7 +593,7 @@ public class ContratosController : ControllerBase
                     if (inquilino is not null)
                     {
                         var cuerpo = BuildAvisoAumentoEmailBody(pdfConfig.NombreEmpresa, contratoDto, montoAnterior, montoNuevo, observaciones, paraLocatario: true);
-                        await notificacion.NotificarAsync(inquilino, "AvisoAumento", asunto, cuerpo, contexto);
+                        await notificacion.NotificarAsync(inquilino, "AvisoAumento", asunto, cuerpo, contexto, whatsApp: whatsApp);
                     }
                 }
             }

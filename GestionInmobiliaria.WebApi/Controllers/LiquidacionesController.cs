@@ -7,6 +7,7 @@ using GestionInmobiliaria.Infraestructura.Persistencia;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace GestionInmobiliaria.WebApi.Controllers;
@@ -23,6 +24,7 @@ public class LiquidacionesController : ControllerBase
     private readonly IStorageService _storage;
     private readonly IReciboIaService _reciboIa;
     private readonly ITenantService _tenantService;
+    private readonly IConfiguration _config;
 
     private static readonly string[] ExtensionesComprobantePermitidas = [".jpg", ".jpeg", ".png", ".webp", ".heic"];
     private const long TamanoMaximoComprobanteBytes = 10 * 1024 * 1024; // 10 MB
@@ -34,7 +36,8 @@ public class LiquidacionesController : ControllerBase
         IServiceScopeFactory scopeFactory,
         IStorageService storage,
         IReciboIaService reciboIa,
-        ITenantService tenantService)
+        ITenantService tenantService,
+        IConfiguration config)
     {
         _storage = storage;
         _reciboIa = reciboIa;
@@ -43,6 +46,7 @@ public class LiquidacionesController : ControllerBase
         _context = context;
         _logger = logger;
         _scopeFactory = scopeFactory;
+        _config = config;
     }
 
     [HttpGet]
@@ -274,7 +278,14 @@ public class LiquidacionesController : ControllerBase
                     DatosAdicionales = new { contrato = contratoCodigo, montoAbono = abono.Monto },
                 };
 
-                await notificacion.NotificarAsync(propietario, "AvisoLiquidacion", asunto, cuerpo, contexto);
+                var plantillaSid = _config["WhatsApp:PlantillaAvisoVencimiento"];
+                WhatsAppPlantilla? whatsApp = string.IsNullOrWhiteSpace(plantillaSid) ? null : new WhatsAppPlantilla
+                {
+                    Sid = plantillaSid,
+                    Variables = new[] { periodoTexto, $"$ {abono.Monto:N0}" },
+                };
+
+                await notificacion.NotificarAsync(propietario, "AvisoLiquidacion", asunto, cuerpo, contexto, whatsApp: whatsApp);
             }
             catch (Exception ex)
             {

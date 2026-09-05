@@ -7,6 +7,7 @@ using GestionInmobiliaria.Infraestructura.Persistencia;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace GestionInmobiliaria.WebApi.Controllers;
 
@@ -19,17 +20,20 @@ public class GastosController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly ILogger<GastosController> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IConfiguration _config;
 
     public GastosController(
         IGastoRepository repo,
         ApplicationDbContext context,
         ILogger<GastosController> logger,
-        IServiceScopeFactory scopeFactory)
+        IServiceScopeFactory scopeFactory,
+        IConfiguration config)
     {
         _repo = repo;
         _context = context;
         _logger = logger;
         _scopeFactory = scopeFactory;
+        _config = config;
     }
 
     [HttpGet]
@@ -190,7 +194,14 @@ public class GastosController : ControllerBase
                     DatosAdicionales = new { contrato = codigoContrato, categoria, monto },
                 };
 
-                await notificacion.NotificarAsync(inquilino, "AvisoGastoPendiente", asunto, cuerpo, contexto);
+                var plantillaSid = _config["WhatsApp:PlantillaAvisoVencimiento"];
+                WhatsAppPlantilla? whatsApp = string.IsNullOrWhiteSpace(plantillaSid) ? null : new WhatsAppPlantilla
+                {
+                    Sid = plantillaSid,
+                    Variables = new[] { descripcion ?? categoria, $"$ {monto:N0}" },
+                };
+
+                await notificacion.NotificarAsync(inquilino, "AvisoGastoPendiente", asunto, cuerpo, contexto, whatsApp: whatsApp);
             }
             catch (Exception ex)
             {

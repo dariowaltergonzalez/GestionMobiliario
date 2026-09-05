@@ -2,6 +2,7 @@ using GestionInmobiliaria.Aplicacion.Services;
 using GestionInmobiliaria.Dominio.Entidades;
 using GestionInmobiliaria.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -21,11 +22,13 @@ public class AjusteAutomaticoService : BackgroundService
     private static readonly TimeSpan Intervalo = TimeSpan.FromHours(24);
 
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IConfiguration _config;
     private readonly ILogger<AjusteAutomaticoService> _logger;
 
-    public AjusteAutomaticoService(IServiceScopeFactory scopeFactory, ILogger<AjusteAutomaticoService> logger)
+    public AjusteAutomaticoService(IServiceScopeFactory scopeFactory, IConfiguration config, ILogger<AjusteAutomaticoService> logger)
     {
         _scopeFactory = scopeFactory;
+        _config = config;
         _logger = logger;
     }
 
@@ -214,6 +217,15 @@ public class AjusteAutomaticoService : BackgroundService
             DatosAdicionales = new { contrato = contrato.Codigo, montoAnterior, montoNuevo, automatico = true },
         };
 
+        // Misma plantilla de prueba del sandbox de Twilio que el resto de los eventos — placeholder
+        // mientras se valida el circuito, ver docs/logica-negocio.md, NOTIFICACIONES → "WhatsApp".
+        var plantillaSid = _config["WhatsApp:PlantillaAvisoVencimiento"];
+        WhatsAppPlantilla? whatsApp = string.IsNullOrWhiteSpace(plantillaSid) ? null : new WhatsAppPlantilla
+        {
+            Sid = plantillaSid,
+            Variables = new[] { contrato.Codigo, $"nuevo monto {montoNuevo:N0}" },
+        };
+
         try
         {
             if (contrato.PropietarioRefId is { } propietarioId)
@@ -223,7 +235,7 @@ public class AjusteAutomaticoService : BackgroundService
                 if (propietario is not null)
                 {
                     var cuerpo = BuildEmailBody(contrato, montoAnterior, montoNuevo, paraLocatario: false);
-                    await notificacion.NotificarAsync(propietario, "AvisoAumento", asunto, cuerpo, contexto);
+                    await notificacion.NotificarAsync(propietario, "AvisoAumento", asunto, cuerpo, contexto, whatsApp: whatsApp);
                 }
             }
 
@@ -234,7 +246,7 @@ public class AjusteAutomaticoService : BackgroundService
                 if (inquilino is not null)
                 {
                     var cuerpo = BuildEmailBody(contrato, montoAnterior, montoNuevo, paraLocatario: true);
-                    await notificacion.NotificarAsync(inquilino, "AvisoAumento", asunto, cuerpo, contexto);
+                    await notificacion.NotificarAsync(inquilino, "AvisoAumento", asunto, cuerpo, contexto, whatsApp: whatsApp);
                 }
             }
         }
