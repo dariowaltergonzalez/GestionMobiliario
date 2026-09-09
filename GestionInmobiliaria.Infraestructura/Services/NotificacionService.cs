@@ -78,25 +78,25 @@ public class NotificacionService : INotificacionService
     {
         string? motivoOmision =
             !destinatario.Activo ? "destinatario inactivo" :
-            string.IsNullOrWhiteSpace(destinatario.Telefono) ? "sin teléfono cargado" :
+            string.IsNullOrWhiteSpace(destinatario.TelefonoWhatsApp) ? "sin teléfono de WhatsApp cargado" :
             !DebeEnviar(destinatario.NotificacionesWhatsApp, tema) ? "tema no habilitado" :
             null;
 
         if (motivoOmision is not null)
         {
-            await RegistrarAsync("OMITIDO_WHATSAPP", tema, destinatario.Telefono, contexto, motivoOmision);
+            await RegistrarAsync("OMITIDO_WHATSAPP", tema, destinatario.TelefonoWhatsApp, contexto, motivoOmision);
             return;
         }
 
         try
         {
-            await _whatsApp.EnviarAsync(destinatario.Telefono!, plantilla);
-            await RegistrarAsync("ENVIADO_WHATSAPP", tema, destinatario.Telefono, contexto);
+            await _whatsApp.EnviarAsync(destinatario.TelefonoWhatsApp!, plantilla);
+            await RegistrarAsync("ENVIADO_WHATSAPP", tema, destinatario.TelefonoWhatsApp, contexto);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error al enviar WhatsApp. Tema={Tema} Destinatario={Telefono}", tema, destinatario.Telefono);
-            await RegistrarAsync("ERROR_WHATSAPP", tema, destinatario.Telefono, contexto, ex.Message);
+            _logger.LogError(ex, "Error al enviar WhatsApp. Tema={Tema} Destinatario={Telefono}", tema, destinatario.TelefonoWhatsApp);
+            await RegistrarAsync("ERROR_WHATSAPP", tema, destinatario.TelefonoWhatsApp, contexto, ex.Message);
         }
     }
 

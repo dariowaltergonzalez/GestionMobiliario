@@ -11,6 +11,7 @@ public class PropietarioDto
     public string? Email { get; set; }
     public string? Telefono { get; set; }
     public string? Telefono2 { get; set; }
+    public string? TelefonoWhatsApp { get; set; }
     public string? Direccion { get; set; }
     public string? Banco { get; set; }
     public string? CBU { get; set; }
@@ -31,6 +32,7 @@ public class CreatePropietarioRequest
     public string? Email { get; set; }
     public string? Telefono { get; set; }
     public string? Telefono2 { get; set; }
+    public string? TelefonoWhatsApp { get; set; }
     public string? Direccion { get; set; }
     public string? Banco { get; set; }
     public string? CBU { get; set; }
@@ -48,6 +50,7 @@ public class UpdatePropietarioRequest
     public string? Email { get; set; }
     public string? Telefono { get; set; }
     public string? Telefono2 { get; set; }
+    public string? TelefonoWhatsApp { get; set; }
     public string? Direccion { get; set; }
     public string? Banco { get; set; }
     public string? CBU { get; set; }

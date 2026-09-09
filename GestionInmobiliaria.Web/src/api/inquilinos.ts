@@ -13,6 +13,7 @@ export interface InquilinoDto {
   email: string | null
   telefono: string | null
   telefono2: string | null
+  telefonoWhatsApp: string | null
   direccion: string | null
   ocupacion: string | null
   nombreGarante: string | null
@@ -38,6 +39,7 @@ export interface InquilinoFormData {
   email: string
   telefono: string
   telefono2: string
+  telefonoWhatsApp: string
   direccion: string
   ocupacion: string
   nombreGarante: string
@@ -50,7 +52,7 @@ export interface InquilinoFormData {
 
 export const inquilinoFormVacio: InquilinoFormData = {
   nombre: '', apellido: '', dni: '', cuit: '', email: '',
-  telefono: '', telefono2: '', direccion: '', ocupacion: '',
+  telefono: '', telefono2: '', telefonoWhatsApp: '', direccion: '', ocupacion: '',
   nombreGarante: '', telefonoGarante: '', dniGarante: '', notas: '',
   notificaciones: {}, notificacionesWhatsApp: {},
 }
@@ -91,6 +93,7 @@ const toRequest = (f: InquilinoFormData, activo?: boolean) => ({
   email: f.email || null,
   telefono: f.telefono || null,
   telefono2: f.telefono2 || null,
+  telefonoWhatsApp: f.telefonoWhatsApp || null,
   direccion: f.direccion || null,
   ocupacion: f.ocupacion || null,
   nombreGarante: f.nombreGarante || null,

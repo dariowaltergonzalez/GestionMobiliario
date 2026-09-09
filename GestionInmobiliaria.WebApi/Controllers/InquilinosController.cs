@@ -98,6 +98,7 @@ public class InquilinosController : ControllerBase
             Email = request.Email,
             Telefono = request.Telefono,
             Telefono2 = request.Telefono2,
+            TelefonoWhatsApp = request.TelefonoWhatsApp,
             Direccion = request.Direccion,
             Ocupacion = request.Ocupacion,
             NombreGarante = request.NombreGarante,
@@ -129,6 +130,7 @@ public class InquilinosController : ControllerBase
         existente.Email = request.Email;
         existente.Telefono = request.Telefono;
         existente.Telefono2 = request.Telefono2;
+        existente.TelefonoWhatsApp = request.TelefonoWhatsApp;
         existente.Direccion = request.Direccion;
         existente.Ocupacion = request.Ocupacion;
         existente.NombreGarante = request.NombreGarante;
@@ -176,6 +178,7 @@ public class InquilinosController : ControllerBase
         Email = i.Email,
         Telefono = i.Telefono,
         Telefono2 = i.Telefono2,
+        TelefonoWhatsApp = i.TelefonoWhatsApp,
         Direccion = i.Direccion,
         Ocupacion = i.Ocupacion,
         NombreGarante = i.NombreGarante,

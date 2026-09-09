@@ -11,6 +11,7 @@ public class InquilinoDto
     public string? Email { get; set; }
     public string? Telefono { get; set; }
     public string? Telefono2 { get; set; }
+    public string? TelefonoWhatsApp { get; set; }
     public string? Direccion { get; set; }
     public string? Ocupacion { get; set; }
     public string? NombreGarante { get; set; }
@@ -32,6 +33,7 @@ public class CreateInquilinoRequest
     public string? Email { get; set; }
     public string? Telefono { get; set; }
     public string? Telefono2 { get; set; }
+    public string? TelefonoWhatsApp { get; set; }
     public string? Direccion { get; set; }
     public string? Ocupacion { get; set; }
     public string? NombreGarante { get; set; }
@@ -51,6 +53,7 @@ public class UpdateInquilinoRequest
     public string? Email { get; set; }
     public string? Telefono { get; set; }
     public string? Telefono2 { get; set; }
+    public string? TelefonoWhatsApp { get; set; }
     public string? Direccion { get; set; }
     public string? Ocupacion { get; set; }
     public string? NombreGarante { get; set; }

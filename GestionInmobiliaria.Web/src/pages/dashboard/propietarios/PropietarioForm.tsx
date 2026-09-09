@@ -72,6 +72,7 @@ export default function PropietarioForm({ propietario, onGuardado, onCerrar }: P
         email: propietario.email ?? '',
         telefono: propietario.telefono ?? '',
         telefono2: propietario.telefono2 ?? '',
+        telefonoWhatsApp: propietario.telefonoWhatsApp ?? '',
         direccion: propietario.direccion ?? '',
         banco: propietario.banco ?? '',
         cbu: propietario.cbu ?? '',
@@ -184,6 +185,18 @@ export default function PropietarioForm({ propietario, onGuardado, onCerrar }: P
               <Input label="Teléfono 2" value={form.telefono2} onChange={e => set('telefono2', e.target.value)} placeholder="2664654321" />
             </div>
 
+            <div>
+              <Input
+                label="Teléfono WhatsApp"
+                value={form.telefonoWhatsApp}
+                onChange={e => set('telefonoWhatsApp', e.target.value)}
+                placeholder="+5492664123456"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Formato internacional completo (con +54 9...). Puede ser distinto al teléfono de contacto.
+              </p>
+            </div>
+
             <Input label="Dirección" value={form.direccion} onChange={e => set('direccion', e.target.value)} placeholder="Av. San Martín 456" />
             <div className="grid grid-cols-2 gap-3">
               <Input label="Banco" value={form.banco} onChange={e => set('banco', e.target.value)} placeholder="Banco Nación" />
@@ -261,7 +274,7 @@ export default function PropietarioForm({ propietario, onGuardado, onCerrar }: P
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Notificaciones automáticas por WhatsApp</label>
               <p className="text-xs text-gray-400 mb-2">
-                Requiere que el propietario tenga un teléfono cargado arriba. Solo se envía lo que se agregue acá.
+                Requiere que el propietario tenga el "Teléfono WhatsApp" cargado arriba. Solo se envía lo que se agregue acá.
               </p>
 
               {Object.keys(form.notificacionesWhatsApp).length > 0 && (

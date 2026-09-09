@@ -10,6 +10,7 @@ export interface PropietarioDto {
   email: string | null
   telefono: string | null
   telefono2: string | null
+  telefonoWhatsApp: string | null
   direccion: string | null
   banco: string | null
   cbu: string | null
@@ -39,6 +40,7 @@ export interface PropietarioFormData {
   email: string
   telefono: string
   telefono2: string
+  telefonoWhatsApp: string
   direccion: string
   banco: string
   cbu: string
@@ -49,7 +51,7 @@ export interface PropietarioFormData {
 
 export const propietarioFormVacio: PropietarioFormData = {
   nombre: '', apellido: '', dni: '', cuit: '', email: '',
-  telefono: '', telefono2: '', direccion: '', banco: '', cbu: '', notas: '',
+  telefono: '', telefono2: '', telefonoWhatsApp: '', direccion: '', banco: '', cbu: '', notas: '',
   notificaciones: {}, notificacionesWhatsApp: {},
 }
 
@@ -89,6 +91,7 @@ const toRequest = (f: PropietarioFormData, activo?: boolean) => ({
   email: f.email || null,
   telefono: f.telefono || null,
   telefono2: f.telefono2 || null,
+  telefonoWhatsApp: f.telefonoWhatsApp || null,
   direccion: f.direccion || null,
   banco: f.banco || null,
   cbu: f.cbu || null,

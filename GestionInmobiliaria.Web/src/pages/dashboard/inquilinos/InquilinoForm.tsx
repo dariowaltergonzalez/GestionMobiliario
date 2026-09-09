@@ -74,6 +74,7 @@ export default function InquilinoForm({ inquilino, datosIniciales, onGuardado, o
         email: inquilino.email ?? '',
         telefono: inquilino.telefono ?? '',
         telefono2: inquilino.telefono2 ?? '',
+        telefonoWhatsApp: inquilino.telefonoWhatsApp ?? '',
         direccion: inquilino.direccion ?? '',
         ocupacion: inquilino.ocupacion ?? '',
         nombreGarante: inquilino.nombreGarante ?? '',
@@ -188,6 +189,18 @@ export default function InquilinoForm({ inquilino, datosIniciales, onGuardado, o
               <Input label="Teléfono 2" value={form.telefono2} onChange={e => set('telefono2', e.target.value)} placeholder="2664654321" />
             </div>
 
+            <div>
+              <Input
+                label="Teléfono WhatsApp"
+                value={form.telefonoWhatsApp}
+                onChange={e => set('telefonoWhatsApp', e.target.value)}
+                placeholder="+5492664123456"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Formato internacional completo (con +54 9...). Puede ser distinto al teléfono de contacto.
+              </p>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <Input label="Dirección" value={form.direccion} onChange={e => set('direccion', e.target.value)} placeholder="Av. San Martín 456" />
               <Input label="Ocupación" value={form.ocupacion} onChange={e => set('ocupacion', e.target.value)} placeholder="Empleado, comerciante..." />
@@ -273,7 +286,7 @@ export default function InquilinoForm({ inquilino, datosIniciales, onGuardado, o
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Notificaciones automáticas por WhatsApp</label>
               <p className="text-xs text-gray-400 mb-2">
-                Requiere que el inquilino tenga un teléfono cargado arriba. Solo se envía lo que se agregue acá.
+                Requiere que el inquilino tenga el "Teléfono WhatsApp" cargado arriba. Solo se envía lo que se agregue acá.
               </p>
 
               {Object.keys(form.notificacionesWhatsApp).length > 0 && (

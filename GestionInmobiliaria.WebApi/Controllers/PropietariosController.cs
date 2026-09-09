@@ -81,6 +81,7 @@ public class PropietariosController : ControllerBase
             Email = request.Email,
             Telefono = request.Telefono,
             Telefono2 = request.Telefono2,
+            TelefonoWhatsApp = request.TelefonoWhatsApp,
             Direccion = request.Direccion,
             Banco = request.Banco,
             CBU = request.CBU,
@@ -110,6 +111,7 @@ public class PropietariosController : ControllerBase
         existente.Email = request.Email;
         existente.Telefono = request.Telefono;
         existente.Telefono2 = request.Telefono2;
+        existente.TelefonoWhatsApp = request.TelefonoWhatsApp;
         existente.Direccion = request.Direccion;
         existente.Banco = request.Banco;
         existente.CBU = request.CBU;
@@ -155,6 +157,7 @@ public class PropietariosController : ControllerBase
         Email = p.Email,
         Telefono = p.Telefono,
         Telefono2 = p.Telefono2,
+        TelefonoWhatsApp = p.TelefonoWhatsApp,
         Direccion = p.Direccion,
         Banco = p.Banco,
         CBU = p.CBU,
