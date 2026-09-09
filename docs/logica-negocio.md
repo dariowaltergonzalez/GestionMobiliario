@@ -171,10 +171,21 @@ Segundo canal, además del email, para los mismos eventos — arrancó por `Avis
   preguntas de propietarios/inquilinos por WhatsApp (ej. "¿cuál es el estado de mi deuda?") — posible
   vía webhook de Twilio, pero es un módulo nuevo grande (identificar al que escribe, interpretar la
   pregunta, consultar la base, responder), no una extensión chica de lo que hay.
+- **`TelefonoWhatsApp` (2026-09-09)**: se agregó un campo dedicado a `Propietario`/`Inquilino`,
+  separado del `Telefono` general de contacto — resuelve que `Telefono` se usa para mostrar/llamar
+  (cualquier formato) mientras que la API exige formato internacional completo (+54 9 ...).
+  `INotificable`/`NotificacionService` ahora usan `TelefonoWhatsApp` para el envío por WhatsApp.
+- **Gotcha del sandbox de Twilio**: la conexión de un número al sandbox (el "join seven-but")
+  **vence a los 3 días de inactividad** — si un envío falla con el error de Twilio `63015`
+  ("Channel Sandbox can only send messages to phone numbers that have joined the Sandbox"), lo primero
+  a chequear es si hay que volver a mandar el join, no asumir que es un bug del código. Nuestro
+  `ENVIADO_WHATSAPP` en Auditoría solo confirma que la llamada a la API de Twilio no tiró error —
+  **no confirma que el mensaje haya llegado**; para eso hay que consultar el estado real
+  (`status`/`error_code`) vía la API de Mensajes de Twilio (`GET /2010-04-01/Accounts/{Sid}/Messages.json`)
+  o el panel de Twilio, cosa que no está automatizada todavía.
 - Pendiente para cuando se quiera pasar de prueba a real: cuenta de WhatsApp Business verificada (no
-  sandbox), una plantilla propia por evento con el texto final (hoy todos comparten la misma plantilla
-  de demo en inglés), y normalizar el campo `Telefono` a formato internacional (+54 9 ...) — hoy es
-  texto libre pensado para mostrar/llamar, no para mandar por API.
+  sandbox, sin el vencimiento de 3 días) y una plantilla propia por evento con el texto final (hoy
+  todos comparten la misma plantilla de demo en inglés).
 
 ---
 
