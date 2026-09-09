@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle, Building2, FileDown, Link2, Check } from 'lucide-react'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
 import PropietarioForm from './PropietarioForm'
@@ -198,10 +199,14 @@ export default function PropietariosPage() {
                       {p.cuit && <div>CUIT: {p.cuit}</div>}
                     </td>
                     <td className="px-5 py-4 text-center">
-                      <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                      <Link
+                        to={`/dashboard/propiedades?propietarioId=${p.id}`}
+                        title="Ver las propiedades de este propietario"
+                        className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-blue-900 hover:underline"
+                      >
                         <Building2 className="w-3.5 h-3.5" />
                         {p.cantidadPropiedades}
-                      </span>
+                      </Link>
                     </td>
                     <td className="px-5 py-4 text-xs text-gray-400">{formatFecha(p.fechaCreacion)}</td>
                     <td className="px-5 py-4">

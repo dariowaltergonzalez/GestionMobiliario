@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, MapPin, AlertTriangle, FileDown } from 'lucide-react'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
 import PropiedadForm from './PropiedadForm'
@@ -7,6 +8,7 @@ import {
   TIPOS_PROPIEDAD, TIPOS_OPERACION, ESTADOS_PROPIEDAD,
   type PropiedadDto, type FiltrosPropiedades,
 } from '../../../api/propiedades'
+import { getPropietariosActivos, type PropietarioComboDto } from '../../../api/propietarios'
 import { exportarPropiedadesPdf } from '../../../api/reportes'
 
 const BADGE_ESTADO: Record<number, string> = {
@@ -45,16 +47,26 @@ function PrecioCell({ p }: { p: PropiedadDto }) {
 }
 
 export default function PropiedadesPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+
   const [propiedades, setPropiedades] = useState<PropiedadDto[]>([])
   const [totalRegistros, setTotalRegistros] = useState(0)
   const [totalPaginas, setTotalPaginas] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  const [propietarios, setPropietarios] = useState<PropietarioComboDto[]>([])
+
   const [filtros, setFiltros] = useState<FiltrosPropiedades>({
-    buscar: '', tipo: '', estado: '', operacion: '', pagina: 1, tamano: 10,
+    buscar: '', tipo: '', estado: '', operacion: '',
+    propietarioId: searchParams.get('propietarioId') ?? '',
+    pagina: 1, tamano: 10,
   })
   const [buscarInput, setBuscarInput] = useState('')
+
+  useEffect(() => {
+    getPropietariosActivos().then(res => { if (res.success) setPropietarios(res.data) }).catch(() => {})
+  }, [])
 
   const [modalAbierto, setModalAbierto] = useState(false)
   const [propiedadEditar, setPropiedadEditar] = useState<PropiedadDto | null>(null)
@@ -84,8 +96,12 @@ export default function PropiedadesPage() {
 
   const handleBuscar = () => setFiltros(f => ({ ...f, buscar: buscarInput, pagina: 1 }))
 
-  const handleFiltro = (campo: keyof FiltrosPropiedades, valor: string) =>
+  const handleFiltro = (campo: keyof FiltrosPropiedades, valor: string) => {
     setFiltros(f => ({ ...f, [campo]: valor, pagina: 1 }))
+    if (campo === 'propietarioId') {
+      setSearchParams(valor ? { propietarioId: valor } : {})
+    }
+  }
 
   const handleEditar = (p: PropiedadDto) => { setPropiedadEditar(p); setModalAbierto(true) }
   const handleNueva = () => { setPropiedadEditar(null); setModalAbierto(true) }
@@ -160,6 +176,10 @@ export default function PropiedadesPage() {
           <select value={filtros.estado} onChange={e => handleFiltro('estado', e.target.value)} className={selectClass}>
             <option value="">Todos los estados</option>
             {Object.entries(ESTADOS_PROPIEDAD).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+          <select value={filtros.propietarioId} onChange={e => handleFiltro('propietarioId', e.target.value)} className={selectClass}>
+            <option value="">Todos los propietarios</option>
+            {propietarios.map(p => <option key={p.id} value={p.id}>{p.nombreCompleto}</option>)}
           </select>
           <button
             onClick={handleExportar}

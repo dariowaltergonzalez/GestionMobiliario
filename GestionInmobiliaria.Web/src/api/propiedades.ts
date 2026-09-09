@@ -140,6 +140,7 @@ export interface FiltrosPropiedades {
   tipo: string
   estado: string
   operacion: string
+  propietarioId: string
   pagina: number
   tamano: number
 }
@@ -185,6 +186,7 @@ export const getPropiedades = async (filtros: FiltrosPropiedades) => {
   if (filtros.tipo) params.append('tipo', filtros.tipo)
   if (filtros.estado) params.append('estado', filtros.estado)
   if (filtros.operacion) params.append('operacion', filtros.operacion)
+  if (filtros.propietarioId) params.append('propietarioId', filtros.propietarioId)
 
   const res = await client.get<ApiResponse<PagedResult<PropiedadDto>>>(`/api/propiedades?${params}`)
   return res.data
