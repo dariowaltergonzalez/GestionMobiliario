@@ -183,6 +183,20 @@ Segundo canal, además del email, para los mismos eventos — arrancó por `Avis
   **no confirma que el mensaje haya llegado**; para eso hay que consultar el estado real
   (`status`/`error_code`) vía la API de Mensajes de Twilio (`GET /2010-04-01/Accounts/{Sid}/Messages.json`)
   o el panel de Twilio, cosa que no está automatizada todavía.
+- **CERRADO Y PROBADO DE PUNTA A PUNTA EN PRODUCCIÓN (2026-09-10): los 8 temas confirmados en vivo**
+  — `NuevoContrato`, `AvisoAumento`, `CambioEstadoContrato`, `AvisoCobro`, `AvisoLiquidacion`,
+  `ReciboPago`, `AvisoVencimientoProximo` y `AvisoGastoPendiente`, cada uno disparando la acción real
+  en la app desplegada y confirmando la llegada del WhatsApp. Para facilitar las pruebas se hizo un
+  update masivo en producción: todos los Propietarios/Inquilinos de prueba comparten el mismo
+  `TelefonoWhatsApp` del usuario y tienen todos los temas activados en `NotificacionesWhatsApp` — es
+  data de prueba, no hay clientes reales todavía. Nota para leer los tiempos: los mensajes del sandbox
+  a veces tardan 1-2 minutos en llegar (no es un error, solo demora normal del sandbox gratuito).
+- **Bug real encontrado en el camino (2026-09-10): se podía registrar un cobro de cuota en un
+  contrato que no estaba Vigente** (ej. ya Rescindido) — no había ninguna validación, ni en el backend
+  ni realmente bloqueado en la UI (el botón seguía visible). Se agregó el guard en
+  `PagosController.UpdatePago` (solo Vigente puede cobrar; Borrador/Finalizado/Rescindido/Anulado
+  quedan bloqueados) y se ocultó el botón "Registrar cobro" en el frontend agregando `ContratoEstado`
+  a `PagoListDto`.
 - Pendiente para cuando se quiera pasar de prueba a real: cuenta de WhatsApp Business verificada (no
   sandbox, sin el vencimiento de 3 días) y una plantilla propia por evento con el texto final (hoy
   todos comparten la misma plantilla de demo en inglés).
@@ -972,9 +986,9 @@ con el usuario:
 - [x] **Automatizar el ajuste periódico de cuotas** (ICL, UVA e IPC, prioridad alta) — implementado y
   probado en vivo de punta a punta 2026-08-24, los 3 índices. Ver sección AJUSTE AUTOMÁTICO. Sin nada
   pendiente.
-- [x] **WhatsApp como canal de notificación** — implementado y probado en vivo con Twilio (sandbox),
-  conectado a los 11 eventos existentes (los 5 de Propietario y los 6 de Inquilino). Ver sección
-  NOTIFICACIONES → "WhatsApp". Falta para producción real (no bloqueante, anotado ahí): cuenta
-  verificada, plantilla propia por evento, y normalizar `Telefono` a formato internacional.
+- [x] **WhatsApp como canal de notificación** — implementado y **probado en vivo de punta a punta en
+  producción (2026-09-10), los 8 temas confirmados uno por uno** con Twilio (sandbox). Ver sección
+  NOTIFICACIONES → "WhatsApp". Sin nada pendiente para seguir probando — falta solo para producción
+  real con clientes (no bloqueante, anotado ahí): cuenta verificada, plantilla propia por evento.
 - [ ] Integración de facturación electrónica (ARCA/ex-AFIP). Para más adelante, alcance grande y
   específico de Argentina.
