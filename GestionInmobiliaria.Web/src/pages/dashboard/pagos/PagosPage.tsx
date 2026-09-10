@@ -586,7 +586,9 @@ export default function PagosPage() {
                 <tr><td colSpan={9} className="py-16 text-center text-gray-400">No hay pagos que coincidan con los filtros.</td></tr>
               ) : items.map(p => {
                 const estadoNum = estadoPagoNumero(p.estado)
-                const esPendiente = estadoNum === 1 || estadoNum === 3
+                // Solo se puede cobrar con el contrato Vigente (2) — uno Finalizado/Rescindido/Anulado
+                // no debería seguir generando cobros (ver validación equivalente en PagosController).
+                const esPendiente = (estadoNum === 1 || estadoNum === 3) && p.contratoEstado === 2
                 const esPagado = estadoNum === 2
                 return (
                   <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">

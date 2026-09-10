@@ -205,6 +205,7 @@ public class UpdatePagoRequest
 public class PagoListDto : PagoDto
 {
     public string ContratoCodigo { get; set; } = string.Empty;
+    public int ContratoEstado { get; set; }
     public string PropiedadDireccion { get; set; } = string.Empty;
     public string LocatarioNombre { get; set; } = string.Empty;
     public string LocatarioApellido { get; set; } = string.Empty;

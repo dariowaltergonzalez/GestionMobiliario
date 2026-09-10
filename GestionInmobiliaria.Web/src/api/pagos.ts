@@ -6,6 +6,7 @@ export interface PagoListDto {
   id: number
   contratoId: number
   contratoCodigo: string
+  contratoEstado: number
   propiedadDireccion: string
   locatarioNombre: string
   locatarioApellido: string

@@ -128,6 +128,13 @@ public class PagosController : ControllerBase
         if (pago.Estado == EstadoPago.Pagado)
             return BadRequest(ApiResponse<PagoDto>.Fail("Esta cuota ya está pagada, no se puede modificar."));
 
+        // Solo se puede cobrar mientras el contrato está Vigente — un contrato Finalizado, Rescindido
+        // o Anulado no debería seguir generando cobros, y Borrador ni siquiera tiene cuotas reales
+        // todavía. La UI ya oculta el botón en esos casos, pero nada lo garantizaba del lado del
+        // servidor (mismo criterio que el guard de "cuota ya pagada" de arriba).
+        if (pago.Contrato!.Estado != EstadoContrato.Vigente)
+            return BadRequest(ApiResponse<PagoDto>.Fail("Solo se pueden registrar cobros en contratos Vigentes."));
+
         // Se calcula ANTES de tocar pago.Estado: CalcularAsync solo da un resultado > 0 si la cuota
         // todavía está Pendiente/Atrasado (ver PunitorioService). Se recalcula acá server-side en vez
         // de confiar en un monto que mande el cliente — es plata, nunca se toma un número de afuera.
@@ -437,6 +444,7 @@ public class PagosController : ControllerBase
         Id                 = p.Id,
         ContratoId         = p.ContratoId,
         ContratoCodigo     = p.Contrato.Codigo,
+        ContratoEstado     = (int)p.Contrato.Estado,
         PropiedadDireccion = p.Contrato.Propiedad.Direccion,
         LocatarioNombre    = p.Contrato.LocatarioNombre,
         LocatarioApellido  = p.Contrato.LocatarioApellido,
