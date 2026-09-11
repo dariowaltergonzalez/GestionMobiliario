@@ -58,6 +58,33 @@ public class PropiedadRepository : IPropiedadRepository
             .OrderBy(p => p.Direccion)
             .ToListAsync();
 
+    public async Task<IEnumerable<Propiedad>> BuscarBotAsync(
+        int tenantId, string? barrio, string? ciudad, TipoOperacion? operacion, TipoPropiedad? tipo,
+        int? dormitoriosMinimo, bool? cochera, bool? pileta, bool? mascotas, int limite = 5)
+    {
+        var query = _context.Propiedades.IgnoreQueryFilters()
+            .Where(p => p.TenantId == tenantId && p.Activo && p.Estado == EstadoPropiedad.Disponible);
+
+        if (!string.IsNullOrWhiteSpace(barrio))
+            query = query.Where(p => p.Barrio != null && p.Barrio.Contains(barrio));
+        if (!string.IsNullOrWhiteSpace(ciudad))
+            query = query.Where(p => p.Ciudad != null && p.Ciudad.Contains(ciudad));
+        if (operacion.HasValue)
+            query = query.Where(p => p.Operacion == operacion.Value || p.Operacion == TipoOperacion.AlquilerOVenta);
+        if (tipo.HasValue)
+            query = query.Where(p => p.Tipo == tipo.Value);
+        if (dormitoriosMinimo.HasValue)
+            query = query.Where(p => p.Dormitorios != null && p.Dormitorios >= dormitoriosMinimo.Value);
+        if (cochera == true)
+            query = query.Where(p => p.Cochera);
+        if (pileta == true)
+            query = query.Where(p => p.TienePiscina);
+        if (mascotas == true)
+            query = query.Where(p => p.AceptaMascotas);
+
+        return await query.OrderBy(p => p.Direccion).Take(limite).ToListAsync();
+    }
+
     public async Task<Propiedad?> GetPublicaByIdAsync(int id) =>
         await _context.Propiedades
             .Include(p => p.Fotos.OrderBy(f => f.Orden))

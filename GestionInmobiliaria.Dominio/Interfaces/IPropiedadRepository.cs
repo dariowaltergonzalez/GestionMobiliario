@@ -8,6 +8,14 @@ public interface IPropiedadRepository
     Task<PagedResult<Propiedad>> GetPagedAsync(PaginationParams paginacion, string? buscar = null, TipoPropiedad? tipo = null, EstadoPropiedad? estado = null, int? propietarioId = null, TipoOperacion? operacion = null);
     Task<IEnumerable<Propiedad>> GetDisponiblesAsync();
     Task<IEnumerable<Propiedad>> GetPublicasAsync();
+    /// <summary>
+    /// Búsqueda usada por el bot de WhatsApp — corre fuera de un request HTTP (sin tenant activo vía
+    /// ITenantService), por eso recibe el <paramref name="tenantId"/> explícito, mismo patrón que
+    /// RecordatorioVencimientoService/AjusteAutomaticoService.
+    /// </summary>
+    Task<IEnumerable<Propiedad>> BuscarBotAsync(
+        int tenantId, string? barrio, string? ciudad, TipoOperacion? operacion, TipoPropiedad? tipo,
+        int? dormitoriosMinimo, bool? cochera, bool? pileta, bool? mascotas, int limite = 5);
     Task<Propiedad?> GetPublicaByIdAsync(int id);
     Task<Propiedad?> GetByIdAsync(int id);
     Task<Propiedad> CreateAsync(Propiedad propiedad);

@@ -109,6 +109,7 @@ builder.Services.AddHttpClient("Bcra", c => c.BaseAddress = new Uri("https://api
 builder.Services.AddHttpClient("Indec", c => c.BaseAddress = new Uri("https://apis.datos.gob.ar/"));
 builder.Services.AddHttpClient("Gemini", c => c.BaseAddress = new Uri("https://generativelanguage.googleapis.com/"));
 builder.Services.AddScoped<IReciboIaService, GeminiReciboIaService>();
+builder.Services.AddScoped<IPropiedadesBotService, GeminiPropiedadesBotService>();
 builder.Services.AddScoped<ITasaMoratoriaService, TasaMoratoriaService>();
 builder.Services.AddHostedService<TasaMoratoriaSchedulerService>();
 builder.Services.AddScoped<IPunitorioService, PunitorioService>();
