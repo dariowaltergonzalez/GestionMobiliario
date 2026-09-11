@@ -201,6 +201,34 @@ Segundo canal, además del email, para los mismos eventos — arrancó por `Avis
   sandbox, sin el vencimiento de 3 días) y una plantilla propia por evento con el texto final (hoy
   todos comparten la misma plantilla de demo en inglés).
 
+### WhatsApp — bot de búsqueda de propiedades (2026-09-10/11)
+
+Además de las notificaciones, WhatsApp ahora también recibe consultas — cualquiera puede escribirle
+al número preguntando por propiedades disponibles, **sin necesidad de estar registrado** (es búsqueda
+pública, mismos datos que el portal web). Ej: *"hay casas en alquiler con cochera?"* → el bot busca de
+verdad en la base y contesta con direcciones y precios reales.
+
+- **Cómo funciona**: Twilio le pega a `POST /api/whatsapp/webhook` (`WhatsAppWebhookController`) cada
+  vez que llega un mensaje. Ese mensaje se lo pasamos a **Gemini** pidiéndole SOLO que extraiga los
+  filtros de búsqueda (barrio, tipo, operación, dormitorios, cochera, pileta, mascotas) en JSON — igual
+  que hacemos para leer comprobantes (`GeminiReciboIaService`). **Gemini nunca redacta la respuesta ni
+  inventa una propiedad**: con esos filtros hacemos la consulta real (`PropiedadRepository.BuscarBotAsync`,
+  mismo criterio que el portal público: Activa + Disponible) y armamos la respuesta nosotros con los
+  datos reales.
+- **Swappeable**: `IPropiedadesBotService` / `GeminiPropiedadesBotService`, mismo criterio que el resto
+  (Cloudinary, Twilio, comprobantes) — cambiar de proveedor de IA es una clase nueva, sin tocar el resto.
+- **Limitación conocida**: Twilio no manda a qué tenant pertenece el mensaje (no hay login de por
+  medio) — por ahora se fija por configuración (`WhatsApp:TenantIdBot=2`, "inmobiliaria-del-sur"). El
+  día de mañana, con un número de WhatsApp Business propio por tenant, se podría resolver solo.
+- **Probado en vivo en producción (2026-09-11)**: preguntas con resultado (devuelve la propiedad real,
+  con dirección) y sin resultado (contesta que no hay, correctamente verificado contra la base) — ambos
+  casos funcionando. Nota: un 503 "high demand" de Gemini es transitorio (tier gratis), no un bug —
+  ya visto también con el lector de comprobantes.
+- **Pendiente (a futuro, no arrancado)**: una segunda etapa para que inquilinos/propietarios YA
+  registrados consulten su cuenta (deuda pendiente, próximo vencimiento) — a diferencia de la búsqueda
+  de propiedades, ahí sí hay que identificar quién escribe (por `TelefonoWhatsApp`) y hay plata de por
+  medio, por eso se decidió dejarlo para después de validar este bot más simple.
+
 ---
 
 ## LEADS
