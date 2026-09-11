@@ -957,6 +957,38 @@ Docker). La base de datos y Cloudinary no se "despliegan", solo se les pega en v
 
 ---
 
+## MODELO DE NEGOCIO / COSTOS (foto de precios — 2026-09-11, verificar antes de cotizar)
+
+Pensado para cuando se venda el sistema a varias inmobiliarias (no una instancia por cliente, sino
+un solo sistema multi-tenant con varias inmobiliarias adentro). Investigado a raíz de evaluar si
+WhatsApp era viable para que el dueño de una inmobiliaria lo probara con sus clientes reales.
+
+**Costo de infraestructura si se superan los planes gratis actuales** (hoy todo corre gratis, esto es
+para cuando haya más uso real):
+- Render (backend, hoy se "duerme" sin uso) → **~US$ 7/mes** por el plan "siempre activo".
+- Azure SQL (hoy oferta gratuita) → **~US$ 5/mes** el tier pago más barato (Basic).
+- Vercel (frontend) → gratis por bastante tiempo, difícil de superar con pocos clientes.
+- Cloudinary (fotos/videos, hoy 25 créditos/mes gratis) → salto grande si se supera: **~US$ 89/mes**
+  el siguiente plan — es el que más rápido puede quedarse corto si hay muchas fotos/videos.
+
+**Costo de WhatsApp por inmobiliaria (Twilio + Meta, tarifas Argentina)**:
+- Alquiler del número de WhatsApp: **~US$ 1,15/mes** cada uno.
+- Por conversación (categoría "utility", la de avisos transaccionales): **~US$ 0,017–0,02**.
+- **Para 5 inmobiliarias**: ~US$ 5,75/mes fijos + uso moderado ≈ **US$ 20-30/mes en total**.
+- **Decisión: la cuenta de Twilio la maneja el dueño del sistema** (centralizada, un número por
+  inmobiliaria adentro), no cada inmobiliaria por separado — así el cliente no tiene que pasar por la
+  verificación de Meta (el mismo lío que tuvimos nosotros) y para él es transparente, solo usa la app.
+  Excepción a evaluar más adelante: si una inmobiliaria grande ya tiene su propio WhatsApp Business
+  verificado, se le podría dejar usar el suyo — no armado todavía, no hace falta por ahora.
+
+**Idea de precio (a validar, no decidido)**: un pago único de **US$ 100** al vender el sistema a una
+inmobiliaria nueva, más un abono mensual de **US$ 15** (en vez de los US$ 10 pensados al principio,
+que quedaban muy justos contra el costo real de infraestructura + WhatsApp sumado). Con 5
+inmobiliarias: US$ 500 de pagos únicos + US$ 75/mes recurrentes, contra un costo de infraestructura
+estimado de US$ 32-42/mes — deja un margen razonable.
+
+---
+
 ## PENDIENTES GENERALES
 
 Lista única de lo que falta, para no depender de la memoria de sesión a sesión. Se va tachando o
