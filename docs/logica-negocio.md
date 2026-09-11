@@ -987,6 +987,17 @@ que quedaban muy justos contra el costo real de infraestructura + WhatsApp sumad
 inmobiliarias: US$ 500 de pagos únicos + US$ 75/mes recurrentes, contra un costo de infraestructura
 estimado de US$ 32-42/mes — deja un margen razonable.
 
+**Referencia de mercado — cuánto cobra la competencia (investigado 2026-09-11)**: sistemas de gestión
+inmobiliaria/CRM en Argentina y LatAm con features similares:
+- **Tokko Broker** (el CRM inmobiliario más usado en LatAm, integra con Zonaprop/ArgenProp): **US$ 40–90/mes**.
+- **Realtrix**: **US$ 35–80/mes**.
+- Rango general del mercado argentino: **$15.000 a $100.000 ARS/mes** según tamaño y módulos.
+- **Conclusión: el precio de US$15/mes que se estaba evaluando queda muy por debajo del mercado** —
+  hay margen para cobrar más (ej. US$25-40/mes) y seguir siendo competitivo, más todavía considerando
+  que este sistema ya tiene funciones que esos competidores no ofrecen (ajuste automático por índice,
+  punitorios automáticos, WhatsApp con IA, portal de autoservicio). No es una decisión final, solo el
+  dato de referencia para cuando se defina el precio real.
+
 ---
 
 ## PENDIENTES GENERALES
