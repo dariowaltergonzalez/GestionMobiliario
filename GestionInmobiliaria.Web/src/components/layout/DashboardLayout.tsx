@@ -1,6 +1,6 @@
 import { type ReactNode, useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Home, Users, UserCog, FileText, Calendar, LogOut, Building2, ClipboardList, Bell, ScrollText, ShieldCheck, Settings, Handshake, BookOpen, FilePen, Banknote, User, Wallet, Receipt, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Home, Users, UserCog, FileText, Calendar, LogOut, Building2, ClipboardList, Bell, ScrollText, ShieldCheck, Settings, Handshake, BookOpen, FilePen, Banknote, User, Wallet, Receipt, ChevronLeft, ChevronRight, HelpCircle } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { getConfiguracionPublica } from '../../api/configuracion'
 
@@ -22,6 +22,7 @@ const navItems = [
   { icono: ScrollText,   label: 'Logs',         href: '/dashboard/logs',           roles: ['Admin'] },
   { icono: ShieldCheck,  label: 'Auditoría',    href: '/dashboard/auditoria',      roles: ['Admin'] },
   { icono: Settings,     label: 'Configuración',href: '/dashboard/configuracion',  roles: ['Admin'] },
+  { icono: HelpCircle,   label: 'Ayuda',        href: '/dashboard/ayuda',          roles: ['Admin', 'Agente', 'Operador'] },
 ]
 
 interface Props {
