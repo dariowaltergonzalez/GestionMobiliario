@@ -802,6 +802,39 @@ ahí), así que el nivel de seguridad de "link con secreto imposible de adivinar
 
 ---
 
+## SERVICIOS DE FONDO
+
+Procesos que corren solos dentro de la API (`BackgroundService`), sin intervención humana. Se disparan
+**al arrancar la aplicación** y después se repiten **cada 24 horas** mientras la app esté viva.
+
+| Servicio | Qué hace | Fuente |
+|---|---|---|
+| `IndiceUvaSchedulerService` / `IndiceUvaService` | Trae valores diarios de UVA | BCRA (variable 31) |
+| `IndiceIclSchedulerService` / `IndiceIclService` | Trae valores diarios de ICL | BCRA (variable 40) |
+| `IndiceIpcSchedulerService` / `IndiceIpcService` | Trae valores mensuales de IPC | INDEC (`apis.datos.gob.ar`) |
+| `TasaMoratoriaSchedulerService` / `TasaMoratoriaService` | Trae la tasa TIM diaria (base de punitorios) | BCRA (variable 1197) |
+| `AjusteAutomaticoService` | Aplica ajustes de cuotas de contratos cuyo período ya se cumplió | Usa los índices de arriba |
+| `RecordatorioVencimientoService` | Avisa por email/WhatsApp a 7 y 1 día del vencimiento | Usa las cuotas de la base |
+
+- **Completar días faltantes**: cada servicio de índices/tasa busca la última fecha guardada y trae
+  todo lo que falta hasta hoy, de una sola vez. No depende de que la app haya corrido el día anterior.
+  Ejemplo real del 2026-10-06: `TasaMoratoria actualizada: 26 valores nuevos (2026-09-11 a 2026-10-06)`
+  — la app había estado sin correr ~26 días y, al arrancar, completó todo el rango.
+- **Si la fuente externa no responde**: el error queda en el log del servicio y el próximo ciclo (24 h)
+  reintenta. No se borran ni se pisan valores ya guardados.
+- **Orden de dependencias**: el punitorio y los ajustes leen de las tablas que llenan los servicios de
+  índices/tasa. Al arrancar, todos corren a la vez y **no hay un orden garantizado** entre ellos: si un
+  ajuste se evalúa antes de que se cargue el índice de ese mismo arranque, puede quedar para el siguiente
+  ciclo de 24 h.
+- **Multitenant**: los servicios que recorren contratos o cuotas (`AjusteAutomaticoService`,
+  `RecordatorioVencimientoService`) iteran tenant por tenant, filtrando a mano (no hay tenant activo en
+  un proceso de fondo). Los de índices y tasa cargan datos globales de la plataforma.
+- **En desarrollo local** (`dotnet run`) estos mismos servicios corren contra la base local de SQL
+  Express, así que los logs del arranque muestran la misma actividad que en producción, pero sobre tus
+  datos locales.
+
+---
+
 ## DESPLIEGUE
 
 Sistema desplegado en la nube para que el usuario le pase el link a sus contactos y lo prueben,

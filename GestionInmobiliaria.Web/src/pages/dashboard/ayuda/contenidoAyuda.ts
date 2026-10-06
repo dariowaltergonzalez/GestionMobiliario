@@ -29,6 +29,10 @@ export const temasAyuda: TemaAyuda[] = [
     texto: 'Cuando un contrato tiene el ajuste automático activado, el valor de la cuota se actualiza solo, según el índice elegido: ICL (Índice para Contratos de Locación, del Banco Central, pensado específicamente para alquileres), UVA (Unidad de Valor Adquisitivo, también del Banco Central, sigue la inflación) o IPC (Índice de Precios al Consumidor, del INDEC, el índice de inflación oficial del país). El sistema trae esos valores automáticamente todos los días — no hay que cargar nada a mano. El ajuste se aplica solo cuando corresponde, según la periodicidad definida en el contrato (por ejemplo, cada 6 o 12 meses), calculando: nuevo valor = valor actual × (índice de hoy ÷ índice del último ajuste). Solo se actualizan las cuotas que todavía no se cobraron. Propietario e inquilino reciben el aviso automáticamente. También se puede aplicar un ajuste manual (por un % o un monto fijo) para los casos que no se manejan por índice.',
   },
   {
+    titulo: 'Actualización automática de índices y tasas',
+    texto: 'Para calcular ajustes de cuotas y punitorios por mora, el sistema usa valores oficiales que nadie tiene que cargar a mano: el ICL, la UVA y la tasa de mora (TIM) los publica el Banco Central (BCRA), y el IPC lo publica el INDEC. Cada vez que la aplicación arranca, revisa qué días le faltan y los trae todos de una vez, y después vuelve a revisar cada 24 horas. Por ejemplo: si el sistema estuvo apagado 10 días, al volver a encenderse no pierde nada — trae de una sola vez los valores de esos 10 días, así cualquier ajuste o mora que caiga en ese período se calcula con el dato correcto.',
+  },
+  {
     titulo: 'Liquidaciones',
     texto: 'Cuando un contrato tiene la inmobiliaria a cargo de administrar los cobros, cada vez que se cobra una cuota se calcula automáticamente cuánto le corresponde transferir al propietario (el cobro menos la comisión de gestión), y queda registrado cuándo y cómo se le pagó.',
   },
