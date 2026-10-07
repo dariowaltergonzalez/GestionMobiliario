@@ -279,7 +279,8 @@ public class PagoRepository : IPagoRepository
         EstadoPago? estado = null,
         int? mes = null,
         int? anio = null,
-        string? buscar = null)
+        string? buscar = null,
+        EstadoContrato? estadoContrato = null)
     {
         var query = _context.Pagos
             .Include(p => p.Detalles)
@@ -292,6 +293,9 @@ public class PagoRepository : IPagoRepository
 
         if (estado.HasValue)
             query = query.Where(p => p.Estado == estado.Value);
+
+        if (estadoContrato.HasValue)
+            query = query.Where(p => p.Contrato.Estado == estadoContrato.Value);
 
         if (mes.HasValue)
             query = query.Where(p => p.Periodo.Month == mes.Value);

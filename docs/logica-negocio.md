@@ -427,6 +427,12 @@ exista ya tenga datos reales que mostrar.
 Recargo por mora en el pago de una cuota. Diseñado 2026-08-11, programado y probado de punta a punta
 2026-08-22/24 (incluyendo un cobro real con punitorio, no solo la fórmula aislada).
 
+**Regla de corte por rescisión (2026-09-17)**: si el contrato pasa a **Rescindido**, el punitorio se
+congela en `FechaRescision` (la fecha en que se rescindió). Los días posteriores **no** cuentan como
+mora, aunque el informe o la lista se consulten más tarde. No se pone en cero: la deuda ya generada
+hasta esa fecha sigue existiendo. Para Finalizado y Anulado todavía no hay regla definida (pendiente de
+decisión de negocio).
+
 **Investigación (2026-08-11)**: cómo se manejan los punitorios de alquiler en Argentina hoy —
 - Marco legal: art. 768 CCyCN — la tasa aplicable es 1) lo pactado en el contrato, 2) ley especial,
   3) subsidiariamente la que fije el BCRA. Nuestra propia cláusula SÉPTIMA (plantilla de contrato) ya
