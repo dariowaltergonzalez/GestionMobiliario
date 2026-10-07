@@ -856,6 +856,13 @@ pieza vive detrás de una interfaz swappeable (mismo criterio que `IReciboIaServ
 | Backend (.NET API) | Render.com, como contenedor Docker | `https://gestioninmobiliaria-api.onrender.com` | Free |
 | Base de datos | Azure SQL Database | servidor `servermobiliario.database.windows.net`, base `gestioninmobiliaria` | Oferta gratuita (Auto-pausa) |
 | Storage de archivos (fotos, comprobantes, documentos) | Cloudinary | cloud name `ftrqrxmb` | Free (25 créditos/mes) |
+| Base de datos local (solo desarrollo) | SQL Server Express en la PC | `localhost\SQLEXPRESS`, base `GestionInmobiliaria` | Local |
+| Código fuente | GitHub | repo `dariowaltergonzalez/GestionMobiliario`, rama `master` | Gratis |
+
+**Cómo levantar todo en local:** API con `dotnet run --project GestionInmobiliaria.WebApi` (puerto 5005),
+web con `npm run dev` dentro de `GestionInmobiliaria.Web` (puerto 5173). La API usa la base local
+por defecto; producción usa Azure SQL, así que nunca se corre local apuntando a la base de producción
+salvo que se haga a propósito.
 
 Cuentas: Render y Vercel son cuentas nuevas del usuario logueadas con GitHub, con acceso restringido
 solo al repo `GestionMobiliario` (no a todos sus repos). Azure SQL vive en la suscripción que el
