@@ -32,7 +32,13 @@ public class PunitorioService : IPunitorioService
             return Cero;
 
         var hoy = DateTime.UtcNow.Date;
-        var diasAtraso = (hoy - fechaVencimiento.Value).Days;
+        var fechaCorte = contrato.Estado == EstadoContrato.Rescindido && contrato.FechaRescision is { } fechaRescision
+            ? fechaRescision.Date
+            : hoy;
+        if (fechaCorte > hoy)
+            fechaCorte = hoy;
+
+        var diasAtraso = (fechaCorte - fechaVencimiento.Value).Days;
         if (diasAtraso <= 0)
             return Cero;
 
@@ -47,12 +53,12 @@ public class PunitorioService : IPunitorioService
         }
 
         var valorVencimiento = await ValorEnFechaAsync(fechaVencimiento.Value);
-        var valorHoy = await ValorEnFechaAsync(hoy);
-        if (valorVencimiento is null || valorHoy is null || valorVencimiento == 0)
+        var valorCorte = await ValorEnFechaAsync(fechaCorte);
+        if (valorVencimiento is null || valorCorte is null || valorVencimiento == 0)
             return new PunitorioResultado(0, diasAtraso, null); // sin tasa cargada, no se inventa un número
 
-        var recargoTim = monto * (valorHoy.Value / valorVencimiento.Value - 1);
-        var detalleTim = $"TIM BCRA: {valorHoy.Value:N4} ({hoy:dd/MM/yyyy}) / " +
+        var recargoTim = monto * (valorCorte.Value / valorVencimiento.Value - 1);
+        var detalleTim = $"TIM BCRA: {valorCorte.Value:N4} ({fechaCorte:dd/MM/yyyy}) / " +
                           $"{valorVencimiento.Value:N4} ({fechaVencimiento.Value:dd/MM/yyyy})";
         return new PunitorioResultado(Math.Max(recargoTim, 0), diasAtraso, detalleTim);
     }
