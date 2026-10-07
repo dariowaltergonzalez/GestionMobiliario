@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Search, X, Save, Trash2, Pencil, CheckCircle2, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
+import { fechaLocal } from '../../../utils/fecha'
 import {
   getGastos, createGasto, updateGasto, deleteGasto, marcarGastoResuelto,
   gastoFormVacio, CATEGORIAS_GASTO, RESPONSABLES_GASTO,
@@ -190,7 +191,7 @@ function ResolverGastoModal({ gasto, onResuelto, onCerrar }: {
   onResuelto: () => void
   onCerrar: () => void
 }) {
-  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10))
+  const [fecha, setFecha] = useState(fechaLocal())
   const [medio, setMedio] = useState(1)
   const [referenciaCobro, setReferenciaCobro] = useState('')
   const [chequeBanco, setChequeBanco] = useState('')

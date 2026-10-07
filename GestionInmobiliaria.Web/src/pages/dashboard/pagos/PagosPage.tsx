@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, FileDown, Plus, Trash2, AlertTriangle, Search } from 'lucide-react'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
+import { fechaLocal } from '../../../utils/fecha'
 import {
   getPagosConsolidados, getPagoMetricas, updatePagoConsolidado, descargarReciboPago,
   type PagoListDto, type PagoMetricasDto, type FiltrosPagos,
@@ -17,7 +18,7 @@ function mesAnio(iso: string) {
 }
 
 const toDateInput = (iso: string) => iso.split('T')[0]
-const hoy = new Date().toISOString().split('T')[0]
+const hoy = fechaLocal()
 
 const MESES = [
   [1, 'Enero'], [2, 'Febrero'], [3, 'Marzo'], [4, 'Abril'],

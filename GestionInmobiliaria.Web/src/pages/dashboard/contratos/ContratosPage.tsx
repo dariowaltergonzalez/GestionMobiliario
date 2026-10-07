@@ -6,6 +6,7 @@ import PunitoriosModal from './PunitoriosModal'
 import AjusteAutomaticoModal from './AjusteAutomaticoModal'
 import DetalleContratoModal from './DetalleContratoModal'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
+import { fechaLocal } from '../../../utils/fecha'
 import {
   getContratos, getContrato, createContrato, updateContrato, deleteContrato, transicionEstado,
   TIPOS_CONTRATO, ESTADOS_CONTRATO,
@@ -34,8 +35,8 @@ interface InquilinoCombo {
 }
 
 const toDateInput = (iso: string) => iso.split('T')[0]
-const hoy = new Date().toISOString().split('T')[0]
-const en24m = new Date(new Date().setMonth(new Date().getMonth() + 24)).toISOString().split('T')[0]
+const hoy = fechaLocal()
+const en24m = (() => { const d = new Date(); d.setMonth(d.getMonth() + 24); return fechaLocal(d) })()
 
 function formatMoneda(monto: number, moneda: string) {
   const fmt = monto.toLocaleString('es-AR')
