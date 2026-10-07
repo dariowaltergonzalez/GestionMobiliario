@@ -444,6 +444,7 @@ export default function PagosPage() {
     tamano: 15,
     mes: ahora.getMonth() + 1,
     anio: ahora.getFullYear(),
+    estadoContrato: 2,
   })
   const [cargando, setCargando] = useState(false)
   const [pagoModal, setPagoModal] = useState<PagoListDto | null>(null)
@@ -556,6 +557,18 @@ export default function PagosPage() {
             <option value="2">Pagado</option>
             <option value="3">Atrasado</option>
             <option value="4">Anulado</option>
+          </select>
+
+          <select
+            value={filtros.estadoContrato ?? 0}
+            onChange={e => setFiltros(f => ({ ...f, pagina: 1, estadoContrato: Number(e.target.value) || undefined }))}
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value={2}>Contratos vigentes</option>
+            <option value={4}>Contratos rescindidos</option>
+            <option value={3}>Contratos finalizados</option>
+            <option value={5}>Contratos anulados</option>
+            <option value={0}>Todos los contratos</option>
           </select>
 
           <span className="ml-auto text-sm text-gray-400">{totalRegistros} registros</span>

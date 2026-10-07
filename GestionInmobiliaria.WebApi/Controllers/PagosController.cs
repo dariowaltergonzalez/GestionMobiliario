@@ -56,9 +56,10 @@ public class PagosController : ControllerBase
         [FromQuery] EstadoPago? estado,
         [FromQuery] int? mes,
         [FromQuery] int? anio,
-        [FromQuery] string? buscar)
+        [FromQuery] string? buscar,
+        [FromQuery] EstadoContrato? estadoContrato)
     {
-        var resultado = await _pagos.GetPagedAsync(paginacion, contratoId, estado, mes, anio, buscar);
+        var resultado = await _pagos.GetPagedAsync(paginacion, contratoId, estado, mes, anio, buscar, estadoContrato);
         var items = new List<PagoListDto>();
         foreach (var pago in resultado.Items)
         {
@@ -85,8 +86,8 @@ public class PagosController : ControllerBase
     {
         var ahora = DateTime.UtcNow;
 
-        var pendientes    = await _context.Pagos.CountAsync(p => p.Estado == EstadoPago.Pendiente);
-        var atrasados     = await _context.Pagos.CountAsync(p => p.Estado == EstadoPago.Atrasado);
+        var pendientes    = await _context.Pagos.CountAsync(p => p.Estado == EstadoPago.Pendiente && p.Contrato.Estado == EstadoContrato.Vigente);
+        var atrasados     = await _context.Pagos.CountAsync(p => p.Estado == EstadoPago.Atrasado && p.Contrato.Estado == EstadoContrato.Vigente);
         var pagadosMes    = await _context.Pagos.CountAsync(p =>
             p.Estado == EstadoPago.Pagado &&
             p.FechaPago.HasValue &&
@@ -99,7 +100,7 @@ public class PagosController : ControllerBase
                         p.FechaPago.Value.Year == ahora.Year)
             .SumAsync(p => (decimal?)(p.MontoPagado ?? 0)) ?? 0;
         var totalPendiente = await _context.Pagos
-            .Where(p => p.Estado == EstadoPago.Pendiente || p.Estado == EstadoPago.Atrasado)
+            .Where(p => (p.Estado == EstadoPago.Pendiente || p.Estado == EstadoPago.Atrasado) && p.Contrato.Estado == EstadoContrato.Vigente)
             .SumAsync(p => (decimal?)p.MontoEsperado) ?? 0;
 
         return Ok(ApiResponse<PagoMetricasDto>.Ok(new PagoMetricasDto
