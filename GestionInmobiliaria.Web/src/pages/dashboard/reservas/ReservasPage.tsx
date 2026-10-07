@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Search, X, Save, Trash2, AlertTriangle, ChevronLeft, ChevronRight, CalendarClock, FileDown } from 'lucide-react'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
+import { fechaLocal } from '../../../utils/fecha'
 import {
   getReservas, getReserva, createReserva, updateReserva, deleteReserva,
   ESTADOS_RESERVA, MEDIOS_DEPOSITO, estadoReservaNumero,
@@ -53,8 +54,8 @@ interface ReservaFormProps {
 }
 
 function ReservaForm({ reserva, propiedades, agentes, leads, onGuardado, onCerrar }: ReservaFormProps) {
-  const hoy = new Date().toISOString().slice(0, 10)
-  const en15 = new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10)
+  const hoy = fechaLocal()
+  const en15 = fechaLocal(new Date(Date.now() + 15 * 86400000))
 
   const [form, setForm] = useState({
     propiedadId: reserva ? String(reserva.propiedadId) : '',

@@ -1,6 +1,7 @@
 import { Fragment, useState, useEffect, useCallback, useRef } from 'react'
 import { ChevronLeft, ChevronRight, ChevronDown, Search, Wallet, Pencil, Trash2, Plus, X, AlertTriangle, Paperclip, Sparkles, FileImage } from 'lucide-react'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
+import { fechaLocal } from '../../../utils/fecha'
 import {
   getLiquidaciones, getLiquidacionMetricas, eliminarLiquidacion,
   agregarAbono, editarAbono, eliminarAbono, extraerComprobante,
@@ -70,7 +71,7 @@ function MetricCard({ label, value, color }: { label: string; value: string | nu
 
 const abonoVacio = (montoSugerido: number): AbonoFormData => ({
   monto: Math.round(montoSugerido * 100) / 100,
-  fecha: new Date().toISOString().slice(0, 10),
+  fecha: fechaLocal(),
   medio: 2,
   cbuCvuDestino: '',
   entidadDestino: '',

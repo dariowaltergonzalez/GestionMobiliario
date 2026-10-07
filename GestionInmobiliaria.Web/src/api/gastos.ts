@@ -1,5 +1,6 @@
 import client from './client'
 import type { ApiResponse, PagedResult } from '../types/api'
+import { fechaLocal } from '../utils/fecha'
 
 export const CATEGORIAS_GASTO: Record<number, string> = {
   1: 'Reparación',
@@ -66,7 +67,7 @@ export const gastoFormVacio = (): GastoFormData => ({
   categoria: 1,
   descripcion: '',
   monto: 0,
-  fecha: new Date().toISOString().slice(0, 10),
+  fecha: fechaLocal(),
   responsable: 1,
   visibleParaInquilino: true,
 })
