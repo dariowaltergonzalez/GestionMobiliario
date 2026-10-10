@@ -84,6 +84,10 @@ public class ContratoRepository : IContratoRepository
         if (contrato.AdministracionCobros && contrato.Estado == EstadoContrato.Vigente)
             await GenerarPagosAsync(contrato);
 
+        // Comisión de cierre del agente (si se crea directo en Vigente con agente asignado)
+        if (contrato.Estado == EstadoContrato.Vigente && contrato.AgenteId.HasValue)
+            await GenerarComisionAgenteSiCorrespondeAsync(contrato);
+
         await _context.SaveChangesAsync();
         return contrato;
     }
@@ -99,6 +103,10 @@ public class ContratoRepository : IContratoRepository
             if (!tienePagos)
                 await GenerarPagosAsync(contrato);
         }
+
+        // Comisión de cierre del agente (si se edita y pasa/queda en Vigente con agente asignado)
+        if (contrato.Estado == EstadoContrato.Vigente && contrato.AgenteId.HasValue)
+            await GenerarComisionAgenteSiCorrespondeAsync(contrato);
 
         await SincronizarEstadoPropiedadAsync(contrato);
         await _context.SaveChangesAsync();
