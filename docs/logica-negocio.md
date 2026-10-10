@@ -362,6 +362,48 @@ imagen queda guardada en el sistema siempre, aunque la IA no encuentre nada.
 
 ---
 
+## COMISIONES DE AGENTES (2026-10-10)
+
+Lo que le corresponde cobrar al **agente** por haber cerrado un contrato (venta o alquiler) —
+**distinto** de `Liquidacion`, que es la comisión de administración de cobros que se liquida al
+**propietario** y es recurrente (una por cada cuota cobrada). La comisión del agente es **una sola
+vez por contrato**, por el trabajo de haberlo cerrado.
+
+- **Investigación de mercado (2026-10-10)**: en Argentina la inmobiliaria cobra 3-4%+IVA por lado en
+  venta, o 1 mes de alquiler en locación (a cargo del propietario). De esa comisión que cobra la
+  inmobiliaria, el agente se queda con un **45%-80%** según el esquema de la oficina (empleado vs.
+  "100% commission" tipo franquicia) — ese % es justo lo que ya guardábamos en `Agente.ComisionPorcentaje`
+  pero **nunca se usaba en ningún cálculo**. Algunas oficinas reparten la comisión por rol (prospección/
+  captación/venta) entre varios agentes — **no se implementó** esa parte, el contrato sigue teniendo un
+  solo `AgenteId` (alcance acordado con el usuario, se podría sumar después si hace falta).
+- **Cuándo se genera**: al pasar el contrato a **Vigente** (`ContratoRepository.TransicionEstadoAsync`,
+  método `GenerarComisionAgenteSiCorrespondeAsync`) — no por cada cobro, a diferencia de `Liquidacion`.
+  Solo se genera si el contrato tiene un `AgenteId` asignado y el agente tiene `ComisionPorcentaje > 0`.
+  Si ya existe una comisión para ese contrato (índice único en `ContratoId`), no se duplica.
+- **Sobre qué base se calcula**: la suma de `ComisionLocador` + `ComisionLocatario` del contrato (lo
+  que cobra la inmobiliaria en total por esa operación, calculado sobre `MontoBase` con el mismo
+  criterio que usa `Liquidacion` para `ComisionLocador` — Monto fijo si está cargado, si no
+  `MontoBase × Porcentaje / 100`). **`ComisionLocatario` no se usaba en ningún otro lado del sistema**
+  (ver sección LIQUIDACIÓN, nota sobre comisión al locatario) — ahora sí tiene un consumidor real.
+- **Snapshot del %**: `ComisionAgente.PorcentajeAgente` se copia de la ficha del agente al generarse y
+  queda congelado — si después se le cambia el % en su ficha, las comisiones ya generadas no se
+  recalculan (mismo criterio que los datos de Locador/Locatario en `Contrato`).
+- **Seguimiento de pago**: a diferencia de `Liquidacion` (que admite abonos parciales), acá es un pago
+  único — Pendiente → Pagado, con fecha/medio/observaciones. Se puede **editar** el pago ya registrado
+  o **deshacerlo** (vuelve a Pendiente, limpiando fecha/medio/observaciones) — a pedido explícito del
+  usuario, para poder corregir un error sin tener que tocar la base a mano.
+- **Auditoría**: `ComisionAgente` implementa `IAuditable`, así que cada alta/cambio queda registrado
+  solo en `AuditLogs` (INSERT al generarse, UPDATE en cada pago/edición/deshecho) — no hizo falta
+  ningún código extra para esto, es automático para toda entidad que implemente la interfaz.
+- **Pantalla**: `/dashboard/comisiones-agentes` — listado con métricas (pendientes, total pendiente,
+  pagadas/pagado del mes), filtro por estado y buscador por contrato/propiedad/agente.
+- **Probado en vivo en local (2026-10-10)**: se activó un contrato de prueba con agente asignado y
+  comisiones cargadas (2% + 2% sobre $450.000 = $18.000 de comisión inmobiliaria), dando $900 para un
+  agente con 5% — y se probaron los 4 endpoints (listar, registrar pago, editar pago, deshacer pago),
+  confirmando además el registro automático en Auditoría. Datos de prueba revertidos después.
+
+---
+
 ## GASTOS
 
 Gastos de una propiedad (reparaciones, impuestos, expensas, seguros...) que pueden ser a cargo del

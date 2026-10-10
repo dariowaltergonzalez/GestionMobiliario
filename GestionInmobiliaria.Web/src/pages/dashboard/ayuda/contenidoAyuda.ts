@@ -37,6 +37,10 @@ export const temasAyuda: TemaAyuda[] = [
     texto: 'Cuando un contrato tiene la inmobiliaria a cargo de administrar los cobros, cada vez que se cobra una cuota se calcula automáticamente cuánto le corresponde transferir al propietario (el cobro menos la comisión de gestión), y queda registrado cuándo y cómo se le pagó.',
   },
   {
+    titulo: 'Comisiones de Agentes',
+    texto: 'Lo que le corresponde cobrar al agente por haber cerrado un contrato — a diferencia de la Liquidación (que es recurrente, por cada cuota cobrada), esta comisión se calcula una sola vez, al activar el contrato. Se calcula como un porcentaje (el que tiene cargado en su ficha) sobre el total que cobra la inmobiliaria en esa operación. Desde esta pantalla se puede registrar cuándo se le pagó al agente, editar ese pago o deshacerlo si se cargó mal.',
+  },
+  {
     titulo: 'Gastos',
     texto: 'Registro de gastos de una propiedad (reparaciones, expensas, etc.), asignados a quien corresponda pagarlos: propietario, inquilino o la inmobiliaria.',
   },

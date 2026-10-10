@@ -179,10 +179,15 @@ public class ContratoRepository : IContratoRepository
                 contrato.MotivoAnulacion = motivo;
                 contrato.FechaAnulacion = fecha ?? DateTime.UtcNow;
                 break;
-            case EstadoContrato.Vigente when contrato.AdministracionCobros:
-                var tienePagos = await _context.Pagos.AnyAsync(p => p.ContratoId == contrato.Id && p.Activo);
-                if (!tienePagos)
-                    await GenerarPagosAsync(contrato);
+            case EstadoContrato.Vigente:
+                if (contrato.AdministracionCobros)
+                {
+                    var tienePagos = await _context.Pagos.AnyAsync(p => p.ContratoId == contrato.Id && p.Activo);
+                    if (!tienePagos)
+                        await GenerarPagosAsync(contrato);
+                }
+                if (contrato.AgenteId.HasValue)
+                    await GenerarComisionAgenteSiCorrespondeAsync(contrato);
                 break;
         }
 
@@ -235,6 +240,41 @@ public class ContratoRepository : IContratoRepository
             });
             fecha = fecha.AddMonths(1);
         }
+    }
+
+    // Comisión de cierre del agente (una sola vez, al activar el contrato) — ver
+    // docs/logica-negocio.md, sección COMISIONES DE AGENTES, para por qué se calcula así.
+    private async Task GenerarComisionAgenteSiCorrespondeAsync(Contrato contrato)
+    {
+        var yaExiste = await _context.ComisionesAgentes.AnyAsync(c => c.ContratoId == contrato.Id);
+        if (yaExiste) return;
+
+        var agente = await _context.Agentes.FirstOrDefaultAsync(a => a.Id == contrato.AgenteId!.Value);
+        if (agente is null || agente.ComisionPorcentaje <= 0) return;
+
+        decimal ComisionDe(decimal? monto, decimal? porcentaje) =>
+            monto ?? (porcentaje.HasValue ? Math.Round(contrato.MontoBase * (porcentaje.Value / 100), 2) : 0);
+
+        var montoComisionInmobiliaria =
+            ComisionDe(contrato.ComisionLocadorMonto, contrato.ComisionLocadorPorcentaje) +
+            ComisionDe(contrato.ComisionLocatarioMonto, contrato.ComisionLocatarioPorcentaje);
+        if (montoComisionInmobiliaria <= 0) return;
+
+        var montoAgente = Math.Round(montoComisionInmobiliaria * (agente.ComisionPorcentaje / 100), 2);
+
+        _context.ComisionesAgentes.Add(new ComisionAgente
+        {
+            ContratoId = contrato.Id,
+            AgenteId = agente.Id,
+            MontoComisionInmobiliaria = montoComisionInmobiliaria,
+            PorcentajeAgente = agente.ComisionPorcentaje,
+            MontoAgente = montoAgente,
+            Estado = EstadoComisionAgente.Pendiente,
+            Activo = true,
+            FechaCreacion = DateTime.UtcNow,
+            FechaActualizacion = DateTime.UtcNow,
+            TenantId = contrato.TenantId,
+        });
     }
 }
 

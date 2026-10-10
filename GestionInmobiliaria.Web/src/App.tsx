@@ -24,6 +24,7 @@ import PagosPage from './pages/dashboard/pagos/PagosPage'
 import LiquidacionesPage from './pages/dashboard/liquidaciones/LiquidacionesPage'
 import GastosPage from './pages/dashboard/gastos/GastosPage'
 import AyudaPage from './pages/dashboard/ayuda/AyudaPage'
+import ComisionesAgentesPage from './pages/dashboard/comisiones-agentes/ComisionesAgentesPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth()
@@ -54,6 +55,7 @@ function AppRoutes() {
       <Route path="/dashboard/pagos" element={<ProtectedRoute><PagosPage /></ProtectedRoute>} />
       <Route path="/dashboard/liquidaciones" element={<ProtectedRoute><LiquidacionesPage /></ProtectedRoute>} />
       <Route path="/dashboard/gastos" element={<ProtectedRoute><GastosPage /></ProtectedRoute>} />
+      <Route path="/dashboard/comisiones-agentes" element={<ProtectedRoute><ComisionesAgentesPage /></ProtectedRoute>} />
       <Route path="/dashboard/propietarios" element={<ProtectedRoute><PropietariosPage /></ProtectedRoute>} />
       <Route path="/dashboard/inquilinos" element={<ProtectedRoute><InquilinosPage /></ProtectedRoute>} />
       <Route path="/dashboard/configuracion" element={<ProtectedRoute><ConfiguracionPage /></ProtectedRoute>} />

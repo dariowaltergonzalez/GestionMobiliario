@@ -88,6 +88,7 @@ builder.Services.AddScoped<IReservaRepository, ReservaRepository>();
 builder.Services.AddScoped<IContratoRepository, ContratoRepository>();
 builder.Services.AddScoped<IPagoRepository, PagoRepository>();
 builder.Services.AddScoped<ILiquidacionRepository, LiquidacionRepository>();
+builder.Services.AddScoped<IComisionAgenteRepository, ComisionAgenteRepository>();
 builder.Services.AddScoped<IGastoRepository, GastoRepository>();
 builder.Services.AddScoped<IClausulaContratoRepository, ClausulaContratoRepository>();
 builder.Services.AddScoped<IAppLogRepository, AppLogRepository>();
