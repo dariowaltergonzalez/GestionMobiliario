@@ -40,6 +40,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<AjusteContrato> AjustesContrato => Set<AjusteContrato>();
     public DbSet<Liquidacion> Liquidaciones => Set<Liquidacion>();
     public DbSet<LiquidacionAbono> LiquidacionAbonos => Set<LiquidacionAbono>();
+    public DbSet<ComisionAgente> ComisionesAgentes => Set<ComisionAgente>();
     public DbSet<Gasto> Gastos => Set<Gasto>();
     public DbSet<DocumentoContrato> DocumentosContrato => Set<DocumentoContrato>();
     public DbSet<FotoSolicitud> FotosSolicitud => Set<FotoSolicitud>();
@@ -75,6 +76,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         builder.Entity<AjusteContrato>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<Liquidacion>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<LiquidacionAbono>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
+        builder.Entity<ComisionAgente>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<Gasto>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<DocumentoContrato>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) && e.Activo);
         builder.Entity<FotoSolicitud>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
@@ -555,6 +557,24 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
              .WithMany(l => l.Abonos)
              .HasForeignKey(a => a.LiquidacionId)
              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ComisionAgente>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Property(c => c.MontoComisionInmobiliaria).HasColumnType("decimal(18,2)");
+            e.Property(c => c.PorcentajeAgente).HasColumnType("decimal(5,2)");
+            e.Property(c => c.MontoAgente).HasColumnType("decimal(18,2)");
+            e.Property(c => c.Observaciones).HasMaxLength(1000);
+            e.HasIndex(c => c.ContratoId).IsUnique();
+            e.HasOne(c => c.Contrato)
+             .WithMany()
+             .HasForeignKey(c => c.ContratoId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(c => c.Agente)
+             .WithMany()
+             .HasForeignKey(c => c.AgenteId)
+             .OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<DocumentoContrato>(e =>

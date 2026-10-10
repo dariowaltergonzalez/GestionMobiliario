@@ -641,6 +641,64 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                         });
                 });
 
+            modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.ComisionAgente", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("AgenteId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ContratoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("FechaActualizacion")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("FechaPago")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("Medio")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("MontoAgente")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("MontoComisionInmobiliaria")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Observaciones")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<decimal>("PorcentajeAgente")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgenteId");
+
+                    b.HasIndex("ContratoId")
+                        .IsUnique();
+
+                    b.ToTable("ComisionesAgentes");
+                });
+
             modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.ConfiguracionEmpresa", b =>
                 {
                     b.Property<int>("Id")
@@ -2471,6 +2529,25 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                         .HasForeignKey("ContratoId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Contrato");
+                });
+
+            modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.ComisionAgente", b =>
+                {
+                    b.HasOne("GestionInmobiliaria.Dominio.Entidades.Agente", "Agente")
+                        .WithMany()
+                        .HasForeignKey("AgenteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GestionInmobiliaria.Dominio.Entidades.Contrato", "Contrato")
+                        .WithMany()
+                        .HasForeignKey("ContratoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Agente");
 
                     b.Navigation("Contrato");
                 });
