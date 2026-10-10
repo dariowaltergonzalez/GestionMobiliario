@@ -21,7 +21,7 @@ import type { ApiResponse } from '../../../types/api'
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 interface PropiedadCombo {
-  id: number; direccion: string
+  id: number; direccion: string; estado: string
   propietarioId: number
   propietarioNombre: string; propietarioApellido: string
   propietarioDni?: string; propietarioTelefono?: string; propietarioEmail?: string
@@ -356,9 +356,15 @@ function ContratoForm({ contrato, onGuardado, onCerrar }: {
               <label className="block text-xs font-medium text-gray-600 mb-1">Propiedad <span className="text-red-500">*</span></label>
               <select value={form.propiedadId} onChange={e => handlePropiedadChange(e.target.value)} className={inp}>
                 <option value="">Seleccionar...</option>
-                {propiedades.map(p => (
-                  <option key={p.id} value={p.id}>{p.direccion}</option>
-                ))}
+                {propiedades.map(p => {
+                  const esLaDelContrato = contrato?.propiedadId === p.id
+                  const noDisponible = p.estado !== 'Disponible' && !esLaDelContrato
+                  return (
+                    <option key={p.id} value={p.id} disabled={noDisponible}>
+                      {p.direccion}{noDisponible ? ` (${p.estado} — no disponible)` : ''}
+                    </option>
+                  )
+                })}
               </select>
             </div>
             <div>

@@ -284,6 +284,7 @@ public class PropiedadesController : ControllerBase
     {
         id = p.Id,
         direccion = $"[{p.Codigo}] {p.Tipo} — {p.Direccion}{(p.Barrio != null ? ", " + p.Barrio : "")}",
+        estado = p.Estado.ToString(),
         propietarioId = p.Propietario.Id,
         propietarioNombre = p.Propietario.Nombre,
         propietarioApellido = p.Propietario.Apellido,
