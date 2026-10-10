@@ -38,7 +38,7 @@ export const temasAyuda: TemaAyuda[] = [
   },
   {
     titulo: 'Comisiones de Agentes',
-    texto: 'Lo que le corresponde cobrar al agente por haber cerrado un contrato — a diferencia de la Liquidación (que es recurrente, por cada cuota cobrada), esta comisión se calcula una sola vez, al activar el contrato. Se calcula como un porcentaje (el que tiene cargado en su ficha) sobre el total que cobra la inmobiliaria en esa operación. Desde esta pantalla se puede registrar cuándo se le pagó al agente, editar ese pago o deshacerlo si se cargó mal.',
+    texto: 'Lo que le corresponde cobrar al agente por haber cerrado un contrato — a diferencia de la Liquidación (que es recurrente, por cada cuota cobrada), esta comisión se calcula una sola vez, al activar el contrato. Se calcula como un porcentaje (el que tiene cargado en su ficha) sobre el total que cobra la inmobiliaria en esa operación. Desde esta pantalla se puede registrar cuándo se le pagó al agente, editar ese pago o deshacerlo si se cargó mal. El agente recibe un aviso automático por email y WhatsApp tanto cuando se le genera la comisión como cuando se le paga (configurable desde su ficha, igual que con propietarios e inquilinos).',
   },
   {
     titulo: 'Gastos',

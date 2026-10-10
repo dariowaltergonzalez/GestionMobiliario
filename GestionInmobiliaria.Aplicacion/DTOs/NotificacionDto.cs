@@ -26,4 +26,10 @@ public static class TemasNotificacion
         new() { Codigo = "AvisoVencimientoProximo", Label = "Recordatorio de vencimiento próximo de cuota" },
         new() { Codigo = "AvisoGastoPendiente", Label = "Aviso de gasto a cargo del inquilino" },
     };
+
+    public static readonly IReadOnlyList<TemaNotificacionDto> Agente = new List<TemaNotificacionDto>
+    {
+        new() { Codigo = "ComisionGenerada", Label = "Aviso de comisión generada por cierre de contrato" },
+        new() { Codigo = "ComisionPagada", Label = "Aviso de pago de comisión" },
+    };
 }

@@ -46,9 +46,18 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<string>("Notificaciones")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("NotificacionesWhatsApp")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("TelefonoInterno")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("TelefonoWhatsApp")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("TenantId")
                         .HasColumnType("int");

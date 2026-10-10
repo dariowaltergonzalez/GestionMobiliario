@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight, AlertTriangle, X, Save, Eye, EyeOff } from 'lucide-react'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
 import {
-  getAgentes, createAgente, updateAgente, deleteAgente,
+  getAgentes, createAgente, updateAgente, deleteAgente, getTemasNotificacionAgente,
   type AgenteDto, type FiltrosAgentes,
-  type CreateAgenteRequest, type UpdateAgenteRequest,
+  type CreateAgenteRequest, type UpdateAgenteRequest, type TemaNotificacionDto,
 } from '../../../api/agentes'
 
 function formatFecha(iso: string) {
@@ -31,13 +31,26 @@ function AgenteForm({ agente, onGuardado, onCerrar }: AgenteFormProps) {
     telefonoInterno: agente?.telefonoInterno ?? '',
     comisionPorcentaje: agente ? String(agente.comisionPorcentaje) : '0',
     notas: agente?.notas ?? '',
+    telefonoWhatsApp: agente?.telefonoWhatsApp ?? '',
     activo: agente?.activo ?? true,
   })
+  const [notificaciones, setNotificaciones] = useState<Record<string, boolean>>(agente?.notificaciones ?? {})
+  const [notificacionesWhatsApp, setNotificacionesWhatsApp] = useState<Record<string, boolean>>(agente?.notificacionesWhatsApp ?? {})
+  const [temas, setTemas] = useState<TemaNotificacionDto[]>([])
+  const [temaAAgregar, setTemaAAgregar] = useState('')
+  const [temaAAgregarWhatsApp, setTemaAAgregarWhatsApp] = useState('')
   const [mostrarPassword, setMostrarPassword] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    getTemasNotificacionAgente().then(res => { if (res.success) setTemas(res.data) }).catch(() => {})
+  }, [])
+
   const set = (field: string, value: string | boolean) => setForm(f => ({ ...f, [field]: value }))
+
+  const temasDisponibles = temas.filter(t => !(t.codigo in notificaciones))
+  const temasDisponiblesWhatsApp = temas.filter(t => !(t.codigo in notificacionesWhatsApp))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -62,6 +75,9 @@ function AgenteForm({ agente, onGuardado, onCerrar }: AgenteFormProps) {
           telefonoInterno: form.telefonoInterno.trim() || undefined,
           comisionPorcentaje: Number(form.comisionPorcentaje),
           notas: form.notas.trim() || undefined,
+          telefonoWhatsApp: form.telefonoWhatsApp.trim() || undefined,
+          notificaciones,
+          notificacionesWhatsApp,
         }
         await createAgente(payload)
       } else {
@@ -72,6 +88,9 @@ function AgenteForm({ agente, onGuardado, onCerrar }: AgenteFormProps) {
           telefonoInterno: form.telefonoInterno.trim() || undefined,
           comisionPorcentaje: Number(form.comisionPorcentaje),
           notas: form.notas.trim() || undefined,
+          telefonoWhatsApp: form.telefonoWhatsApp.trim() || undefined,
+          notificaciones,
+          notificacionesWhatsApp,
           activo: form.activo as boolean,
         }
         await updateAgente(agente!.id, payload)
@@ -158,6 +177,109 @@ function AgenteForm({ agente, onGuardado, onCerrar }: AgenteFormProps) {
               onChange={e => set('comisionPorcentaje', e.target.value)}
               className={inputCls}
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Teléfono WhatsApp</label>
+            <input
+              type="text"
+              value={form.telefonoWhatsApp}
+              onChange={e => set('telefonoWhatsApp', e.target.value)}
+              className={inputCls}
+              placeholder="+5492664123456"
+            />
+            <p className="text-xs text-gray-400 mt-1">Formato internacional completo (con +54 9...).</p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Notificaciones automáticas por email</label>
+            {Object.keys(notificaciones).length > 0 && (
+              <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 mb-2">
+                {Object.entries(notificaciones).map(([codigo, habilitado]) => (
+                  <div key={codigo} className="flex items-center justify-between gap-2 px-3 py-2">
+                    <span className="text-sm text-gray-700">{temas.find(t => t.codigo === codigo)?.label ?? codigo}</span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setNotificaciones(n => ({ ...n, [codigo]: !n[codigo] }))}
+                        className={`text-xs font-semibold px-2.5 py-1 rounded-full ${habilitado ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}
+                      >
+                        {habilitado ? 'Sí' : 'No'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNotificaciones(n => { const r = { ...n }; delete r[codigo]; return r })}
+                        className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {temasDisponibles.length > 0 && (
+              <div className="flex gap-2">
+                <select value={temaAAgregar} onChange={e => setTemaAAgregar(e.target.value)} className={`${inputCls} flex-1`}>
+                  <option value="">Seleccionar tema...</option>
+                  {temasDisponibles.map(t => <option key={t.codigo} value={t.codigo}>{t.label}</option>)}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => { if (temaAAgregar) { setNotificaciones(n => ({ ...n, [temaAAgregar]: true })); setTemaAAgregar('') } }}
+                  disabled={!temaAAgregar}
+                  className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> Agregar
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Notificaciones automáticas por WhatsApp</label>
+            <p className="text-xs text-gray-400 mb-2">Requiere que el agente tenga el "Teléfono WhatsApp" cargado arriba.</p>
+            {Object.keys(notificacionesWhatsApp).length > 0 && (
+              <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 mb-2">
+                {Object.entries(notificacionesWhatsApp).map(([codigo, habilitado]) => (
+                  <div key={codigo} className="flex items-center justify-between gap-2 px-3 py-2">
+                    <span className="text-sm text-gray-700">{temas.find(t => t.codigo === codigo)?.label ?? codigo}</span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setNotificacionesWhatsApp(n => ({ ...n, [codigo]: !n[codigo] }))}
+                        className={`text-xs font-semibold px-2.5 py-1 rounded-full ${habilitado ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}
+                      >
+                        {habilitado ? 'Sí' : 'No'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNotificacionesWhatsApp(n => { const r = { ...n }; delete r[codigo]; return r })}
+                        className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {temasDisponiblesWhatsApp.length > 0 && (
+              <div className="flex gap-2">
+                <select value={temaAAgregarWhatsApp} onChange={e => setTemaAAgregarWhatsApp(e.target.value)} className={`${inputCls} flex-1`}>
+                  <option value="">Seleccionar tema...</option>
+                  {temasDisponiblesWhatsApp.map(t => <option key={t.codigo} value={t.codigo}>{t.label}</option>)}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => { if (temaAAgregarWhatsApp) { setNotificacionesWhatsApp(n => ({ ...n, [temaAAgregarWhatsApp]: true })); setTemaAAgregarWhatsApp('') } }}
+                  disabled={!temaAAgregarWhatsApp}
+                  className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> Agregar
+                </button>
+              </div>
+            )}
           </div>
 
           <div>

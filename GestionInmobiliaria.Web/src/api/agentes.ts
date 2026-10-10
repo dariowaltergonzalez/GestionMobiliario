@@ -1,5 +1,8 @@
 import client from './client'
 import type { ApiResponse, PagedResult } from '../types/api'
+import type { TemaNotificacionDto } from './propietarios'
+
+export type { TemaNotificacionDto }
 
 export interface AgenteDto {
   id: number
@@ -12,6 +15,9 @@ export interface AgenteDto {
   telefonoInterno: string | null
   comisionPorcentaje: number
   notas: string | null
+  telefonoWhatsApp: string | null
+  notificaciones: Record<string, boolean>
+  notificacionesWhatsApp: Record<string, boolean>
   activo: boolean
   fechaCreacion: string
   cantidadPropiedades: number
@@ -27,6 +33,9 @@ export interface CreateAgenteRequest {
   telefonoInterno?: string
   comisionPorcentaje: number
   notas?: string
+  telefonoWhatsApp?: string
+  notificaciones?: Record<string, boolean>
+  notificacionesWhatsApp?: Record<string, boolean>
 }
 
 export interface UpdateAgenteRequest {
@@ -36,7 +45,15 @@ export interface UpdateAgenteRequest {
   telefonoInterno?: string
   comisionPorcentaje: number
   notas?: string
+  telefonoWhatsApp?: string
+  notificaciones?: Record<string, boolean>
+  notificacionesWhatsApp?: Record<string, boolean>
   activo: boolean
+}
+
+export const getTemasNotificacionAgente = async () => {
+  const res = await client.get<ApiResponse<TemaNotificacionDto[]>>('/api/agentes/temas-notificacion')
+  return res.data
 }
 
 export interface FiltrosAgentes {

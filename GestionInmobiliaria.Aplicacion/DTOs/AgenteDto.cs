@@ -12,6 +12,9 @@ public class AgenteDto
     public string? TelefonoInterno { get; set; }
     public decimal ComisionPorcentaje { get; set; }
     public string? Notas { get; set; }
+    public string? TelefonoWhatsApp { get; set; }
+    public Dictionary<string, bool> Notificaciones { get; set; } = new();
+    public Dictionary<string, bool> NotificacionesWhatsApp { get; set; } = new();
     public bool Activo { get; set; }
     public DateTime FechaCreacion { get; set; }
     public int CantidadPropiedades { get; set; }
@@ -28,6 +31,9 @@ public class CreateAgenteRequest
     public string? TelefonoInterno { get; set; }
     public decimal ComisionPorcentaje { get; set; } = 0;
     public string? Notas { get; set; }
+    public string? TelefonoWhatsApp { get; set; }
+    public Dictionary<string, bool>? Notificaciones { get; set; }
+    public Dictionary<string, bool>? NotificacionesWhatsApp { get; set; }
 }
 
 public class UpdateAgenteRequest
@@ -38,6 +44,9 @@ public class UpdateAgenteRequest
     public string? TelefonoInterno { get; set; }
     public decimal ComisionPorcentaje { get; set; }
     public string? Notas { get; set; }
+    public string? TelefonoWhatsApp { get; set; }
+    public Dictionary<string, bool>? Notificaciones { get; set; }
+    public Dictionary<string, bool>? NotificacionesWhatsApp { get; set; }
     public bool Activo { get; set; }
 }
 

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using GestionInmobiliaria.Aplicacion.DTOs;
 using GestionInmobiliaria.Dominio.Common;
 using GestionInmobiliaria.Dominio.Entidades;
@@ -44,6 +45,10 @@ public class AgentesController : ControllerBase
         };
         return Ok(ApiResponse<PagedResult<AgenteDto>>.Ok(paginado));
     }
+
+    [HttpGet("temas-notificacion")]
+    public IActionResult GetTemasNotificacion()
+        => Ok(ApiResponse<IReadOnlyList<TemaNotificacionDto>>.Ok(TemasNotificacion.Agente));
 
     [HttpGet("activos")]
     public async Task<IActionResult> GetActivos()
@@ -101,7 +106,10 @@ public class AgentesController : ControllerBase
             Zona = request.Zona,
             TelefonoInterno = request.TelefonoInterno,
             ComisionPorcentaje = request.ComisionPorcentaje,
-            Notas = request.Notas
+            Notas = request.Notas,
+            TelefonoWhatsApp = request.TelefonoWhatsApp,
+            Notificaciones = SerializarNotificaciones(request.Notificaciones),
+            NotificacionesWhatsApp = SerializarNotificaciones(request.NotificacionesWhatsApp),
         };
 
         var creado = await _repo.CreateAsync(agente);
@@ -125,6 +133,9 @@ public class AgentesController : ControllerBase
         agente.TelefonoInterno = request.TelefonoInterno;
         agente.ComisionPorcentaje = request.ComisionPorcentaje;
         agente.Notas = request.Notas;
+        agente.TelefonoWhatsApp = request.TelefonoWhatsApp;
+        agente.Notificaciones = SerializarNotificaciones(request.Notificaciones);
+        agente.NotificacionesWhatsApp = SerializarNotificaciones(request.NotificacionesWhatsApp);
         agente.Activo = request.Activo;
 
         await _userManager.UpdateAsync(agente.User);
@@ -158,9 +169,20 @@ public class AgentesController : ControllerBase
         TelefonoInterno = a.TelefonoInterno,
         ComisionPorcentaje = a.ComisionPorcentaje,
         Notas = a.Notas,
+        TelefonoWhatsApp = a.TelefonoWhatsApp,
+        Notificaciones = DeserializarNotificaciones(a.Notificaciones),
+        NotificacionesWhatsApp = DeserializarNotificaciones(a.NotificacionesWhatsApp),
         Activo = a.Activo,
         FechaCreacion = a.FechaCreacion,
         CantidadPropiedades = a.Propiedades.Count,
         CantidadInquilinos = a.Inquilinos.Count
     };
+
+    private static string? SerializarNotificaciones(Dictionary<string, bool>? notificaciones) =>
+        notificaciones is null or { Count: 0 } ? null : JsonSerializer.Serialize(notificaciones);
+
+    private static Dictionary<string, bool> DeserializarNotificaciones(string? json) =>
+        string.IsNullOrWhiteSpace(json)
+            ? new Dictionary<string, bool>()
+            : JsonSerializer.Deserialize<Dictionary<string, bool>>(json) ?? new Dictionary<string, bool>();
 }

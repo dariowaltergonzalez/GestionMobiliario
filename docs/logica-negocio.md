@@ -376,10 +376,17 @@ vez por contrato**, por el trabajo de haberlo cerrado.
   pero **nunca se usaba en ningún cálculo**. Algunas oficinas reparten la comisión por rol (prospección/
   captación/venta) entre varios agentes — **no se implementó** esa parte, el contrato sigue teniendo un
   solo `AgenteId` (alcance acordado con el usuario, se podría sumar después si hace falta).
-- **Cuándo se genera**: al pasar el contrato a **Vigente** (`ContratoRepository.TransicionEstadoAsync`,
-  método `GenerarComisionAgenteSiCorrespondeAsync`) — no por cada cobro, a diferencia de `Liquidacion`.
-  Solo se genera si el contrato tiene un `AgenteId` asignado y el agente tiene `ComisionPorcentaje > 0`.
-  Si ya existe una comisión para ese contrato (índice único en `ContratoId`), no se duplica.
+- **Cuándo se genera**: al pasar el contrato a **Vigente** — no por cada cobro, a diferencia de
+  `Liquidacion`. Solo se genera si el contrato tiene un `AgenteId` asignado y el agente tiene
+  `ComisionPorcentaje > 0`. Si ya existe una comisión para ese contrato (índice único en `ContratoId`),
+  no se duplica.
+  **Bug real encontrado y arreglado (2026-10-10)**: un contrato puede quedar Vigente por **tres**
+  caminos de código distintos — `ContratoRepository.CreateAsync` (crearlo directo en Vigente, el caso
+  más común), `UpdateAsync` (editarlo y dejarlo en Vigente) y `TransicionEstadoAsync` (el endpoint
+  dedicado de cambio de estado). La generación de la comisión solo se había conectado en el tercero —
+  el primer contrato de prueba creado directo en Vigente **no generó ninguna comisión**, detectado
+  recién al pedir verificarlo. Se agregó el mismo enganche (`GenerarComisionAgenteSiCorrespondeAsync`)
+  en los tres lugares.
 - **Sobre qué base se calcula**: la suma de `ComisionLocador` + `ComisionLocatario` del contrato (lo
   que cobra la inmobiliaria en total por esa operación, calculado sobre `MontoBase` con el mismo
   criterio que usa `Liquidacion` para `ComisionLocador` — Monto fijo si está cargado, si no
@@ -397,10 +404,21 @@ vez por contrato**, por el trabajo de haberlo cerrado.
   ningún código extra para esto, es automático para toda entidad que implemente la interfaz.
 - **Pantalla**: `/dashboard/comisiones-agentes` — listado con métricas (pendientes, total pendiente,
   pagadas/pagado del mes), filtro por estado y buscador por contrato/propiedad/agente.
+- **Avisos al agente (2026-10-10)**: `Agente` ahora implementa `INotificable` (mismo patrón que
+  Propietario/Inquilino) — se le agregaron `TelefonoWhatsApp`, `Notificaciones` y
+  `NotificacionesWhatsApp` a su ficha. El email usa el de su `User` (con el que se loguea, no uno
+  nuevo). Dos temas nuevos en `TemasNotificacion.Agente`: `ComisionGenerada` (se le avisa al
+  generarse la comisión) y `ComisionPagada` (al registrarle el pago) — ambos por email y WhatsApp,
+  con el mismo opt-in por tema que ya usan Propietario/Inquilino. El envío corre fire-and-forget con
+  su propio scope, igual que el resto de los avisos de la app — en `ContratoRepository` para
+  `ComisionGenerada` (la única notificación que sale desde un repositorio, no desde un controller,
+  porque la generación de la comisión vive ahí) y en `ComisionesAgentesController` para
+  `ComisionPagada`.
 - **Probado en vivo en local (2026-10-10)**: se activó un contrato de prueba con agente asignado y
   comisiones cargadas (2% + 2% sobre $450.000 = $18.000 de comisión inmobiliaria), dando $900 para un
   agente con 5% — y se probaron los 4 endpoints (listar, registrar pago, editar pago, deshacer pago),
-  confirmando además el registro automático en Auditoría. Datos de prueba revertidos después.
+  confirmando además el registro automático en Auditoría, y los dos avisos (`ComisionGenerada` y
+  `ComisionPagada`) llegando por email y WhatsApp. Datos de prueba revertidos después.
 
 ---
 
