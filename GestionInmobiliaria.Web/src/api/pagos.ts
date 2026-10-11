@@ -89,8 +89,18 @@ export const getIngresosMensuales = async (meses = 12) => {
   return res.data
 }
 
-export const getComisionEstimadaMes = async () => {
-  const res = await client.get<ApiResponse<{ monto: number }>>('/api/pagos/comision-estimada-mes')
+export const getComisionEstimadaMes = async (mesesAdelante = 0) => {
+  const res = await client.get<ApiResponse<{ monto: number }>>('/api/pagos/comision-estimada-mes', { params: { mesesAdelante } })
+  return res.data
+}
+
+export interface MorosidadDto {
+  cantidadCuotas: number
+  montoTotal: number
+}
+
+export const getMorosidad = async () => {
+  const res = await client.get<ApiResponse<MorosidadDto>>('/api/pagos/morosidad')
   return res.data
 }
 

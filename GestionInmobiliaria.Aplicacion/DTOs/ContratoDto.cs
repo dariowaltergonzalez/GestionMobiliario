@@ -281,3 +281,9 @@ public class ComisionEstimadaMesDto
 {
     public decimal Monto { get; set; }
 }
+
+public class MorosidadDto
+{
+    public int CantidadCuotas { get; set; }
+    public decimal MontoTotal { get; set; }
+}

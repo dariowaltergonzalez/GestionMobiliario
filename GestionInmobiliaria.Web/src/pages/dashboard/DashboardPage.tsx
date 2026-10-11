@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Users, Calendar, TrendingUp, ChevronRight, Building2, ClipboardList, Percent, Trophy, Wallet } from 'lucide-react'
+import { Users, Calendar, TrendingUp, ChevronRight, Building2, ClipboardList, Percent, Trophy, Wallet, PiggyBank, AlertTriangle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { useAuth } from '../../context/AuthContext'
@@ -9,7 +9,7 @@ import type { ApiResponse, PagedResult } from '../../types/api'
 import type { EventoAgendaDto } from '../../api/agenda'
 import { getComisionAgenteMetricas, getTopAgentesMes, type ComisionAgenteMetricasDto, type TopAgenteDto } from '../../api/comisionesAgentes'
 import { getPropiedadesPorEstado, type PropiedadPorEstadoDto } from '../../api/propiedades'
-import { getIngresosMensuales, getComisionEstimadaMes, type IngresoMensualDto } from '../../api/pagos'
+import { getIngresosMensuales, getComisionEstimadaMes, getMorosidad, type IngresoMensualDto, type MorosidadDto } from '../../api/pagos'
 
 const LABEL_ESTADO_PROPIEDAD: Record<string, string> = {
   Disponible: 'Disponible',
@@ -122,6 +122,8 @@ export default function DashboardPage() {
   const [propiedadesPorEstado, setPropiedadesPorEstado] = useState<PropiedadPorEstadoDto[]>([])
   const [ingresosMensuales, setIngresosMensuales] = useState<IngresoMensualDto[]>([])
   const [comisionEstimadaMes, setComisionEstimadaMes] = useState<number | null>(null)
+  const [gananciaProximoMes, setGananciaProximoMes] = useState<number | null>(null)
+  const [morosidad, setMorosidad] = useState<MorosidadDto | null>(null)
   const puedeVerComisiones = user?.rol === 'Admin' || user?.rol === 'Operador'
 
   useEffect(() => {
@@ -160,10 +162,15 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!puedeVerComisiones) return
-    Promise.all([getComisionAgenteMetricas(), getTopAgentesMes(3), getComisionEstimadaMes()]).then(([metricasRes, topRes, estimadaRes]) => {
+    Promise.all([
+      getComisionAgenteMetricas(), getTopAgentesMes(3), getComisionEstimadaMes(),
+      getComisionEstimadaMes(1), getMorosidad(),
+    ]).then(([metricasRes, topRes, estimadaRes, proximoMesRes, morosidadRes]) => {
       if (metricasRes.success) setComisionesStats(metricasRes.data)
       if (topRes.success) setTopAgentes(topRes.data)
       if (estimadaRes.success) setComisionEstimadaMes(estimadaRes.data.monto)
+      if (proximoMesRes.success) setGananciaProximoMes(proximoMesRes.data.monto)
+      if (morosidadRes.success) setMorosidad(morosidadRes.data)
     }).catch(() => {})
   }, [puedeVerComisiones])
 
@@ -223,6 +230,22 @@ export default function DashboardPage() {
       icono: Wallet,
       color: 'bg-teal-50 text-teal-700',
       tendencia: 'administración, este mes',
+      href: '/dashboard/pagos',
+    }] : []),
+    ...(puedeVerComisiones ? [{
+      label: 'Ganancia estimada mes que viene',
+      valor: gananciaProximoMes !== null ? `$ ${gananciaProximoMes.toLocaleString('es-AR', { maximumFractionDigits: 0 })}` : '—',
+      icono: PiggyBank,
+      color: 'bg-indigo-50 text-indigo-700',
+      tendencia: 'tu % de administración',
+      href: '/dashboard/pagos',
+    }] : []),
+    ...(puedeVerComisiones ? [{
+      label: 'Morosidad acumulada',
+      valor: morosidad?.cantidadCuotas ?? '—',
+      icono: AlertTriangle,
+      color: 'bg-red-50 text-red-700',
+      tendencia: morosidad ? `$ ${morosidad.montoTotal.toLocaleString('es-AR', { maximumFractionDigits: 0 })} vencido sin cobrar` : 'vencido sin cobrar',
       href: '/dashboard/pagos',
     }] : []),
   ]

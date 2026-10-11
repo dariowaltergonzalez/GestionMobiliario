@@ -143,19 +143,44 @@ public class PagosController : ControllerBase
     }
 
     [HttpGet("comision-estimada-mes")]
-    public async Task<IActionResult> GetComisionEstimadaMes()
+    public async Task<IActionResult> GetComisionEstimadaMes([FromQuery] int mesesAdelante = 0)
     {
-        var ahora = DateTime.UtcNow;
+        var fechaObjetivo = DateTime.UtcNow.AddMonths(mesesAdelante);
 
         var monto = await _context.Pagos
             .Where(p => p.Activo && p.Contrato.Activo && p.Contrato.Estado == EstadoContrato.Vigente &&
                         p.Contrato.AdministracionCobros &&
                         (p.Contrato.ComisionLocadorPorcentaje != null || p.Contrato.ComisionLocadorMonto != null) &&
-                        p.Periodo.Month == ahora.Month && p.Periodo.Year == ahora.Year)
+                        p.Periodo.Month == fechaObjetivo.Month && p.Periodo.Year == fechaObjetivo.Year)
             .SumAsync(p => (decimal?)(p.Contrato.ComisionLocadorMonto
                 ?? Math.Round(p.MontoEsperado * (p.Contrato.ComisionLocadorPorcentaje!.Value / 100), 2))) ?? 0;
 
         return Ok(ApiResponse<ComisionEstimadaMesDto>.Ok(new ComisionEstimadaMesDto { Monto = monto }));
+    }
+
+    // Morosidad = cuotas Pendiente/Atrasado de contratos Vigentes cuyo vencimiento ya pasó. Se trae el
+    // set candidato (normalmente chico, son solo las cuotas no cobradas) y se filtra en memoria porque
+    // VencimientoCalculator no es traducible a SQL (clampea el día al tope del mes).
+    [HttpGet("morosidad")]
+    [Authorize(Roles = "Admin,Operador")]
+    public async Task<IActionResult> GetMorosidad()
+    {
+        var candidatos = await _context.Pagos
+            .Where(p => p.Activo && (p.Estado == EstadoPago.Pendiente || p.Estado == EstadoPago.Atrasado) &&
+                        p.Contrato.Activo && p.Contrato.Estado == EstadoContrato.Vigente)
+            .Select(p => new { p.Periodo, p.MontoEsperado, p.Contrato.DiaVencimientoPago })
+            .ToListAsync();
+
+        var hoy = DateTime.UtcNow.Date;
+        var enMora = candidatos
+            .Where(p => VencimientoCalculator.Calcular(p.Periodo, p.DiaVencimientoPago) is { } v && v.Date < hoy)
+            .ToList();
+
+        return Ok(ApiResponse<MorosidadDto>.Ok(new MorosidadDto
+        {
+            CantidadCuotas = enMora.Count,
+            MontoTotal = enMora.Sum(p => p.MontoEsperado),
+        }));
     }
 
     [HttpPut("{contratoId}/pagos/{pagoId}")]
