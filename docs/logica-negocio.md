@@ -414,6 +414,9 @@ vez por contrato**, por el trabajo de haberlo cerrado.
   `ComisionGenerada` (la única notificación que sale desde un repositorio, no desde un controller,
   porque la generación de la comisión vive ahí) y en `ComisionesAgentesController` para
   `ComisionPagada`.
+- **Dashboard (2026-10-11)**: tarjeta "Comisiones pendientes" y panel "Top 3 agentes del mes"
+  (ranking por comisión **pagada** este mes, no generada — para que sea plata real entregada). Visible
+  solo para Admin/Operador, igual criterio que el menú (los Agentes no ven comisiones de otros).
 - **Probado en vivo en local (2026-10-10)**: se activó un contrato de prueba con agente asignado y
   comisiones cargadas (2% + 2% sobre $450.000 = $18.000 de comisión inmobiliaria), dando $900 para un
   agente con 5% — y se probaron los 4 endpoints (listar, registrar pago, editar pago, deshacer pago),

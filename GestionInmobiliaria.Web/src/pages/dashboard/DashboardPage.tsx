@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Users, Calendar, TrendingUp, ChevronRight, Building2, ClipboardList } from 'lucide-react'
+import { Users, Calendar, TrendingUp, ChevronRight, Building2, ClipboardList, Percent, Trophy } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import client from '../../api/client'
 import type { ApiResponse, PagedResult } from '../../types/api'
 import type { EventoAgendaDto } from '../../api/agenda'
+import { getComisionAgenteMetricas, getTopAgentesMes, type ComisionAgenteMetricasDto, type TopAgenteDto } from '../../api/comisionesAgentes'
 
 interface TasacionResumen {
   id: number
@@ -91,6 +92,9 @@ export default function DashboardPage() {
   const [tasaciones, setTasaciones] = useState<TasacionResumen[]>([])
   const [eventos, setEventos] = useState<EventoAgendaDto[]>([])
   const [loading, setLoading] = useState(true)
+  const [comisionesStats, setComisionesStats] = useState<ComisionAgenteMetricasDto | null>(null)
+  const [topAgentes, setTopAgentes] = useState<TopAgenteDto[]>([])
+  const puedeVerComisiones = user?.rol === 'Admin' || user?.rol === 'Operador'
 
   useEffect(() => {
     const agenteId = user?.agenteId ? String(user.agenteId) : ''
@@ -126,6 +130,14 @@ export default function DashboardPage() {
     }).finally(() => setLoading(false))
   }, [user?.agenteId])
 
+  useEffect(() => {
+    if (!puedeVerComisiones) return
+    Promise.all([getComisionAgenteMetricas(), getTopAgentesMes(3)]).then(([metricasRes, topRes]) => {
+      if (metricasRes.success) setComisionesStats(metricasRes.data)
+      if (topRes.success) setTopAgentes(topRes.data)
+    }).catch(() => {})
+  }, [puedeVerComisiones])
+
   const statsCards = [
     {
       label: 'Propiedades activas',
@@ -159,6 +171,14 @@ export default function DashboardPage() {
       tendencia: stats?.proximoEvento ?? 'sin eventos',
       href: '/dashboard/agenda',
     },
+    ...(puedeVerComisiones ? [{
+      label: 'Comisiones pendientes',
+      valor: comisionesStats?.pendientesCount ?? '—',
+      icono: Percent,
+      color: 'bg-orange-50 text-orange-700',
+      tendencia: comisionesStats ? `$ ${comisionesStats.montoTotalPendiente.toLocaleString('es-AR', { maximumFractionDigits: 0 })} por pagar` : 'por pagar',
+      href: '/dashboard/comisiones-agentes',
+    }] : []),
   ]
 
   return (
@@ -267,6 +287,42 @@ export default function DashboardPage() {
             )}
           </ul>
         </div>
+
+        {/* Top agentes del mes */}
+        {puedeVerComisiones && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-semibold text-gray-800">Top agentes del mes</h2>
+              <Link to="/dashboard/comisiones-agentes" className="text-blue-600 text-sm flex items-center gap-1 hover:gap-2 transition-all">
+                Ver comisiones <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+            <ul className="space-y-3">
+              {topAgentes.length === 0 ? (
+                <li className="text-sm text-gray-400 text-center py-6">Todavía no se pagó ninguna comisión este mes</li>
+              ) : (
+                topAgentes.map((a, i) => (
+                  <li key={a.agenteId} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                        i === 0 ? 'bg-yellow-100 text-yellow-700' : i === 1 ? 'bg-gray-100 text-gray-600' : 'bg-orange-50 text-orange-600'
+                      }`}>
+                        {i === 0 ? <Trophy className="w-3.5 h-3.5" /> : i + 1}
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-gray-700">{a.agenteNombre}</div>
+                        <div className="text-xs text-gray-400">{a.cantidadPagos} comisión(es) pagada(s)</div>
+                      </div>
+                    </div>
+                    <span className="text-sm font-bold text-gray-800">
+                      $ {a.montoPagadoMes.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                    </span>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+        )}
 
       </div>
     </DashboardLayout>

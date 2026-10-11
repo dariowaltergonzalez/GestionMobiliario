@@ -19,6 +19,18 @@ export interface ComisionAgenteDto {
   fechaCreacion: string
 }
 
+export interface TopAgenteDto {
+  agenteId: number
+  agenteNombre: string
+  montoPagadoMes: number
+  cantidadPagos: number
+}
+
+export const getTopAgentesMes = async (top = 3) => {
+  const res = await client.get<ApiResponse<TopAgenteDto[]>>('/api/comisiones-agentes/top-mes', { params: { top } })
+  return res.data
+}
+
 export interface ComisionAgenteMetricasDto {
   pendientesCount: number
   montoTotalPendiente: number

@@ -81,6 +81,30 @@ public class ComisionesAgentesController : ControllerBase
         }));
     }
 
+    [HttpGet("top-mes")]
+    [Authorize(Roles = "Admin,Operador")]
+    public async Task<IActionResult> GetTopMes([FromQuery] int top = 3)
+    {
+        var ahora = DateTime.UtcNow;
+
+        var ranking = await _context.ComisionesAgentes
+            .Where(c => c.Estado == EstadoComisionAgente.Pagado && c.FechaPago.HasValue &&
+                        c.FechaPago.Value.Month == ahora.Month && c.FechaPago.Value.Year == ahora.Year)
+            .GroupBy(c => new { c.AgenteId, c.Agente.User.Nombre, c.Agente.User.Apellido })
+            .Select(g => new TopAgenteDto
+            {
+                AgenteId = g.Key.AgenteId,
+                AgenteNombre = g.Key.Apellido + ", " + g.Key.Nombre,
+                MontoPagadoMes = g.Sum(c => c.MontoAgente),
+                CantidadPagos = g.Count(),
+            })
+            .OrderByDescending(d => d.MontoPagadoMes)
+            .Take(top)
+            .ToListAsync();
+
+        return Ok(ApiResponse<IEnumerable<TopAgenteDto>>.Ok(ranking));
+    }
+
     [HttpPost("{id}/pago")]
     [Authorize(Roles = "Admin,Operador")]
     public async Task<IActionResult> RegistrarPago(int id, [FromBody] RegistrarPagoComisionRequest request)

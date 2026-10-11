@@ -26,6 +26,14 @@ public class ComisionAgenteMetricasDto
     public decimal MontoPagadoMes { get; set; }
 }
 
+public class TopAgenteDto
+{
+    public int AgenteId { get; set; }
+    public string AgenteNombre { get; set; } = string.Empty;
+    public decimal MontoPagadoMes { get; set; }
+    public int CantidadPagos { get; set; }
+}
+
 public class RegistrarPagoComisionRequest
 {
     public DateTime? Fecha { get; set; }
