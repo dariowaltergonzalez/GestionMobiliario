@@ -51,6 +51,18 @@ public class PropiedadRepository : IPropiedadRepository
             .OrderBy(p => p.Direccion)
             .ToListAsync();
 
+    // Advertencia no bloqueante al crear/editar: una misma dirección puede tener varias unidades
+    // legítimas (ej. distintos deptos de un mismo edificio), por eso esto solo informa — no impide
+    // guardar. Comparación case-insensitive porque Normalizar() ya deja la dirección en TitleCase.
+    public async Task<Propiedad?> GetPorDireccionAsync(string direccion, int? excluirId = null)
+    {
+        var buscada = direccion.Trim().ToLower();
+        var query = _context.Propiedades.Where(p => p.Activo && p.Direccion.ToLower() == buscada);
+        if (excluirId.HasValue)
+            query = query.Where(p => p.Id != excluirId.Value);
+        return await query.FirstOrDefaultAsync();
+    }
+
     public async Task<Dictionary<EstadoPropiedad, int>> GetConteoPorEstadoAsync() =>
         await _context.Propiedades
             .Where(p => p.Activo)

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { X, Loader2, ImagePlus, Star, Trash2, Upload, Video, VideoOff } from 'lucide-react'
 import {
   createPropiedad, updatePropiedad, subirFotosPropiedad, setFotoPrincipal, deleteFotoPropiedad,
-  subirVideoPropiedad, deleteVideoPropiedad,
+  subirVideoPropiedad, deleteVideoPropiedad, verificarDireccionDuplicada,
   propiedadFormVacio, TIPOS_PROPIEDAD, TIPOS_OPERACION, ESTADOS_PROPIEDAD, ESTADOS_CONSERVACION,
   type PropiedadDto, type PropiedadFormData, type FotoPropiedadDto,
 } from '../../../api/propiedades'
@@ -334,6 +334,7 @@ export default function PropiedadForm({ propiedad, onGuardado, onCerrar }: Props
   const [error, setError] = useState('')
   const [fotosPendientes, setFotosPendientes] = useState<File[]>([])
   const [videoPendiente, setVideoPendiente] = useState<File | null>(null)
+  const [avisoDireccion, setAvisoDireccion] = useState('')
 
   useEffect(() => {
     getPropietariosActivos().then(res => {
@@ -378,6 +379,27 @@ export default function PropiedadForm({ propiedad, onGuardado, onCerrar }: Props
   const set = (campo: keyof PropiedadFormData, valor: PropiedadFormData[typeof campo]) =>
     setForm(f => ({ ...f, [campo]: valor }))
 
+  // Aviso no bloqueante: si ya hay otra propiedad activa con la misma dirección (típico: un edificio
+  // con varias unidades es legítimo, pero cargar la misma unidad dos veces por error no lo es), se
+  // avisa para que el usuario revise antes de guardar — no se bloquea el submit.
+  useEffect(() => {
+    const direccion = form.direccion.trim()
+    if (direccion.length < 4) { setAvisoDireccion(''); return }
+
+    const timer = setTimeout(() => {
+      verificarDireccionDuplicada(direccion, propiedad?.id)
+        .then(res => {
+          if (res.success && res.data.existe)
+            setAvisoDireccion(`Ya existe una propiedad activa con esta dirección (código ${res.data.codigo}). Si es otra unidad del mismo edificio podés continuar igual.`)
+          else
+            setAvisoDireccion('')
+        })
+        .catch(() => {})
+    }, 600)
+
+    return () => clearTimeout(timer)
+  }, [form.direccion, propiedad?.id])
+
   const mostrarAlquiler = form.operacion === 1 || form.operacion === 3
   const mostrarVenta = form.operacion === 2 || form.operacion === 3
 
@@ -395,10 +417,25 @@ export default function PropiedadForm({ propiedad, onGuardado, onCerrar }: Props
       setError('Ingresá al menos un precio (alquiler o venta).'); return
     }
 
+    const extraerMensaje = (err: unknown) => {
+      const axErr = err as { response?: { status?: number; data?: { errors?: string[]; message?: string; title?: string } } }
+      return axErr.response?.data?.errors?.[0]
+        ?? axErr.response?.data?.message
+        ?? axErr.response?.data?.title
+        ?? `Error ${axErr.response?.status ?? ''} al guardar la propiedad.`
+    }
+
     setError('')
     setGuardando(true)
+
+    // La propiedad y las fotos/video se guardan en pasos separados (no es una transacción atómica).
+    // Si el paso de la propiedad falla, no se creó nada: se deja el modal abierto con el error, como
+    // antes. Pero si falla el de fotos/video, la propiedad YA quedó guardada en el servidor — cerrar
+    // el modal igual y avisar aparte, para no hacerle creer al usuario que no se guardó nada (bug real
+    // encontrado: con una foto de extensión inválida, la propiedad se creaba sin fotos pero el modal
+    // quedaba abierto mostrando el error, como si la creación entera hubiera fallado).
+    let propiedadId: number
     try {
-      let propiedadId: number
       if (propiedad) {
         await updatePropiedad(propiedad.id, form)
         propiedadId = propiedad.id
@@ -406,25 +443,25 @@ export default function PropiedadForm({ propiedad, onGuardado, onCerrar }: Props
         const res = await createPropiedad(form)
         propiedadId = (res.data as { id: number }).id
       }
+    } catch (err: unknown) {
+      setError(extraerMensaje(err))
+      setGuardando(false)
+      return
+    }
 
+    try {
       if (fotosPendientes.length > 0) {
         await subirFotosPropiedad(propiedadId, fotosPendientes)
       }
       if (videoPendiente) {
         await subirVideoPropiedad(propiedadId, videoPendiente)
       }
-
-      onGuardado()
     } catch (err: unknown) {
-      const axErr = err as { response?: { status?: number; data?: { errors?: string[]; message?: string; title?: string } } }
-      const msg = axErr.response?.data?.errors?.[0]
-        ?? axErr.response?.data?.message
-        ?? axErr.response?.data?.title
-        ?? `Error ${axErr.response?.status ?? ''} al guardar la propiedad.`
-      setError(msg)
-    } finally {
-      setGuardando(false)
+      alert(`La propiedad se guardó correctamente, pero hubo un error subiendo las fotos/video: ${extraerMensaje(err)}\n\nPodés editarla para volver a intentarlo.`)
     }
+
+    setGuardando(false)
+    onGuardado()
   }
 
   return (
@@ -482,6 +519,11 @@ export default function PropiedadForm({ propiedad, onGuardado, onCerrar }: Props
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Ubicación</p>
               <div className="space-y-3">
                 <Input label="Dirección *" value={form.direccion} onChange={e => set('direccion', e.target.value)} required placeholder="Av. Corrientes 1234" />
+                {avisoDireccion && (
+                  <p className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+                    ⚠ {avisoDireccion}
+                  </p>
+                )}
                 <div className="grid grid-cols-3 gap-3">
                   <Input label="Barrio" value={form.barrio} onChange={e => set('barrio', e.target.value)} placeholder="Palermo" />
                   <Input label="Ciudad" value={form.ciudad} onChange={e => set('ciudad', e.target.value)} placeholder="Buenos Aires" />

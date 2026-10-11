@@ -79,6 +79,20 @@ public class PropiedadesController : ControllerBase
         return Ok(ApiResponse<IEnumerable<PropiedadPorEstadoDto>>.Ok(dtos));
     }
 
+    [HttpGet("verificar-direccion")]
+    public async Task<IActionResult> VerificarDireccion([FromQuery] string direccion, [FromQuery] int? excluirId)
+    {
+        if (string.IsNullOrWhiteSpace(direccion))
+            return Ok(ApiResponse<PropiedadDireccionDuplicadaDto>.Ok(new PropiedadDireccionDuplicadaDto { Existe = false }));
+
+        var existente = await _repo.GetPorDireccionAsync(direccion, excluirId);
+        return Ok(ApiResponse<PropiedadDireccionDuplicadaDto>.Ok(new PropiedadDireccionDuplicadaDto
+        {
+            Existe = existente is not null,
+            Codigo = existente?.Codigo,
+        }));
+    }
+
     [HttpGet("para-reserva")]
     public async Task<IActionResult> GetParaReserva()
     {

@@ -253,6 +253,18 @@ export const getPropiedadesPorEstado = async () => {
   return res.data
 }
 
+export interface DireccionDuplicadaDto {
+  existe: boolean
+  codigo: string | null
+}
+
+export const verificarDireccionDuplicada = async (direccion: string, excluirId?: number) => {
+  const res = await client.get<ApiResponse<DireccionDuplicadaDto>>('/api/propiedades/verificar-direccion', {
+    params: { direccion, excluirId },
+  })
+  return res.data
+}
+
 export const subirFotosPropiedad = async (propiedadId: number, archivos: File[]) => {
   const form = new FormData()
   archivos.forEach(f => form.append('fotos', f))

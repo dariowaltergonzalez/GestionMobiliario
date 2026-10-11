@@ -163,3 +163,9 @@ public class PropiedadPorEstadoDto
     public string Estado { get; set; } = string.Empty;
     public int Cantidad { get; set; }
 }
+
+public class PropiedadDireccionDuplicadaDto
+{
+    public bool Existe { get; set; }
+    public string? Codigo { get; set; }
+}
