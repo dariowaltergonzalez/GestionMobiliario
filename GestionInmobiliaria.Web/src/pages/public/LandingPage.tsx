@@ -37,9 +37,12 @@ function Logo({ config, className = '' }: { config: ConfiguracionPublicaDto | nu
   )
 }
 
+const ORDEN_TIPOS = ['Casa', 'Departamento', 'PH', 'Terreno', 'Local', 'Oficina', 'Galpón', 'Otro']
+
 export default function LandingPage() {
   const [busqueda, setBusqueda] = useState('')
   const [tipo, setTipo] = useState('todos')
+  const [tipoPropiedad, setTipoPropiedad] = useState('todas')
   const [config, setConfig] = useState<ConfiguracionPublicaDto | null>(null)
   const [propiedades, setPropiedades] = useState<PropiedadPublicaDto[]>([])
   const scrollPendiente = useRef<number | null>(null)
@@ -205,29 +208,54 @@ export default function LandingPage() {
       {/* PROPIEDADES DESTACADAS */}
       <section id="propiedades" className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
+          <div className="text-center mb-8">
             <span className="text-yellow-600 font-semibold text-sm uppercase tracking-wider">Disponibles ahora</span>
             <h2 className="text-3xl font-bold text-blue-900 mt-2">Propiedades disponibles</h2>
           </div>
 
-          {propiedades.length === 0 ? (
-            <p className="text-center text-gray-400 py-10">No hay propiedades disponibles en este momento.</p>
-          ) : (
+          {propiedades.length > 0 && (
+            <div className="flex flex-wrap justify-center gap-2 mb-12">
+              {['todas', ...ORDEN_TIPOS.filter(t => propiedades.some(p => p.tipoNombre === t))].map(t => (
+                <button
+                  key={t}
+                  onClick={() => setTipoPropiedad(t)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors capitalize ${
+                    tipoPropiedad === t
+                      ? 'bg-blue-900 text-white'
+                      : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-300'
+                  }`}
+                >
+                  {t === 'todas' ? 'Todas' : t}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {(() => {
+            const propiedadesFiltradas = propiedades
+              .filter(p => {
+                if (tipo === 'venta') return p.operacionNombre === 'Venta' || p.operacionNombre === 'AlquilerOVenta'
+                if (tipo === 'alquiler') return p.operacionNombre === 'Alquiler' || p.operacionNombre === 'AlquilerOVenta'
+                return true
+              })
+              .filter(p => tipoPropiedad === 'todas' || p.tipoNombre === tipoPropiedad)
+              .filter(p => {
+                if (!busqueda) return true
+                const q = busqueda.toLowerCase()
+                return p.direccion.toLowerCase().includes(q)
+                  || p.barrio?.toLowerCase().includes(q)
+                  || p.ciudad?.toLowerCase().includes(q)
+              })
+
+            if (propiedades.length === 0)
+              return <p className="text-center text-gray-400 py-10">No hay propiedades disponibles en este momento.</p>
+            if (propiedadesFiltradas.length === 0)
+              return <p className="text-center text-gray-400 py-10">No hay propiedades que coincidan con el filtro elegido.</p>
+
+            return (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {propiedades
-                .filter(p => {
-                  if (tipo === 'venta') return p.operacionNombre === 'Venta' || p.operacionNombre === 'AlquilerOVenta'
-                  if (tipo === 'alquiler') return p.operacionNombre === 'Alquiler' || p.operacionNombre === 'AlquilerOVenta'
-                  return true
-                })
-                .filter(p => {
-                  if (!busqueda) return true
-                  const q = busqueda.toLowerCase()
-                  return p.direccion.toLowerCase().includes(q)
-                    || p.barrio?.toLowerCase().includes(q)
-                    || p.ciudad?.toLowerCase().includes(q)
-                })
-                .slice(0, 9)
+              {propiedadesFiltradas
+                .slice(0, 24)
                 .map((p) => {
                   const imgSrc = p.fotoPrincipalUrl ? resolveMediaUrl(p.fotoPrincipalUrl) : null
                   const esVenta = p.operacionNombre === 'Venta' || p.operacionNombre === 'AlquilerOVenta'
@@ -300,7 +328,8 @@ export default function LandingPage() {
                   )
                 })}
             </div>
-          )}
+            )
+          })()}
         </div>
       </section>
 
