@@ -33,6 +33,25 @@ const COLOR_ESTADO_PROPIEDAD: Record<string, string> = {
 
 const NOMBRES_MES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
+const RADIAN = Math.PI / 180
+function renderPorcentajeDonut(props: Record<string, unknown>) {
+  const cx = Number(props.cx) || 0
+  const cy = Number(props.cy) || 0
+  const midAngle = Number(props.midAngle) || 0
+  const innerRadius = Number(props.innerRadius) || 0
+  const outerRadius = Number(props.outerRadius) || 0
+  const percent = Number(props.percent) || 0
+  if (percent < 0.03) return null
+  const radio = innerRadius + (outerRadius - innerRadius) * 0.6
+  const x = cx + radio * Math.cos(-midAngle * RADIAN)
+  const y = cy + radio * Math.sin(-midAngle * RADIAN)
+  return (
+    <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={700}>
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
+  )
+}
+
 interface TasacionResumen {
   id: number
   nombre: string
@@ -407,6 +426,8 @@ export default function DashboardPage() {
                   innerRadius={55}
                   outerRadius={85}
                   paddingAngle={2}
+                  label={renderPorcentajeDonut}
+                  labelLine={false}
                 >
                   {propiedadesPorEstado.map(p => (
                     <Cell key={p.estado} fill={COLOR_ESTADO_PROPIEDAD[p.estado] ?? '#9ca3af'} />
