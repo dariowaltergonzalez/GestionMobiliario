@@ -71,6 +71,14 @@ public class PropiedadesController : ControllerBase
         return Ok(ApiResponse<IEnumerable<PropiedadComboDto>>.Ok(dtos));
     }
 
+    [HttpGet("por-estado")]
+    public async Task<IActionResult> GetConteoPorEstado()
+    {
+        var conteo = await _repo.GetConteoPorEstadoAsync();
+        var dtos = conteo.Select(kv => new PropiedadPorEstadoDto { Estado = kv.Key.ToString(), Cantidad = kv.Value });
+        return Ok(ApiResponse<IEnumerable<PropiedadPorEstadoDto>>.Ok(dtos));
+    }
+
     [HttpGet("para-reserva")]
     public async Task<IActionResult> GetParaReserva()
     {

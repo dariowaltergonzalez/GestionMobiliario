@@ -113,6 +113,51 @@ public class PagosController : ControllerBase
         }));
     }
 
+    [HttpGet("ingresos-mensuales")]
+    public async Task<IActionResult> GetIngresosMensuales([FromQuery] int meses = 12)
+    {
+        var desde = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1).AddMonths(-(meses - 1));
+
+        var cobrados = await _context.Pagos
+            .Where(p => p.Estado == EstadoPago.Pagado && p.FechaPago.HasValue && p.FechaPago.Value >= desde)
+            .GroupBy(p => new { p.FechaPago!.Value.Year, p.FechaPago!.Value.Month })
+            .Select(g => new IngresoMensualDto
+            {
+                Anio = g.Key.Year,
+                Mes = g.Key.Month,
+                Monto = g.Sum(p => p.MontoPagado ?? p.MontoEsperado),
+            })
+            .ToListAsync();
+
+        // Se completan los meses sin cobros con 0 para que el gráfico muestre la serie continua.
+        var serie = new List<IngresoMensualDto>();
+        var cursor = desde;
+        for (var i = 0; i < meses; i++)
+        {
+            var existente = cobrados.FirstOrDefault(c => c.Anio == cursor.Year && c.Mes == cursor.Month);
+            serie.Add(existente ?? new IngresoMensualDto { Anio = cursor.Year, Mes = cursor.Month, Monto = 0 });
+            cursor = cursor.AddMonths(1);
+        }
+
+        return Ok(ApiResponse<IEnumerable<IngresoMensualDto>>.Ok(serie));
+    }
+
+    [HttpGet("comision-estimada-mes")]
+    public async Task<IActionResult> GetComisionEstimadaMes()
+    {
+        var ahora = DateTime.UtcNow;
+
+        var monto = await _context.Pagos
+            .Where(p => p.Activo && p.Contrato.Activo && p.Contrato.Estado == EstadoContrato.Vigente &&
+                        p.Contrato.AdministracionCobros &&
+                        (p.Contrato.ComisionLocadorPorcentaje != null || p.Contrato.ComisionLocadorMonto != null) &&
+                        p.Periodo.Month == ahora.Month && p.Periodo.Year == ahora.Year)
+            .SumAsync(p => (decimal?)(p.Contrato.ComisionLocadorMonto
+                ?? Math.Round(p.MontoEsperado * (p.Contrato.ComisionLocadorPorcentaje!.Value / 100), 2))) ?? 0;
+
+        return Ok(ApiResponse<ComisionEstimadaMesDto>.Ok(new ComisionEstimadaMesDto { Monto = monto }));
+    }
+
     [HttpPut("{contratoId}/pagos/{pagoId}")]
     [Authorize(Roles = "Admin,Operador")]
     public async Task<IActionResult> UpdatePago(int contratoId, int pagoId, [FromBody] UpdatePagoRequest request)

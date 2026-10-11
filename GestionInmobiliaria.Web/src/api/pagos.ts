@@ -78,6 +78,22 @@ export const updatePagoConsolidado = async (contratoId: number, pagoId: number, 
   return res.data
 }
 
+export interface IngresoMensualDto {
+  anio: number
+  mes: number
+  monto: number
+}
+
+export const getIngresosMensuales = async (meses = 12) => {
+  const res = await client.get<ApiResponse<IngresoMensualDto[]>>('/api/pagos/ingresos-mensuales', { params: { meses } })
+  return res.data
+}
+
+export const getComisionEstimadaMes = async () => {
+  const res = await client.get<ApiResponse<{ monto: number }>>('/api/pagos/comision-estimada-mes')
+  return res.data
+}
+
 export const descargarReciboPago = async (contratoId: number, pagoId: number, contratoCodigo: string, periodo: string) => {
   const res = await client.get(`/api/pagos/${contratoId}/pagos/${pagoId}/recibo`, { responseType: 'blob' })
   const url = URL.createObjectURL(res.data)

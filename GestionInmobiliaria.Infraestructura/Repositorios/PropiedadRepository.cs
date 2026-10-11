@@ -51,6 +51,12 @@ public class PropiedadRepository : IPropiedadRepository
             .OrderBy(p => p.Direccion)
             .ToListAsync();
 
+    public async Task<Dictionary<EstadoPropiedad, int>> GetConteoPorEstadoAsync() =>
+        await _context.Propiedades
+            .Where(p => p.Activo)
+            .GroupBy(p => p.Estado)
+            .ToDictionaryAsync(g => g.Key, g => g.Count());
+
     public async Task<IEnumerable<Propiedad>> GetPublicasAsync() =>
         await _context.Propiedades
             .Include(p => p.Fotos)

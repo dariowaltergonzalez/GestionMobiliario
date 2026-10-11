@@ -1,12 +1,37 @@
 import { useEffect, useState } from 'react'
-import { Users, Calendar, TrendingUp, ChevronRight, Building2, ClipboardList, Percent, Trophy } from 'lucide-react'
+import { Users, Calendar, TrendingUp, ChevronRight, Building2, ClipboardList, Percent, Trophy, Wallet } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { useAuth } from '../../context/AuthContext'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import client from '../../api/client'
 import type { ApiResponse, PagedResult } from '../../types/api'
 import type { EventoAgendaDto } from '../../api/agenda'
 import { getComisionAgenteMetricas, getTopAgentesMes, type ComisionAgenteMetricasDto, type TopAgenteDto } from '../../api/comisionesAgentes'
+import { getPropiedadesPorEstado, type PropiedadPorEstadoDto } from '../../api/propiedades'
+import { getIngresosMensuales, getComisionEstimadaMes, type IngresoMensualDto } from '../../api/pagos'
+
+const LABEL_ESTADO_PROPIEDAD: Record<string, string> = {
+  Disponible: 'Disponible',
+  Alquilada: 'Alquilada',
+  EnMantenimiento: 'En mantenimiento',
+  NoDisponible: 'No disponible',
+  Vendida: 'Vendida',
+  Reservada: 'Reservada',
+  BoletoFirmado: 'Boleto firmado',
+}
+
+const COLOR_ESTADO_PROPIEDAD: Record<string, string> = {
+  Disponible: '#16a34a',
+  Alquilada: '#2563eb',
+  EnMantenimiento: '#d97706',
+  NoDisponible: '#6b7280',
+  Vendida: '#9333ea',
+  Reservada: '#eab308',
+  BoletoFirmado: '#0d9488',
+}
+
+const NOMBRES_MES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
 interface TasacionResumen {
   id: number
@@ -94,6 +119,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [comisionesStats, setComisionesStats] = useState<ComisionAgenteMetricasDto | null>(null)
   const [topAgentes, setTopAgentes] = useState<TopAgenteDto[]>([])
+  const [propiedadesPorEstado, setPropiedadesPorEstado] = useState<PropiedadPorEstadoDto[]>([])
+  const [ingresosMensuales, setIngresosMensuales] = useState<IngresoMensualDto[]>([])
+  const [comisionEstimadaMes, setComisionEstimadaMes] = useState<number | null>(null)
   const puedeVerComisiones = user?.rol === 'Admin' || user?.rol === 'Operador'
 
   useEffect(() => {
@@ -132,10 +160,20 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!puedeVerComisiones) return
-    Promise.all([getComisionAgenteMetricas(), getTopAgentesMes(3)]).then(([metricasRes, topRes]) => {
+    Promise.all([getComisionAgenteMetricas(), getTopAgentesMes(3), getComisionEstimadaMes()]).then(([metricasRes, topRes, estimadaRes]) => {
       if (metricasRes.success) setComisionesStats(metricasRes.data)
       if (topRes.success) setTopAgentes(topRes.data)
+      if (estimadaRes.success) setComisionEstimadaMes(estimadaRes.data.monto)
     }).catch(() => {})
+  }, [puedeVerComisiones])
+
+  useEffect(() => {
+    getPropiedadesPorEstado().then(res => { if (res.success) setPropiedadesPorEstado(res.data) }).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (!puedeVerComisiones) return
+    getIngresosMensuales(12).then(res => { if (res.success) setIngresosMensuales(res.data) }).catch(() => {})
   }, [puedeVerComisiones])
 
   const statsCards = [
@@ -178,6 +216,14 @@ export default function DashboardPage() {
       color: 'bg-orange-50 text-orange-700',
       tendencia: comisionesStats ? `$ ${comisionesStats.montoTotalPendiente.toLocaleString('es-AR', { maximumFractionDigits: 0 })} por pagar` : 'por pagar',
       href: '/dashboard/comisiones-agentes',
+    }] : []),
+    ...(puedeVerComisiones ? [{
+      label: 'Comisión estimada del mes',
+      valor: comisionEstimadaMes !== null ? `$ ${comisionEstimadaMes.toLocaleString('es-AR', { maximumFractionDigits: 0 })}` : '—',
+      icono: Wallet,
+      color: 'bg-teal-50 text-teal-700',
+      tendencia: 'administración, este mes',
+      href: '/dashboard/pagos',
     }] : []),
   ]
 
@@ -286,6 +332,71 @@ export default function DashboardPage() {
               ))
             )}
           </ul>
+        </div>
+
+        {/* Ingresos últimos 12 meses */}
+        {puedeVerComisiones && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:col-span-2">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-semibold text-gray-800">Ingresos últimos 12 meses</h2>
+              <Link to="/dashboard/pagos" className="text-blue-600 text-sm flex items-center gap-1 hover:gap-2 transition-all">
+                Ver pagos <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+            {ingresosMensuales.length === 0 ? (
+              <div className="text-sm text-gray-400 text-center py-16">Sin cobros registrados todavía</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <LineChart data={ingresosMensuales.map(i => ({ ...i, label: NOMBRES_MES[i.mes - 1] }))}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <YAxis
+                    tick={{ fontSize: 12, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
+                  />
+                  <Tooltip formatter={(v: number) => [`$ ${v.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`, 'Cobrado']} />
+                  <Line type="monotone" dataKey="monto" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        )}
+
+        {/* Estado de propiedades */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-semibold text-gray-800">Estado de propiedades</h2>
+            <Link to="/dashboard/propiedades" className="text-blue-600 text-sm flex items-center gap-1 hover:gap-2 transition-all">
+              Ver todas <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+          {propiedadesPorEstado.length === 0 ? (
+            <div className="text-sm text-gray-400 text-center py-16">Sin propiedades cargadas</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={240}>
+              <PieChart>
+                <Pie
+                  data={propiedadesPorEstado.map(p => ({ ...p }))}
+                  dataKey="cantidad"
+                  nameKey="estado"
+                  innerRadius={55}
+                  outerRadius={85}
+                  paddingAngle={2}
+                >
+                  {propiedadesPorEstado.map(p => (
+                    <Cell key={p.estado} fill={COLOR_ESTADO_PROPIEDAD[p.estado] ?? '#9ca3af'} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(v: number, _n: string, entry) => [v, LABEL_ESTADO_PROPIEDAD[String(entry.payload?.estado)] ?? entry.payload?.estado]} />
+                <Legend
+                  formatter={(value: string) => LABEL_ESTADO_PROPIEDAD[value] ?? value}
+                  wrapperStyle={{ fontSize: 12 }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Top agentes del mes */}

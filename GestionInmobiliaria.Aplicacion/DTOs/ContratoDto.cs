@@ -269,3 +269,15 @@ public class PagoMetricasDto
     public decimal MontoCobradoMes { get; set; }
     public decimal MontoTotalPendiente { get; set; }
 }
+
+public class IngresoMensualDto
+{
+    public int Anio { get; set; }
+    public int Mes { get; set; }
+    public decimal Monto { get; set; }
+}
+
+public class ComisionEstimadaMesDto
+{
+    public decimal Monto { get; set; }
+}

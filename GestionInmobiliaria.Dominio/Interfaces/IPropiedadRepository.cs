@@ -7,6 +7,7 @@ public interface IPropiedadRepository
 {
     Task<PagedResult<Propiedad>> GetPagedAsync(PaginationParams paginacion, string? buscar = null, TipoPropiedad? tipo = null, EstadoPropiedad? estado = null, int? propietarioId = null, TipoOperacion? operacion = null);
     Task<IEnumerable<Propiedad>> GetDisponiblesAsync();
+    Task<Dictionary<EstadoPropiedad, int>> GetConteoPorEstadoAsync();
     Task<IEnumerable<Propiedad>> GetPublicasAsync();
     /// <summary>
     /// Búsqueda usada por el bot de WhatsApp — corre fuera de un request HTTP (sin tenant activo vía

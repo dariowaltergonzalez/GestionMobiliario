@@ -243,6 +243,16 @@ export const getPropiedad = async (id: number) => {
   return res.data
 }
 
+export interface PropiedadPorEstadoDto {
+  estado: string
+  cantidad: number
+}
+
+export const getPropiedadesPorEstado = async () => {
+  const res = await client.get<ApiResponse<PropiedadPorEstadoDto[]>>('/api/propiedades/por-estado')
+  return res.data
+}
+
 export const subirFotosPropiedad = async (propiedadId: number, archivos: File[]) => {
   const form = new FormData()
   archivos.forEach(f => form.append('fotos', f))

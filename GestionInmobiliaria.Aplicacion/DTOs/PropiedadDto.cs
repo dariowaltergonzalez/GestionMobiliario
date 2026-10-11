@@ -157,3 +157,9 @@ public class PropiedadComboDto
     public decimal? PrecioVenta { get; set; }
     public string PropietarioNombre { get; set; } = string.Empty;
 }
+
+public class PropiedadPorEstadoDto
+{
+    public string Estado { get; set; } = string.Empty;
+    public int Cantidad { get; set; }
+}
