@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Users, Calendar, TrendingUp, ChevronRight, Building2, ClipboardList, Percent, Trophy, Wallet, PiggyBank, AlertTriangle } from 'lucide-react'
+import { Users, Calendar, TrendingUp, ChevronRight, Building2, ClipboardList, Percent, Trophy, Wallet, PiggyBank, AlertTriangle, Receipt } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { useAuth } from '../../context/AuthContext'
@@ -9,7 +9,7 @@ import type { ApiResponse, PagedResult } from '../../types/api'
 import type { EventoAgendaDto } from '../../api/agenda'
 import { getComisionAgenteMetricas, getTopAgentesMes, type ComisionAgenteMetricasDto, type TopAgenteDto } from '../../api/comisionesAgentes'
 import { getPropiedadesPorEstado, type PropiedadPorEstadoDto } from '../../api/propiedades'
-import { getIngresosMensuales, getComisionEstimadaMes, getMorosidad, type IngresoMensualDto, type MorosidadDto } from '../../api/pagos'
+import { getIngresosMensuales, getComisionEstimadaMes, getMorosidad, getCuotasPorCobrar, type IngresoMensualDto, type MorosidadDto, type CuotasPorCobrarDto } from '../../api/pagos'
 
 const LABEL_ESTADO_PROPIEDAD: Record<string, string> = {
   Disponible: 'Disponible',
@@ -143,6 +143,7 @@ export default function DashboardPage() {
   const [comisionEstimadaMes, setComisionEstimadaMes] = useState<number | null>(null)
   const [gananciaProximoMes, setGananciaProximoMes] = useState<number | null>(null)
   const [morosidad, setMorosidad] = useState<MorosidadDto | null>(null)
+  const [cuotasProximoMes, setCuotasProximoMes] = useState<CuotasPorCobrarDto | null>(null)
   const puedeVerComisiones = user?.rol === 'Admin' || user?.rol === 'Operador'
 
   useEffect(() => {
@@ -183,13 +184,14 @@ export default function DashboardPage() {
     if (!puedeVerComisiones) return
     Promise.all([
       getComisionAgenteMetricas(), getTopAgentesMes(3), getComisionEstimadaMes(),
-      getComisionEstimadaMes(1), getMorosidad(),
-    ]).then(([metricasRes, topRes, estimadaRes, proximoMesRes, morosidadRes]) => {
+      getComisionEstimadaMes(1), getMorosidad(), getCuotasPorCobrar(1),
+    ]).then(([metricasRes, topRes, estimadaRes, proximoMesRes, morosidadRes, cuotasRes]) => {
       if (metricasRes.success) setComisionesStats(metricasRes.data)
       if (topRes.success) setTopAgentes(topRes.data)
       if (estimadaRes.success) setComisionEstimadaMes(estimadaRes.data.monto)
       if (proximoMesRes.success) setGananciaProximoMes(proximoMesRes.data.monto)
       if (morosidadRes.success) setMorosidad(morosidadRes.data)
+      if (cuotasRes.success) setCuotasProximoMes(cuotasRes.data)
     }).catch(() => {})
   }, [puedeVerComisiones])
 
@@ -249,6 +251,14 @@ export default function DashboardPage() {
       icono: Wallet,
       color: 'bg-teal-50 text-teal-700',
       tendencia: 'administración, este mes',
+      href: '/dashboard/pagos',
+    }] : []),
+    ...(puedeVerComisiones ? [{
+      label: 'Cuotas por cobrar mes que viene',
+      valor: cuotasProximoMes ? `$ ${cuotasProximoMes.monto.toLocaleString('es-AR', { maximumFractionDigits: 0 })}` : '—',
+      icono: Receipt,
+      color: 'bg-cyan-50 text-cyan-700',
+      tendencia: cuotasProximoMes ? `${cuotasProximoMes.cantidadCuotas} cuota(s), monto bruto` : 'monto bruto',
       href: '/dashboard/pagos',
     }] : []),
     ...(puedeVerComisiones ? [{

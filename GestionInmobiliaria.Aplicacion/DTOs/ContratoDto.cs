@@ -287,3 +287,9 @@ public class MorosidadDto
     public int CantidadCuotas { get; set; }
     public decimal MontoTotal { get; set; }
 }
+
+public class CuotasPorCobrarDto
+{
+    public int CantidadCuotas { get; set; }
+    public decimal Monto { get; set; }
+}

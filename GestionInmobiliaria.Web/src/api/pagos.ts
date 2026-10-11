@@ -104,6 +104,16 @@ export const getMorosidad = async () => {
   return res.data
 }
 
+export interface CuotasPorCobrarDto {
+  cantidadCuotas: number
+  monto: number
+}
+
+export const getCuotasPorCobrar = async (mesesAdelante = 0) => {
+  const res = await client.get<ApiResponse<CuotasPorCobrarDto>>('/api/pagos/cuotas-por-cobrar', { params: { mesesAdelante } })
+  return res.data
+}
+
 export const descargarReciboPago = async (contratoId: number, pagoId: number, contratoCodigo: string, periodo: string) => {
   const res = await client.get(`/api/pagos/${contratoId}/pagos/${pagoId}/recibo`, { responseType: 'blob' })
   const url = URL.createObjectURL(res.data)

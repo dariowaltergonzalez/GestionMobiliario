@@ -158,6 +158,23 @@ public class PagosController : ControllerBase
         return Ok(ApiResponse<ComisionEstimadaMesDto>.Ok(new ComisionEstimadaMesDto { Monto = monto }));
     }
 
+    [HttpGet("cuotas-por-cobrar")]
+    [Authorize(Roles = "Admin,Operador")]
+    public async Task<IActionResult> GetCuotasPorCobrar([FromQuery] int mesesAdelante = 0)
+    {
+        var fechaObjetivo = DateTime.UtcNow.AddMonths(mesesAdelante);
+
+        var query = _context.Pagos
+            .Where(p => p.Activo && p.Contrato.Activo && p.Contrato.Estado == EstadoContrato.Vigente &&
+                        (p.Estado == EstadoPago.Pendiente || p.Estado == EstadoPago.Atrasado) &&
+                        p.Periodo.Month == fechaObjetivo.Month && p.Periodo.Year == fechaObjetivo.Year);
+
+        var cantidad = await query.CountAsync();
+        var monto = await query.SumAsync(p => (decimal?)p.MontoEsperado) ?? 0;
+
+        return Ok(ApiResponse<CuotasPorCobrarDto>.Ok(new CuotasPorCobrarDto { CantidadCuotas = cantidad, Monto = monto }));
+    }
+
     // Morosidad = cuotas Pendiente/Atrasado de contratos Vigentes cuyo vencimiento ya pasó. Se trae el
     // set candidato (normalmente chico, son solo las cuotas no cobradas) y se filtra en memoria porque
     // VencimientoCalculator no es traducible a SQL (clampea el día al tope del mes).
