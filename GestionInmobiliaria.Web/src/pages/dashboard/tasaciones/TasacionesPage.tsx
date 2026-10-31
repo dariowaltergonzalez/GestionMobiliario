@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Search, X, Save, Trash2, AlertTriangle, ChevronLeft, ChevronRight, ImageOff, ZoomIn, CalendarPlus, FileDown } from 'lucide-react'
+import { Search, X, Save, Trash2, AlertTriangle, ChevronLeft, ChevronRight, ImageOff, ZoomIn, CalendarPlus, FileDown, UserPlus, Building2 } from 'lucide-react'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
 import {
   getTasaciones, getTasacion, updateTasacion, deleteTasacion, deleteFoto,
@@ -11,6 +11,19 @@ import { exportarTasacionesPdf } from '../../../api/reportes'
 import { useAuth } from '../../../context/AuthContext'
 import client from '../../../api/client'
 import type { ApiResponse } from '../../../types/api'
+import PropietarioForm from '../propietarios/PropietarioForm'
+import type { PropietarioFormData } from '../../../api/propietarios'
+import PropiedadForm from '../propiedades/PropiedadForm'
+import type { PropiedadFormData, TipoPropiedad, EstadoConservacion } from '../../../api/propiedades'
+
+// Mismos enums que GestionInmobiliaria.Dominio.Entidades.TipoPropiedad/EstadoConservacion — la
+// Tasación y la Propiedad reutilizan ambos del lado del backend, así que los números coinciden 1 a 1.
+const TIPO_PROPIEDAD_DESDE_TASACION: Record<string, TipoPropiedad> = {
+  Departamento: 1, Casa: 2, Local: 3, Oficina: 4, Terreno: 5, Galpon: 6, PH: 7, Otro: 8,
+}
+const ESTADO_CONSERVACION_DESDE_TASACION: Record<string, EstadoConservacion> = {
+  Excelente: 1, Bueno: 2, Regular: 3, ARefaccionar: 4,
+}
 
 interface AgenteCombo { id: number; nombreCompleto: string }
 
@@ -198,6 +211,9 @@ function DetailPanel({ id, agentes, esAdmin, onCerrar, onActualizado }: DetailPa
   const [deletando, setDeletando] = useState(false)
   const [fotoAmpliada, setFotoAmpliada] = useState<string | null>(null)
   const [agendarAbierto, setAgendarAbierto] = useState(false)
+  const [propietarioFormAbierto, setPropietarioFormAbierto] = useState(false)
+  const [propiedadFormAbierto, setPropiedadFormAbierto] = useState(false)
+  const [propietarioCreadoId, setPropietarioCreadoId] = useState<number | null>(null)
 
   const [form, setForm] = useState({
     estado: '1',
@@ -455,6 +471,28 @@ function DetailPanel({ id, agentes, esAdmin, onCerrar, onActualizado }: DetailPa
                 Agendar visita
               </button>
 
+              {/* Convertir en propietario/propiedad real — solo cuando la gestión ya terminó, mismo
+                  criterio que Lead→Inquilino: precarga el formulario, no crea nada automático. */}
+              {estadoNumero(tasacion.estado) === 4 && (
+                <div className="border-t border-gray-100 pt-3 space-y-2">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Siguiente paso</p>
+                  <button
+                    onClick={() => setPropietarioFormAbierto(true)}
+                    className="w-full flex items-center justify-center gap-2 border border-green-200 text-green-700 py-2.5 rounded-xl text-sm font-medium hover:bg-green-50 transition-colors cursor-pointer"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    Cargar propietario{propietarioCreadoId ? ' ✓' : ''}
+                  </button>
+                  <button
+                    onClick={() => setPropiedadFormAbierto(true)}
+                    className="w-full flex items-center justify-center gap-2 border border-green-200 text-green-700 py-2.5 rounded-xl text-sm font-medium hover:bg-green-50 transition-colors cursor-pointer"
+                  >
+                    <Building2 className="w-4 h-4" />
+                    Cargar propiedad
+                  </button>
+                </div>
+              )}
+
               {esAdmin && (
                 <>
                   {!confirmDelete ? (
@@ -507,6 +545,49 @@ function DetailPanel({ id, agentes, esAdmin, onCerrar, onActualizado }: DetailPa
         <AgendarModal
           tasacion={tasacion}
           onCerrar={() => setAgendarAbierto(false)}
+        />
+      )}
+
+      {/* Cargar propietario — precargado desde la tasación */}
+      {propietarioFormAbierto && tasacion && (
+        <PropietarioForm
+          propietario={null}
+          datosIniciales={{
+            nombre: tasacion.nombre,
+            apellido: tasacion.apellido,
+            email: tasacion.email ?? '',
+            telefono: tasacion.telefono,
+            notas: `Cargado desde Tasación #${tasacion.id} (${tasacion.direccion}).`,
+          } satisfies Partial<PropietarioFormData>}
+          onCreado={idCreado => setPropietarioCreadoId(idCreado)}
+          onGuardado={() => setPropietarioFormAbierto(false)}
+          onCerrar={() => setPropietarioFormAbierto(false)}
+        />
+      )}
+
+      {/* Cargar propiedad — precargada desde la tasación */}
+      {propiedadFormAbierto && tasacion && (
+        <PropiedadForm
+          propiedad={null}
+          datosIniciales={{
+            tipo: TIPO_PROPIEDAD_DESDE_TASACION[tasacion.tipoPropiedad] ?? 1,
+            operacion: 2,
+            direccion: tasacion.direccion,
+            barrio: tasacion.barrio ?? '',
+            ciudad: tasacion.ciudad ?? '',
+            ambientes: tasacion.ambientes != null ? String(tasacion.ambientes) : '',
+            banios: tasacion.banios != null ? String(tasacion.banios) : '',
+            superficieTotal: tasacion.superficieTotal != null ? String(tasacion.superficieTotal) : '',
+            superficieCubierta: tasacion.superficieCubierta != null ? String(tasacion.superficieCubierta) : '',
+            antiguedad: tasacion.antiguedad != null ? String(tasacion.antiguedad) : '',
+            estadoConservacion: ESTADO_CONSERVACION_DESDE_TASACION[tasacion.estadoConservacion] ?? '',
+            precioVenta: tasacion.valorEstimado != null ? String(tasacion.valorEstimado) : '',
+            descripcion: tasacion.descripcion ?? '',
+            notas: `Cargado desde Tasación #${tasacion.id}.`,
+            propietarioId: propietarioCreadoId ? String(propietarioCreadoId) : '',
+          } satisfies Partial<PropiedadFormData>}
+          onGuardado={() => setPropiedadFormAbierto(false)}
+          onCerrar={() => setPropiedadFormAbierto(false)}
         />
       )}
 

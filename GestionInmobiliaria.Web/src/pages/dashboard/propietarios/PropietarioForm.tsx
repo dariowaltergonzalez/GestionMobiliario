@@ -10,6 +10,10 @@ interface Props {
   propietario: PropietarioDto | null
   onGuardado: () => void
   onCerrar: () => void
+  /** Precarga el formulario al crear (ignorado si `propietario` no es null). Ej: alta desde una Tasación. */
+  datosIniciales?: Partial<PropietarioFormData>
+  /** Se dispara solo al CREAR (no al editar), con el id recién creado. */
+  onCreado?: (id: number) => void
 }
 
 const Input = ({ label, required, ...props }: { label: string; required?: boolean } & React.InputHTMLAttributes<HTMLInputElement>) => (
@@ -49,7 +53,7 @@ const CuitInput = ({ value, onChange }: { value: string; onChange: (val: string)
   )
 }
 
-export default function PropietarioForm({ propietario, onGuardado, onCerrar }: Props) {
+export default function PropietarioForm({ propietario, onGuardado, onCerrar, datosIniciales, onCreado }: Props) {
   const [form, setForm] = useState<PropietarioFormData>(propietarioFormVacio)
   const [activo, setActivo] = useState(true)
   const [guardando, setGuardando] = useState(false)
@@ -82,9 +86,10 @@ export default function PropietarioForm({ propietario, onGuardado, onCerrar }: P
       })
       setActivo(propietario.activo)
     } else {
-      setForm(propietarioFormVacio)
+      setForm({ ...propietarioFormVacio, ...datosIniciales })
       setActivo(true)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propietario])
 
   const set = (campo: keyof PropietarioFormData, valor: string) =>
@@ -119,7 +124,8 @@ export default function PropietarioForm({ propietario, onGuardado, onCerrar }: P
       if (propietario) {
         await updatePropietario(propietario.id, form, activo)
       } else {
-        await createPropietario(form)
+        const res = await createPropietario(form)
+        if (res.success) onCreado?.(res.data.id)
       }
       onGuardado()
     } catch (err: unknown) {

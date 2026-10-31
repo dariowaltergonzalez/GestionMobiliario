@@ -13,6 +13,10 @@ interface Props {
   propiedad: PropiedadDto | null
   onGuardado: () => void
   onCerrar: () => void
+  /** Precarga el formulario al crear (ignorado si `propiedad` no es null). Ej: alta desde una Tasación. */
+  datosIniciales?: Partial<PropiedadFormData>
+  /** Se dispara solo al CREAR (no al editar), con el id recién creado. */
+  onCreado?: (id: number) => void
 }
 
 const Input = ({ label, ...props }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) => (
@@ -327,7 +331,7 @@ function VideoSection({ propiedadId, videoUrlInicial, videoPendiente, onVideoPen
 
 // ---------- Formulario principal ----------
 
-export default function PropiedadForm({ propiedad, onGuardado, onCerrar }: Props) {
+export default function PropiedadForm({ propiedad, onGuardado, onCerrar, datosIniciales, onCreado }: Props) {
   const [form, setForm] = useState<PropiedadFormData>(propiedadFormVacio)
   const [propietarios, setPropietarios] = useState<PropietarioComboDto[]>([])
   const [guardando, setGuardando] = useState(false)
@@ -373,7 +377,10 @@ export default function PropiedadForm({ propiedad, onGuardado, onCerrar }: Props
         notas: propiedad.notas ?? '',
         propietarioId: propiedad.propietarioId.toString(),
       })
+    } else if (datosIniciales) {
+      setForm({ ...propiedadFormVacio(), ...datosIniciales })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propiedad])
 
   const set = (campo: keyof PropiedadFormData, valor: PropiedadFormData[typeof campo]) =>
@@ -442,6 +449,7 @@ export default function PropiedadForm({ propiedad, onGuardado, onCerrar }: Props
       } else {
         const res = await createPropiedad(form)
         propiedadId = (res.data as { id: number }).id
+        onCreado?.(propiedadId)
       }
     } catch (err: unknown) {
       setError(extraerMensaje(err))
