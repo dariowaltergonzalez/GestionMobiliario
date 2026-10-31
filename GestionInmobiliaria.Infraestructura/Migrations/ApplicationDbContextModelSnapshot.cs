@@ -2270,6 +2270,9 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                     b.Property<DateTime>("FechaCreacion")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("Moneda")
+                        .HasColumnType("int");
+
                     b.Property<string>("Nombre")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -2278,6 +2281,9 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                     b.Property<string>("NotasInternas")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int>("Operacion")
+                        .HasColumnType("int");
 
                     b.Property<decimal?>("SuperficieCubierta")
                         .HasColumnType("decimal(10,2)");

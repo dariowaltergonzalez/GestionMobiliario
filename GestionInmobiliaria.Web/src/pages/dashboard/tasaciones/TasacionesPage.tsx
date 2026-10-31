@@ -3,7 +3,7 @@ import { Search, X, Save, Trash2, AlertTriangle, ChevronLeft, ChevronRight, Imag
 import DashboardLayout from '../../../components/layout/DashboardLayout'
 import {
   getTasaciones, getTasacion, updateTasacion, deleteTasacion, deleteFoto,
-  ESTADOS_TASACION, estadoNumero,
+  ESTADOS_TASACION, estadoNumero, OPERACIONES_TASACION, MONEDAS_TASACION, operacionNumero, monedaNumero,
   type SolicitudTasacionDto, type FiltrosTasaciones,
 } from '../../../api/tasaciones'
 import { createEvento, TIPOS_EVENTO } from '../../../api/agenda'
@@ -32,9 +32,10 @@ function formatFecha(iso: string) {
   return new Date(utc).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-function formatMoneda(v: number | null) {
+function formatMoneda(v: number | null, moneda?: string) {
   if (v == null) return '—'
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(v)
+  const currency = moneda === 'USD' ? 'USD' : 'ARS'
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency, maximumFractionDigits: 0 }).format(v)
 }
 
 function EstadoBadge({ estado }: { estado: string }) {
@@ -219,6 +220,8 @@ function DetailPanel({ id, agentes, esAdmin, onCerrar, onActualizado }: DetailPa
     estado: '1',
     agenteId: '',
     valorEstimado: '',
+    operacion: '2',
+    moneda: '1',
     notasInternas: '',
   })
 
@@ -234,6 +237,8 @@ function DetailPanel({ id, agentes, esAdmin, onCerrar, onActualizado }: DetailPa
           estado: String(estadoNumero(t.estado)),
           agenteId: t.agenteId ? String(t.agenteId) : '',
           valorEstimado: t.valorEstimado != null ? String(t.valorEstimado) : '',
+          operacion: String(operacionNumero(t.operacion)),
+          moneda: String(monedaNumero(t.moneda)),
           notasInternas: t.notasInternas ?? '',
         })
       }
@@ -256,6 +261,8 @@ function DetailPanel({ id, agentes, esAdmin, onCerrar, onActualizado }: DetailPa
         estado: Number(form.estado),
         agenteId: form.agenteId ? Number(form.agenteId) : null,
         valorEstimado: form.valorEstimado ? Number(form.valorEstimado) : null,
+        operacion: Number(form.operacion),
+        moneda: Number(form.moneda),
         notasInternas: form.notasInternas.trim() || null,
       })
       onActualizado()
@@ -425,8 +432,29 @@ function DetailPanel({ id, agentes, esAdmin, onCerrar, onActualizado }: DetailPa
                 </select>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Operación tasada</label>
+                  <select value={form.operacion} onChange={e => set('operacion', e.target.value)} className={inputCls}>
+                    {Object.entries(OPERACIONES_TASACION).map(([k, v]) => (
+                      <option key={k} value={k}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Moneda</label>
+                  <select value={form.moneda} onChange={e => set('moneda', e.target.value)} className={inputCls}>
+                    {Object.entries(MONEDAS_TASACION).map(([k, v]) => (
+                      <option key={k} value={k}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Valor estimado ($)</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Valor estimado ({form.moneda === '2' ? 'USD' : 'ARS'})
+                </label>
                 <input
                   type="number"
                   min={0}
@@ -531,7 +559,7 @@ function DetailPanel({ id, agentes, esAdmin, onCerrar, onActualizado }: DetailPa
               {/* Valor estimado actual */}
               {tasacion.valorEstimado != null && (
                 <p className="text-xs text-gray-400 text-center">
-                  Valor actual registrado: <span className="font-semibold text-gray-600">{formatMoneda(tasacion.valorEstimado)}</span>
+                  Valor actual registrado: <span className="font-semibold text-gray-600">{formatMoneda(tasacion.valorEstimado, tasacion.moneda)}</span>
                 </p>
               )}
             </section>
@@ -565,31 +593,44 @@ function DetailPanel({ id, agentes, esAdmin, onCerrar, onActualizado }: DetailPa
         />
       )}
 
-      {/* Cargar propiedad — precargada desde la tasación */}
-      {propiedadFormAbierto && tasacion && (
-        <PropiedadForm
-          propiedad={null}
-          datosIniciales={{
-            tipo: TIPO_PROPIEDAD_DESDE_TASACION[tasacion.tipoPropiedad] ?? 1,
-            operacion: 2,
-            direccion: tasacion.direccion,
-            barrio: tasacion.barrio ?? '',
-            ciudad: tasacion.ciudad ?? '',
-            ambientes: tasacion.ambientes != null ? String(tasacion.ambientes) : '',
-            banios: tasacion.banios != null ? String(tasacion.banios) : '',
-            superficieTotal: tasacion.superficieTotal != null ? String(tasacion.superficieTotal) : '',
-            superficieCubierta: tasacion.superficieCubierta != null ? String(tasacion.superficieCubierta) : '',
-            antiguedad: tasacion.antiguedad != null ? String(tasacion.antiguedad) : '',
-            estadoConservacion: ESTADO_CONSERVACION_DESDE_TASACION[tasacion.estadoConservacion] ?? '',
-            precioVenta: tasacion.valorEstimado != null ? String(tasacion.valorEstimado) : '',
-            descripcion: tasacion.descripcion ?? '',
-            notas: `Cargado desde Tasación #${tasacion.id}.`,
-            propietarioId: propietarioCreadoId ? String(propietarioCreadoId) : '',
-          } satisfies Partial<PropiedadFormData>}
-          onGuardado={() => setPropiedadFormAbierto(false)}
-          onCerrar={() => setPropiedadFormAbierto(false)}
-        />
-      )}
+      {/* Cargar propiedad — precargada desde la tasación. Operación/Moneda ahora son campos
+          explícitos de la tasación (antes se asumía Venta en USD a ciegas), así que el precargado
+          manda el valor al campo de precio correcto (Alquiler/Venta) según lo que el agente definió. */}
+      {propiedadFormAbierto && tasacion && (() => {
+        const opTasacion = operacionNumero(tasacion.operacion) // 1=Alquiler, 2=Venta
+        // Propiedad no tiene un campo de moneda propio: por convención del sistema, Alquiler se
+        // carga en ARS y Venta en USD. Si la tasación se hizo en la moneda "equivocada" para esa
+        // operación, se avisa en las notas en vez de convertir el número a ciegas.
+        const monedaEsperada = opTasacion === 1 ? 'ARS' : 'USD'
+        const avisoMoneda = tasacion.moneda !== monedaEsperada
+          ? ` OJO: se tasó en ${tasacion.moneda === 'USD' ? 'dólares' : 'pesos'}, pero ${OPERACIONES_TASACION[opTasacion]} se carga en ${monedaEsperada} acá — revisar el monto antes de guardar.`
+          : ''
+        return (
+          <PropiedadForm
+            propiedad={null}
+            datosIniciales={{
+              tipo: TIPO_PROPIEDAD_DESDE_TASACION[tasacion.tipoPropiedad] ?? 1,
+              operacion: opTasacion as PropiedadFormData['operacion'],
+              direccion: tasacion.direccion,
+              barrio: tasacion.barrio ?? '',
+              ciudad: tasacion.ciudad ?? '',
+              ambientes: tasacion.ambientes != null ? String(tasacion.ambientes) : '',
+              banios: tasacion.banios != null ? String(tasacion.banios) : '',
+              superficieTotal: tasacion.superficieTotal != null ? String(tasacion.superficieTotal) : '',
+              superficieCubierta: tasacion.superficieCubierta != null ? String(tasacion.superficieCubierta) : '',
+              antiguedad: tasacion.antiguedad != null ? String(tasacion.antiguedad) : '',
+              estadoConservacion: ESTADO_CONSERVACION_DESDE_TASACION[tasacion.estadoConservacion] ?? '',
+              precioAlquiler: opTasacion === 1 && tasacion.valorEstimado != null ? String(tasacion.valorEstimado) : '',
+              precioVenta: opTasacion === 2 && tasacion.valorEstimado != null ? String(tasacion.valorEstimado) : '',
+              descripcion: tasacion.descripcion ?? '',
+              notas: `Cargado desde Tasación #${tasacion.id}. Valor tasado: ${formatMoneda(tasacion.valorEstimado, tasacion.moneda)} (${OPERACIONES_TASACION[opTasacion]}).${avisoMoneda}`,
+              propietarioId: propietarioCreadoId ? String(propietarioCreadoId) : '',
+            } satisfies Partial<PropiedadFormData>}
+            onGuardado={() => setPropiedadFormAbierto(false)}
+            onCerrar={() => setPropiedadFormAbierto(false)}
+          />
+        )
+      })()}
 
       {/* Foto ampliada */}
       {fotoAmpliada && (
@@ -783,7 +824,7 @@ export default function TasacionesPage() {
                       {t.nombreAgente ?? <span className="text-gray-300">Sin asignar</span>}
                     </td>
                     <td className="px-5 py-4 text-xs text-gray-600 font-medium">
-                      {formatMoneda(t.valorEstimado)}
+                      {formatMoneda(t.valorEstimado, t.moneda)}
                     </td>
                     <td className="px-5 py-4 text-xs text-gray-400">
                       {formatFecha(t.fechaCreacion)}

@@ -47,6 +47,13 @@ public class SolicitudTasacion : IAuditable
     public string? NotasInternas { get; set; }
     public decimal? ValorEstimado { get; set; }
 
+    // Operación y moneda del ValorEstimado — explícitos a propósito (decisión del usuario, 2026-10-31):
+    // antes no existían y la UI asumía ARS siempre, lo cual era incorrecto para una tasación de venta
+    // (que en Argentina se tasa en USD). El agente los define a mano al cargar el valor estimado, no
+    // se infieren de ningún otro campo.
+    public TipoOperacion Operacion { get; set; } = TipoOperacion.Venta;
+    public Moneda Moneda { get; set; } = Moneda.ARS;
+
     public bool Activo { get; set; } = true;
     public DateTime FechaCreacion { get; set; }
     public DateTime FechaActualizacion { get; set; }

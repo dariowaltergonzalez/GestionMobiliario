@@ -24,6 +24,8 @@ public class SolicitudTasacionDto
     public string Estado { get; set; } = string.Empty;
     public string? NotasInternas { get; set; }
     public decimal? ValorEstimado { get; set; }
+    public string Operacion { get; set; } = string.Empty;
+    public string Moneda { get; set; } = string.Empty;
     public int? AgenteId { get; set; }
     public string? NombreAgente { get; set; }
     public List<FotoSolicitudDto> Fotos { get; set; } = new();
@@ -65,4 +67,6 @@ public class UpdateSolicitudTasacionRequest
     public int? AgenteId { get; set; }
     public string? NotasInternas { get; set; }
     public decimal? ValorEstimado { get; set; }
+    public TipoOperacion Operacion { get; set; }
+    public Moneda Moneda { get; set; }
 }

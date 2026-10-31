@@ -171,6 +171,8 @@ public class SolicitudesTasacionController : ControllerBase
         solicitud.AgenteId = request.AgenteId;
         solicitud.NotasInternas = request.NotasInternas;
         solicitud.ValorEstimado = request.ValorEstimado;
+        solicitud.Operacion = request.Operacion;
+        solicitud.Moneda = request.Moneda;
 
         var actualizada = await _repo.UpdateAsync(solicitud);
         return Ok(ApiResponse<SolicitudTasacionDto>.Ok(MapToDto(actualizada), "Solicitud actualizada correctamente."));
@@ -222,6 +224,8 @@ public class SolicitudesTasacionController : ControllerBase
         Estado = s.Estado.ToString(),
         NotasInternas = s.NotasInternas,
         ValorEstimado = s.ValorEstimado,
+        Operacion = s.Operacion.ToString(),
+        Moneda = s.Moneda.ToString(),
         AgenteId = s.AgenteId,
         NombreAgente = s.Agente is not null ? $"{s.Agente.User?.Nombre} {s.Agente.User?.Apellido}" : null,
         Fotos = s.Fotos.Select(f => new FotoSolicitudDto

@@ -22,6 +22,8 @@ export interface SolicitudTasacionDto {
   estado: string
   notasInternas: string | null
   valorEstimado: number | null
+  operacion: string
+  moneda: string
   agenteId: number | null
   nombreAgente: string | null
   fotos: FotoDto[]
@@ -41,6 +43,8 @@ export interface UpdateTasacionRequest {
   agenteId: number | null
   notasInternas: string | null
   valorEstimado: number | null
+  operacion: number
+  moneda: number
 }
 
 export interface FiltrosTasaciones {
@@ -60,6 +64,19 @@ export const ESTADOS_TASACION: Record<number, { label: string; color: string }> 
 
 export function estadoNumero(s: string): number {
   return ({ Pendiente: 1, Asignada: 2, EnProceso: 3, Completada: 4, Cancelada: 5 } as Record<string, number>)[s] ?? 1
+}
+
+// Mismos TipoOperacion/Moneda que GestionInmobiliaria.Dominio.Entidades — "AlquilerOVenta" no aplica
+// acá: una tasación da un valor para UNA operación puntual, no para ambas a la vez.
+export const OPERACIONES_TASACION: Record<number, string> = { 1: 'Alquiler', 2: 'Venta' }
+export const MONEDAS_TASACION: Record<number, string> = { 1: 'Pesos (ARS)', 2: 'Dólares (USD)' }
+
+export function operacionNumero(s: string): number {
+  return ({ Alquiler: 1, Venta: 2 } as Record<string, number>)[s] ?? 2
+}
+
+export function monedaNumero(s: string): number {
+  return ({ ARS: 1, USD: 2 } as Record<string, number>)[s] ?? 1
 }
 
 export const getTasaciones = async (filtros: FiltrosTasaciones) => {
