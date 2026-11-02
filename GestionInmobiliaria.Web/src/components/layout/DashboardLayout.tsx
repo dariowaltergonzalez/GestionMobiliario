@@ -1,4 +1,4 @@
-import { type ReactNode, useState, useEffect } from 'react'
+import { type ReactNode, useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Home, Users, UserCog, FileText, Calendar, LogOut, Building2, ClipboardList, Bell, ScrollText, ShieldCheck, Settings, Handshake, BookOpen, FilePen, Banknote, User, Wallet, Receipt, ChevronLeft, ChevronRight, HelpCircle, Percent } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
@@ -37,10 +37,24 @@ export default function DashboardLayout({ children, titulo }: Props) {
   const location = useLocation()
   const [nombreEmpresa, setNombreEmpresa] = useState('')
   const [colapsado, setColapsado] = useState(() => localStorage.getItem('sidebarColapsado') === 'true')
+  const navRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     localStorage.setItem('sidebarColapsado', String(colapsado))
   }, [colapsado])
+
+  // Cada página del dashboard envuelve su propio <DashboardLayout>, así que al navegar React
+  // desmonta y vuelve a montar el sidebar entero — sin esto, el scroll del menú se resetea arriba
+  // en cada click, aunque hayas tocado un ítem del final de la lista (ej. Inquilinos, Auditoría).
+  // Mismo truco que ya usa LandingPage.tsx para el scroll de la página pública.
+  useEffect(() => {
+    const saved = sessionStorage.getItem('sidebarScrollY')
+    if (saved !== null && navRef.current) navRef.current.scrollTop = parseInt(saved, 10)
+  }, [])
+
+  const handleNavScroll = () => {
+    if (navRef.current) sessionStorage.setItem('sidebarScrollY', String(navRef.current.scrollTop))
+  }
 
   useEffect(() => {
     getConfiguracionPublica()
@@ -85,7 +99,7 @@ export default function DashboardLayout({ children, titulo }: Props) {
           </button>
         </div>
 
-        <nav className="flex-1 py-6 px-3 overflow-y-auto overflow-x-hidden">
+        <nav ref={navRef} onScroll={handleNavScroll} className="flex-1 py-6 px-3 overflow-y-auto overflow-x-hidden">
           {!colapsado && (
             <div className="text-blue-500 text-xs font-semibold uppercase tracking-wider px-3 mb-3">Módulos</div>
           )}
