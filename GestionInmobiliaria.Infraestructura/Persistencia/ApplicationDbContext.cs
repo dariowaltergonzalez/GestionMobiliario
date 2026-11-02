@@ -65,7 +65,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         builder.Entity<Lead>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<EventoAgenda>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<ConfiguracionEmpresa>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
-        builder.Entity<AppLog>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
+        // TenantId == 0 son logs "del sistema" (generados fuera de un request HTTP, ej. los
+        // schedulers de índices/tasas — no corren en el contexto de ningún tenant particular) y se
+        // muestran a TODOS los tenants, no solo al que coincida: le sirve a cualquier dueño saber si
+        // un proceso automático compartido (que afecta sus ajustes/punitorios) está fallando.
+        builder.Entity<AppLog>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0) || e.TenantId == 0);
         builder.Entity<AuditLog>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<ApplicationUser>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<SolicitudTasacion>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));

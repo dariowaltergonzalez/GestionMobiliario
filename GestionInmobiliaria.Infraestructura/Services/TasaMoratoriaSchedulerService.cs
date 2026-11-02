@@ -1,4 +1,6 @@
 using GestionInmobiliaria.Aplicacion.Services;
+using GestionInmobiliaria.Dominio.Entidades;
+using GestionInmobiliaria.Dominio.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -12,6 +14,7 @@ namespace GestionInmobiliaria.Infraestructura.Services;
 /// </summary>
 public class TasaMoratoriaSchedulerService : BackgroundService
 {
+    private const string Origen = "Scheduler: Tasa Moratoria (TIM)";
     private static readonly TimeSpan Intervalo = TimeSpan.FromHours(24);
 
     private readonly IServiceScopeFactory _scopeFactory;
@@ -27,16 +30,20 @@ public class TasaMoratoriaSchedulerService : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var logs = scope.ServiceProvider.GetRequiredService<IAppLogRepository>();
             try
             {
-                await using var scope = _scopeFactory.CreateAsyncScope();
                 var servicio = scope.ServiceProvider.GetRequiredService<ITasaMoratoriaService>();
                 var cantidad = await servicio.ActualizarAsync();
                 _logger.LogInformation("TasaMoratoriaSchedulerService: {Cantidad} valores nuevos.", cantidad);
+                if (cantidad > 0)
+                    await logs.RegistrarAsync(NivelLog.Info, Origen, $"{cantidad} valor(es) nuevo(s) del BCRA.");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error actualizando la Tasa de Intereses Moratorios (BCRA).");
+                await logs.RegistrarAsync(NivelLog.Error, Origen, "No se pudo actualizar la Tasa de Intereses Moratorios del BCRA.", ex.ToString());
             }
 
             try { await Task.Delay(Intervalo, stoppingToken); }
