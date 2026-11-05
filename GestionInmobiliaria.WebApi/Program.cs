@@ -35,9 +35,16 @@ builder.Services.AddCors(options =>
     });
 });
 
-// DbContext
+// DbContext — EnableRetryOnFailure reintenta solo (con backoff) ante fallas transitorias de
+// conexión, como el timeout que tira Azure SQL (tier gratis, se "duerme" sola sin uso) al
+// despertar justo cuando varios procesos intentan conectarse al mismo tiempo al arrancar la app.
+// Sin esto, cualquier pantalla (o los schedulers de índices/tasas) que pegue justo en ese segundo
+// falla sin reintentar, y nadie puede arreglarlo sin reiniciar el servicio a mano — inaceptable
+// para un dueño real que solo tiene acceso a la app, no a Render/Azure.
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sql => sql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null)));
 
 // Identity
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>

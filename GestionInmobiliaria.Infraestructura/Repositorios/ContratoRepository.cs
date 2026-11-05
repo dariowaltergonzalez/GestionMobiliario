@@ -441,38 +441,46 @@ public class PagoRepository : IPagoRepository
 
     public async Task<Pago> UpdateWithDetallesAsync(Pago pago, IEnumerable<PagoDetalle> nuevosDetalles)
     {
-        await using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        // Con EnableRetryOnFailure activo (ver Program.cs), una transacción manual tiene que ir
+        // envuelta en la execution strategy de EF — si no, tira una excepción en runtime la primera
+        // vez que se llama este método ("user-initiated transactions" no soportadas por la
+        // estrategia de reintento). Es el único lugar del código con una transacción manual.
+        var lista = nuevosDetalles.ToList();
+        var strategy = _context.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
         {
-            pago.FechaActualizacion = DateTime.UtcNow;
-
-            var anteriores = await _context.PagoDetalles
-                .Where(d => d.PagoId == pago.Id)
-                .ToListAsync();
-            foreach (var d in anteriores)
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                d.Activo = false;
-                d.FechaActualizacion = DateTime.UtcNow;
-            }
+                pago.FechaActualizacion = DateTime.UtcNow;
 
-            var lista = nuevosDetalles.ToList();
-            foreach (var detalle in lista)
+                var anteriores = await _context.PagoDetalles
+                    .Where(d => d.PagoId == pago.Id)
+                    .ToListAsync();
+                foreach (var d in anteriores)
+                {
+                    d.Activo = false;
+                    d.FechaActualizacion = DateTime.UtcNow;
+                }
+
+                foreach (var detalle in lista)
+                {
+                    detalle.PagoId = pago.Id;
+                    detalle.FechaCreacion = DateTime.UtcNow;
+                    detalle.FechaActualizacion = DateTime.UtcNow;
+                    detalle.TenantId = pago.TenantId;
+                    _context.PagoDetalles.Add(detalle);
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return pago;
+            }
+            catch
             {
-                detalle.PagoId = pago.Id;
-                detalle.FechaCreacion = DateTime.UtcNow;
-                detalle.FechaActualizacion = DateTime.UtcNow;
-                detalle.TenantId = pago.TenantId;
-                _context.PagoDetalles.Add(detalle);
+                await transaction.RollbackAsync();
+                throw;
             }
-
-            await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
-            return pago;
-        }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+        });
     }
 }
