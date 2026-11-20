@@ -20,10 +20,17 @@ Ver `docs/modulo-contratos.md` para el detalle completo campo por campo. Resumen
 - No se permite crear/activar un contrato Vigente para una propiedad que ya tiene otro contrato
   Vigente (bug real encontrado 2026-08-09 probando Gastos: una propiedad terminó con 2 contratos
   Vigentes al mismo tiempo) — hay que Finalizar/Rescindir el anterior primero.
-- Las cláusulas del contrato (plantilla en `/dashboard/clausulas-contrato`) **no se congelan por
-  contrato** — se leen en vivo de la plantilla compartida cada vez que se genera un PDF. Si se edita
-  la plantilla después de que un contrato ya es Vigente, un PDF regenerado más tarde puede diferir
-  del que se mandó por email en su momento.
+- **Las cláusulas sí se congelan por contrato (fix 2026-11-19)** — ver `ContratoClausula.cs`. Al
+  pasar a Vigente por primera vez (en los 3 caminos: `CreateAsync`, `UpdateAsync`,
+  `TransicionEstadoAsync`, mismo criterio que la comisión de agentes) se guarda una foto de las
+  cláusulas activas en ese momento (`ContratoRepository.GenerarClausulasSnapshotSiCorrespondeAsync`).
+  Generar el PDF de ese contrato (`GetClausulasParaPdfAsync`) usa SIEMPRE esa foto de ahí en más,
+  nunca la plantilla en vivo — así una reimpresión coincide con lo firmado aunque la plantilla
+  cambie después. Mientras el contrato sigue en Borrador (sin foto todavía), el PDF usa la plantilla
+  en vivo como preview. Bug real encontrado por el usuario (escenario: colega desactiva cláusulas en
+  la plantilla después de que un contrato ya se firmó e imprimió; reimprimir mostraba la plantilla
+  actual, no la firmada) — contratos Vigentes creados ANTES de este fix no tienen foto retroactiva;
+  la ganan recién si se los edita/transiciona de nuevo después del fix.
 - El PDF de contrato que genera el sistema **no tiene firma** — es el borrador/comprobante con los
   datos completados. El contrato válido legalmente es el que se imprime y firman ambas partes fuera
   del sistema (no hay firma digital integrada).

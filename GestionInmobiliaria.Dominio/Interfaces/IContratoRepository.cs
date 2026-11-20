@@ -11,6 +11,13 @@ public interface IContratoRepository
     Task<Contrato> UpdateAsync(Contrato contrato);
     Task<bool> DeleteAsync(int id);
     Task<(bool Ok, string? Error, Contrato? Contrato)> TransicionEstadoAsync(int id, EstadoContrato nuevoEstado, string? motivo, DateTime? fecha);
+
+    /// <summary>
+    /// Cláusulas a usar para generar el PDF de este contrato: la foto congelada
+    /// (<see cref="ContratoClausula"/>) si ya existe, o si todavía no pasó a Vigente (sin foto
+    /// aún), la plantilla compartida en vivo (<see cref="ClausulaContrato"/>), como preview.
+    /// </summary>
+    Task<IEnumerable<ContratoClausula>> GetClausulasParaPdfAsync(int contratoId);
 }
 
 public interface IPagoRepository

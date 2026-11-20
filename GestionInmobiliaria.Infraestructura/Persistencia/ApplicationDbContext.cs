@@ -46,6 +46,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<FotoSolicitud> FotosSolicitud => Set<FotoSolicitud>();
     public DbSet<FotoPropiedad> FotosPropiedad => Set<FotoPropiedad>();
     public DbSet<ClausulaContrato> ClausulasContrato => Set<ClausulaContrato>();
+    public DbSet<ContratoClausula> ContratoClausulas => Set<ContratoClausula>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<AppLog> AppLogs => Set<AppLog>();
     public DbSet<TasaMoratoria> TasasMoratorias => Set<TasaMoratoria>();
@@ -86,6 +87,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         builder.Entity<FotoSolicitud>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<FotoPropiedad>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
         builder.Entity<ClausulaContrato>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
+        builder.Entity<ContratoClausula>().HasQueryFilter(e => e.TenantId == (_tenantService.TenantId ?? 0));
 
         builder.Entity<Tenant>(e =>
         {
@@ -592,6 +594,18 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             e.HasOne(d => d.Contrato)
              .WithMany(c => c.Documentos)
              .HasForeignKey(d => d.ContratoId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ContratoClausula>(e =>
+        {
+            e.HasKey(cc => cc.Id);
+            e.Property(cc => cc.Numero).IsRequired().HasMaxLength(50);
+            e.Property(cc => cc.Titulo).IsRequired().HasMaxLength(200);
+            e.Property(cc => cc.Texto).IsRequired().HasMaxLength(5000);
+            e.HasOne(cc => cc.Contrato)
+             .WithMany(c => c.Clausulas)
+             .HasForeignKey(cc => cc.ContratoId)
              .OnDelete(DeleteBehavior.Cascade);
         });
 

@@ -19,7 +19,6 @@ public class ContratosController : ControllerBase
 {
     private readonly IContratoRepository _repo;
     private readonly IPagoRepository _pagos;
-    private readonly IClausulaContratoRepository _clausulas;
     private readonly IPdfReportService _pdf;
     private readonly IPunitorioService _punitorio;
     private readonly ApplicationDbContext _context;
@@ -31,7 +30,6 @@ public class ContratosController : ControllerBase
     public ContratosController(
         IContratoRepository repo,
         IPagoRepository pagos,
-        IClausulaContratoRepository clausulas,
         IPdfReportService pdf,
         IPunitorioService punitorio,
         ApplicationDbContext context,
@@ -42,7 +40,6 @@ public class ContratosController : ControllerBase
     {
         _repo = repo;
         _pagos = pagos;
-        _clausulas = clausulas;
         _pdf = pdf;
         _punitorio = punitorio;
         _context = context;
@@ -359,11 +356,13 @@ public class ContratosController : ControllerBase
 
         // Cláusulas y config de empresa se leen acá (en el scope del request, con el tenant activo
         // ya resuelto) porque en el Task.Run de abajo no hay HttpContext para resolverlo.
-        var clausulas = (await _clausulas.GetActivasAsync())
+        // GetClausulasParaPdfAsync ya usa la foto recién creada (este método corre siempre después de
+        // que el contrato pasó a Vigente, ver los dos call sites) — nunca la plantilla en vivo.
+        var clausulas = (await _repo.GetClausulasParaPdfAsync(contratoDto.Id))
             .Select(c => new ClausulaContratoDto
             {
                 Id = c.Id, Orden = c.Orden, Numero = c.Numero,
-                Titulo = c.Titulo, Texto = c.Texto, Activo = c.Activo,
+                Titulo = c.Titulo, Texto = c.Texto, Activo = true,
             })
             .ToList();
         var pdfConfig = await BuildConfig();

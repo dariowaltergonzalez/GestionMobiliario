@@ -1039,6 +1039,51 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                     b.ToTable("Contratos");
                 });
 
+            modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.ContratoClausula", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ContratoId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("FechaActualizacion")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Numero")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Texto")
+                        .IsRequired()
+                        .HasMaxLength(5000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContratoId");
+
+                    b.ToTable("ContratoClausulas");
+                });
+
             modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.DocumentoContrato", b =>
                 {
                     b.Property<int>("Id")
@@ -2592,6 +2637,17 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                     b.Navigation("Reserva");
                 });
 
+            modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.ContratoClausula", b =>
+                {
+                    b.HasOne("GestionInmobiliaria.Dominio.Entidades.Contrato", "Contrato")
+                        .WithMany("Clausulas")
+                        .HasForeignKey("ContratoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Contrato");
+                });
+
             modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.DocumentoContrato", b =>
                 {
                     b.HasOne("GestionInmobiliaria.Dominio.Entidades.Contrato", "Contrato")
@@ -2871,6 +2927,8 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
             modelBuilder.Entity("GestionInmobiliaria.Dominio.Entidades.Contrato", b =>
                 {
                     b.Navigation("Ajustes");
+
+                    b.Navigation("Clausulas");
 
                     b.Navigation("Documentos");
 

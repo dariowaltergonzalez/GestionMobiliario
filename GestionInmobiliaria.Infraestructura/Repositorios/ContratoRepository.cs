@@ -96,6 +96,10 @@ public class ContratoRepository : IContratoRepository
         if (contrato.Estado == EstadoContrato.Vigente && contrato.AgenteId.HasValue)
             comisionGenerada = await GenerarComisionAgenteSiCorrespondeAsync(contrato);
 
+        // Foto de las cláusulas (no depende de tener agente, a diferencia de la comisión)
+        if (contrato.Estado == EstadoContrato.Vigente)
+            await GenerarClausulasSnapshotSiCorrespondeAsync(contrato);
+
         await _context.SaveChangesAsync();
         if (comisionGenerada is not null)
             NotificarComisionGenerada(comisionGenerada, contrato);
@@ -118,6 +122,9 @@ public class ContratoRepository : IContratoRepository
         ComisionAgente? comisionGenerada = null;
         if (contrato.Estado == EstadoContrato.Vigente && contrato.AgenteId.HasValue)
             comisionGenerada = await GenerarComisionAgenteSiCorrespondeAsync(contrato);
+
+        if (contrato.Estado == EstadoContrato.Vigente)
+            await GenerarClausulasSnapshotSiCorrespondeAsync(contrato);
 
         await SincronizarEstadoPropiedadAsync(contrato);
         await _context.SaveChangesAsync();
@@ -210,6 +217,7 @@ public class ContratoRepository : IContratoRepository
                 }
                 if (contrato.AgenteId.HasValue)
                     comisionGenerada = await GenerarComisionAgenteSiCorrespondeAsync(contrato);
+                await GenerarClausulasSnapshotSiCorrespondeAsync(contrato);
                 break;
         }
 
@@ -264,6 +272,66 @@ public class ContratoRepository : IContratoRepository
             });
             fecha = fecha.AddMonths(1);
         }
+    }
+
+    // Foto de las cláusulas activas en el momento en que el contrato pasa a Vigente por primera vez
+    // — ver docs/logica-negocio.md, sección CONTRATO, y ContratoClausula.cs para el porqué (bug real:
+    // reimprimir un contrato viejo mostraba la plantilla actual, no la firmada). Se genera una sola
+    // vez (si ya existe, no hace nada) — mismo criterio que GenerarComisionAgenteSiCorrespondeAsync:
+    // hay que engancharlo en los 3 caminos que pueden dejar un contrato en Vigente (CreateAsync,
+    // UpdateAsync, TransicionEstadoAsync), a diferencia de la comisión no depende de tener agente.
+    private async Task GenerarClausulasSnapshotSiCorrespondeAsync(Contrato contrato)
+    {
+        var yaExiste = await _context.ContratoClausulas.AnyAsync(cc => cc.ContratoId == contrato.Id);
+        if (yaExiste) return;
+
+        var activas = await _context.ClausulasContrato
+            .Where(c => c.Activo)
+            .OrderBy(c => c.Orden)
+            .ToListAsync();
+        if (activas.Count == 0) return;
+
+        var ahora = DateTime.UtcNow;
+        foreach (var c in activas)
+        {
+            _context.ContratoClausulas.Add(new ContratoClausula
+            {
+                ContratoId = contrato.Id,
+                Orden = c.Orden,
+                Numero = c.Numero,
+                Titulo = c.Titulo,
+                Texto = c.Texto,
+                FechaCreacion = ahora,
+                FechaActualizacion = ahora,
+                TenantId = contrato.TenantId,
+            });
+        }
+    }
+
+    public async Task<IEnumerable<ContratoClausula>> GetClausulasParaPdfAsync(int contratoId)
+    {
+        var snapshot = await _context.ContratoClausulas
+            .Where(cc => cc.ContratoId == contratoId)
+            .OrderBy(cc => cc.Orden)
+            .ToListAsync();
+
+        if (snapshot.Count > 0) return snapshot;
+
+        // Sin foto todavía (el contrato nunca llegó a Vigente, sigue en Borrador) — se usa la
+        // plantilla en vivo como preview, igual que antes de este fix.
+        var activas = await _context.ClausulasContrato
+            .Where(c => c.Activo)
+            .OrderBy(c => c.Orden)
+            .ToListAsync();
+
+        return activas.Select(c => new ContratoClausula
+        {
+            ContratoId = contratoId,
+            Orden = c.Orden,
+            Numero = c.Numero,
+            Titulo = c.Titulo,
+            Texto = c.Texto,
+        });
     }
 
     // Comisión de cierre del agente (una sola vez, al activar el contrato) — ver

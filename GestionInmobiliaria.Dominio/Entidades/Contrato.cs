@@ -141,6 +141,7 @@ public class Contrato : IAuditable
     public ICollection<Pago> Pagos { get; set; } = new List<Pago>();
     public ICollection<AjusteContrato> Ajustes { get; set; } = new List<AjusteContrato>();
     public ICollection<DocumentoContrato> Documentos { get; set; } = new List<DocumentoContrato>();
+    public ICollection<ContratoClausula> Clausulas { get; set; } = new List<ContratoClausula>();
 }
 
 public class DocumentoContrato : IAuditable

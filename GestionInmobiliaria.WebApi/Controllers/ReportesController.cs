@@ -22,7 +22,6 @@ public class ReportesController : ControllerBase
     private readonly ISolicitudTasacionRepository _tasaciones;
     private readonly IReservaRepository _reservas;
     private readonly IContratoRepository _contratos;
-    private readonly IClausulaContratoRepository _clausulas;
     private readonly ApplicationDbContext _context;
     private readonly IWebHostEnvironment _env;
 
@@ -34,7 +33,6 @@ public class ReportesController : ControllerBase
         ISolicitudTasacionRepository tasaciones,
         IReservaRepository reservas,
         IContratoRepository contratos,
-        IClausulaContratoRepository clausulas,
         ApplicationDbContext context,
         IWebHostEnvironment env)
     {
@@ -45,7 +43,6 @@ public class ReportesController : ControllerBase
         _tasaciones = tasaciones;
         _reservas = reservas;
         _contratos = contratos;
-        _clausulas = clausulas;
         _context = context;
         _env = env;
     }
@@ -146,11 +143,14 @@ public class ReportesController : ControllerBase
             if (contrato is null)
                 return NotFound(ApiResponse<string>.Fail("Contrato no encontrado."));
 
-            var clausulas = (await _clausulas.GetActivasAsync())
+            // GetClausulasParaPdfAsync usa la foto congelada al momento de pasar a Vigente, no la
+            // plantilla en vivo — así una reimpresión siempre coincide con lo que se firmó, aunque
+            // la plantilla compartida haya cambiado después (ver ContratoClausula.cs).
+            var clausulas = (await _contratos.GetClausulasParaPdfAsync(id))
                 .Select(c => new ClausulaContratoDto
                 {
                     Id = c.Id, Orden = c.Orden, Numero = c.Numero,
-                    Titulo = c.Titulo, Texto = c.Texto, Activo = c.Activo
+                    Titulo = c.Titulo, Texto = c.Texto, Activo = true
                 });
 
             var dto = MapContrato(contrato);
