@@ -1,5 +1,12 @@
 namespace GestionInmobiliaria.Dominio.Entidades;
 
+public enum EstrategiaAsignacionLeads
+{
+    Manual = 1,
+    RotacionSimple = 2,
+    PorCargaDeTrabajo = 3,
+}
+
 public class ConfiguracionEmpresa
 {
     public int Id { get; set; }
@@ -31,4 +38,12 @@ public class ConfiguracionEmpresa
     public string? EmailSmtpUsuario { get; set; }
     public string? EmailSmtpPassword { get; set; }
     public string? EmailNombreRemitente { get; set; }
+
+    // Reparto automático de Leads — ver docs/logica-negocio.md, sección LEADS. Solo se aplica cuando
+    // se crea un Lead sin agente ya determinado (ej. "Solicitar visita" sobre una propiedad sin
+    // agente fijo, o el Lead automático de una Tasación) — el alta manual desde el dashboard y la
+    // propiedad con agente fijo siguen mandando siempre. UltimoAgenteAsignadoLeadId es estado interno
+    // (el cursor de la rotación), no se expone para editar desde la UI.
+    public EstrategiaAsignacionLeads EstrategiaAsignacionLeads { get; set; } = EstrategiaAsignacionLeads.Manual;
+    public int? UltimoAgenteAsignadoLeadId { get; set; }
 }

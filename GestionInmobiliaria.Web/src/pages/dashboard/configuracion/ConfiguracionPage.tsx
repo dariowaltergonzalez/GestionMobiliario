@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Loader2, Save, Check, Eye, EyeOff } from 'lucide-react'
 import DashboardLayout from '../../../components/layout/DashboardLayout'
-import { getConfiguracion, updateConfiguracion, type UpdateConfiguracionRequest } from '../../../api/configuracion'
+import { getConfiguracion, updateConfiguracion, ESTRATEGIAS_ASIGNACION_LEADS, type UpdateConfiguracionRequest } from '../../../api/configuracion'
 
 type FormData = UpdateConfiguracionRequest & { emailSmtpPassword: string }
 
@@ -12,6 +12,7 @@ const formVacio: FormData = {
   pais: '', instagram: '', facebook: '', twitter: '',
   emailHabilitado: false, emailSmtpHost: '', emailSmtpPuerto: 587,
   emailSmtpUsuario: '', emailSmtpPassword: '', emailNombreRemitente: '',
+  estrategiaAsignacionLeads: 1,
 }
 
 const Input = ({ label, ...props }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) => (
@@ -70,6 +71,7 @@ export default function ConfiguracionPage() {
           emailSmtpUsuario: d.emailSmtpUsuario ?? '',
           emailSmtpPassword: '',
           emailNombreRemitente: d.emailNombreRemitente ?? '',
+          estrategiaAsignacionLeads: d.estrategiaAsignacionLeads || 1,
         })
       }
     }).catch(() => setError('No se pudo cargar la configuración.'))
@@ -156,6 +158,38 @@ export default function ConfiguracionPage() {
             {form.logoUrl && (
               <img src={form.logoUrl} alt="Logo" className="h-16 object-contain rounded-lg border border-gray-100 p-2" onError={e => (e.currentTarget.style.display = 'none')} />
             )}
+          </Seccion>
+
+          <Seccion titulo="Reparto automático de Leads">
+            <p className="text-xs text-gray-500 -mt-2">
+              Define cómo se asigna un agente a los Leads que llegan sin uno ya determinado (por ejemplo,
+              "Solicitar visita" en una propiedad sin agente fijo, o los que se generan solos desde una
+              Tasación). Si la propiedad ya tiene agente, o cargás el Lead a mano, esto no aplica.
+            </p>
+            <div className="space-y-2 pt-1">
+              {Object.entries(ESTRATEGIAS_ASIGNACION_LEADS).map(([valor, info]) => (
+                <label
+                  key={valor}
+                  className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                    form.estrategiaAsignacionLeads === Number(valor)
+                      ? 'border-blue-900 bg-blue-50/50'
+                      : 'border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="estrategiaAsignacionLeads"
+                    checked={form.estrategiaAsignacionLeads === Number(valor)}
+                    onChange={() => set('estrategiaAsignacionLeads', Number(valor))}
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <div className="text-sm font-medium text-gray-800">{info.label}</div>
+                    <div className="text-xs text-gray-500">{info.descripcion}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
           </Seccion>
 
           {/* Configuración de correo electrónico */}

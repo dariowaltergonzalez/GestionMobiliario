@@ -10,8 +10,13 @@ namespace GestionInmobiliaria.Infraestructura.Repositorios;
 public class LeadRepository : ILeadRepository
 {
     private readonly ApplicationDbContext _context;
+    private readonly IAgenteRepository _agentes;
 
-    public LeadRepository(ApplicationDbContext context) => _context = context;
+    public LeadRepository(ApplicationDbContext context, IAgenteRepository agentes)
+    {
+        _context = context;
+        _agentes = agentes;
+    }
 
     public async Task<PagedResult<Lead>> GetPagedAsync(PaginationParams paginacion, string? buscar = null, EstadoLead? estado = null, int? agenteId = null)
     {
@@ -55,9 +60,50 @@ public class LeadRepository : ILeadRepository
     {
         lead.FechaCreacion = DateTime.UtcNow;
         lead.FechaActualizacion = DateTime.UtcNow;
+
+        if (!lead.AgenteId.HasValue)
+            lead.AgenteId = await ResolverAgenteAutomaticoAsync();
+
         _context.Leads.Add(lead);
         await _context.SaveChangesAsync();
         return lead;
+    }
+
+    // Reparto automático cuando se crea un Lead sin agente ya determinado (ej. "Solicitar visita"
+    // sobre una propiedad sin agente fijo, o el Lead que se genera solo desde una Tasación) — ver
+    // docs/logica-negocio.md, sección LEADS. Si la propiedad ya tenía agente fijo, o el alta fue
+    // manual desde el dashboard, esto ni se llama (AgenteId ya viene seteado desde antes).
+    private async Task<int?> ResolverAgenteAutomaticoAsync()
+    {
+        var config = await _context.ConfiguracionEmpresa.FirstOrDefaultAsync();
+        if (config is null || config.EstrategiaAsignacionLeads == EstrategiaAsignacionLeads.Manual)
+            return null;
+
+        var activos = (await _agentes.GetActivosAsync()).OrderBy(a => a.Id).ToList();
+        if (activos.Count == 0) return null;
+
+        if (config.EstrategiaAsignacionLeads == EstrategiaAsignacionLeads.PorCargaDeTrabajo)
+        {
+            var cargaPorAgente = await _context.Leads
+                .Where(l => l.Activo && l.AgenteId != null
+                            && l.Estado != EstadoLead.Convertido && l.Estado != EstadoLead.Descartado)
+                .GroupBy(l => l.AgenteId!.Value)
+                .Select(g => new { AgenteId = g.Key, Cantidad = g.Count() })
+                .ToListAsync();
+            var cargaPorId = cargaPorAgente.ToDictionary(x => x.AgenteId, x => x.Cantidad);
+
+            return activos.OrderBy(a => cargaPorId.GetValueOrDefault(a.Id, 0)).ThenBy(a => a.Id).First().Id;
+        }
+
+        // RotacionSimple: le toca al siguiente agente activo después del último asignado (se guarda
+        // el cursor en ConfiguracionEmpresa para que la rotación siga de donde quedó entre requests).
+        var indiceAnterior = config.UltimoAgenteAsignadoLeadId.HasValue
+            ? activos.FindIndex(a => a.Id == config.UltimoAgenteAsignadoLeadId.Value)
+            : -1;
+        var elegido = activos[(indiceAnterior + 1) % activos.Count];
+        config.UltimoAgenteAsignadoLeadId = elegido.Id;
+        await _context.SaveChangesAsync();
+        return elegido.Id;
     }
 
     public async Task<Lead> UpdateAsync(Lead lead)

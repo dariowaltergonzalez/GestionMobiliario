@@ -99,6 +99,10 @@ public class ConfiguracionEmpresaController : ControllerBase
             config.EmailSmtpPassword = request.EmailSmtpPassword;
         config.EmailNombreRemitente = request.EmailNombreRemitente;
 
+        config.EstrategiaAsignacionLeads = Enum.IsDefined(typeof(EstrategiaAsignacionLeads), request.EstrategiaAsignacionLeads)
+            ? (EstrategiaAsignacionLeads)request.EstrategiaAsignacionLeads
+            : EstrategiaAsignacionLeads.Manual;
+
         config.FechaActualizacion = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -134,5 +138,6 @@ public class ConfiguracionEmpresaController : ControllerBase
         EmailSmtpUsuario = c.EmailSmtpUsuario,
         EmailNombreRemitente = c.EmailNombreRemitente,
         // Password no se devuelve — solo indicamos si está configurada
+        EstrategiaAsignacionLeads = (int)c.EstrategiaAsignacionLeads,
     };
 }

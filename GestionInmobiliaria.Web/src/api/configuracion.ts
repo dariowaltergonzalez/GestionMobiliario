@@ -28,6 +28,13 @@ export interface ConfiguracionEmpresaDto {
   emailSmtpPuerto: number
   emailSmtpUsuario: string | null
   emailNombreRemitente: string | null
+  estrategiaAsignacionLeads: number
+}
+
+export const ESTRATEGIAS_ASIGNACION_LEADS: Record<number, { label: string; descripcion: string }> = {
+  1: { label: 'Manual', descripcion: 'Nadie se asigna solo — vos elegís el agente a mano en cada Lead.' },
+  2: { label: 'Rotación simple', descripcion: 'Le va tocando por turno a cada agente activo, en orden.' },
+  3: { label: 'Por carga de trabajo', descripcion: 'Se asigna al agente que menos Leads activos tenga en este momento.' },
 }
 
 export interface ConfiguracionPublicaDto {

@@ -758,6 +758,9 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                     b.Property<string>("EmailSmtpUsuario")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("EstrategiaAsignacionLeads")
+                        .HasColumnType("int");
+
                     b.Property<string>("Facebook")
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
@@ -808,6 +811,9 @@ namespace GestionInmobiliaria.Infraestructura.Migrations
                     b.Property<string>("Twitter")
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
+
+                    b.Property<int?>("UltimoAgenteAsignadoLeadId")
+                        .HasColumnType("int");
 
                     b.Property<string>("WhatsApp")
                         .HasMaxLength(50)

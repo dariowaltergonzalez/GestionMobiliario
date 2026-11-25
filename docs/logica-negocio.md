@@ -255,6 +255,24 @@ verdad en la base y contesta con direcciones y precios reales.
   de "activos" para seguimiento comercial ya lo excluye por `Estado` (no por el flag `Activo`, que es
   para borrado lógico real).
 
+### Reparto automático de agente (2026-11-25)
+
+Antes de este fix, un Lead sin propiedad con agente fijo quedaba **sin asignar** hasta que alguien lo
+tomaba a mano desde la grilla — ni el formulario público "Solicitar visita" ni el Lead automático de
+una Tasación repartían nada. Ahora `LeadRepository.CreateAsync` resuelve el agente automáticamente
+**solo cuando el Lead llega sin `AgenteId` ya determinado** (si la propiedad tiene agente fijo, o el
+alta fue manual desde el dashboard con un agente elegido a mano, no se toca nada):
+
+- `ConfiguracionEmpresa.EstrategiaAsignacionLeads` define el modo, por tenant: `Manual` (default, sin
+  automatismo — comportamiento de antes), `RotacionSimple` (le toca al siguiente agente activo en
+  orden, con el cursor guardado en `UltimoAgenteAsignadoLeadId`) o `PorCargaDeTrabajo` (al agente
+  activo con menos Leads activos — ni Convertido ni Descartado cuentan — en este momento).
+- Se descartó a propósito una tercera opción, **"por zona/barrio"**, porque hoy no hay ningún dato de
+  qué zona cubre cada agente ni de la zona del Lead en sí (solo la tiene indirectamente si viene
+  ligado a una Propiedad) — se puede sumar más adelante sin romper nada de esto.
+- Si no hay ningún agente activo, el Lead queda sin asignar igual que antes — no hay a quién
+  asignárselo.
+
 ---
 
 ## LIQUIDACIÓN

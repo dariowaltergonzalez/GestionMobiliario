@@ -30,6 +30,9 @@ public class ConfiguracionEmpresaDto
     public string? EmailSmtpUsuario { get; set; }
     public string? EmailNombreRemitente { get; set; }
     // EmailSmtpPassword no se expone en el DTO de respuesta por seguridad
+
+    // Reparto automático de Leads
+    public int EstrategiaAsignacionLeads { get; set; } = 1;
 }
 
 public class ConfiguracionPublicaDto
@@ -75,4 +78,6 @@ public class UpdateConfiguracionEmpresaRequest
     public string? EmailSmtpUsuario { get; set; }
     public string? EmailSmtpPassword { get; set; }
     public string? EmailNombreRemitente { get; set; }
+
+    public int EstrategiaAsignacionLeads { get; set; } = 1;
 }
