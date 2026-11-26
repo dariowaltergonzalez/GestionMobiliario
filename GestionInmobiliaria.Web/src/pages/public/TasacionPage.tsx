@@ -278,7 +278,7 @@ export default function TasacionPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Ambientes</label>
               <input
                 type="number"
-                min="1"
+                min="0"
                 max="20"
                 placeholder="Ej: 3"
                 value={form.ambientes}
@@ -291,7 +291,7 @@ export default function TasacionPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Baños</label>
               <input
                 type="number"
-                min="1"
+                min="0"
                 max="10"
                 placeholder="Ej: 2"
                 value={form.banios}
