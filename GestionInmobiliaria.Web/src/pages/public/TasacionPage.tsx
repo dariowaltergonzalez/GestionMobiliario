@@ -65,6 +65,10 @@ export default function TasacionPage() {
   const set = (field: string, value: string) =>
     setForm(f => ({ ...f, [field]: value }))
 
+  // Departamento=1, Casa=2 — el resto (Terreno, Local, Oficina, Galpón, PH, Otro) puede no tener
+  // ambientes contables (ej. un terreno sin construcción).
+  const requiereAmbientes = form.tipoPropiedad === '1' || form.tipoPropiedad === '2'
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -278,7 +282,7 @@ export default function TasacionPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Ambientes</label>
               <input
                 type="number"
-                min="0"
+                min={requiereAmbientes ? 1 : 0}
                 max="20"
                 placeholder="Ej: 3"
                 value={form.ambientes}
